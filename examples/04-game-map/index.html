@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FlexiMap — 04 · Game map / level editor</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>Game map <span class="sep">/</span> level editor</h1>
+      <p class="claim">
+        The <strong>same kernel</strong> as the cadastre example — with no basemap, no
+        <code>@fleximap/plugin-topology</code> (so no JSTS in the bundle), and a custom world-units
+        CRS registered at runtime through <code>crs.register()</code>. Nothing in
+        <code>@fleximap/core</code> was changed to make a tilemap possible. That is the point of the
+        entire library.
+      </p>
+    </header>
+
+    <main class="shell">
+      <aside class="panel" id="panel">
+        <section class="group">
+          <h2>Palette</h2>
+          <p class="hint">Click the map to place. Everything lands on the grid.</p>
+          <!-- Filled from map.plugin('game-entity').types — the palette is data, not markup. -->
+          <div class="palette" id="palette"></div>
+        </section>
+
+        <section class="group">
+          <h2>Mode</h2>
+          <div class="modes" id="modes"></div>
+          <p class="hint">
+            Box-select: drag a marquee. <kbd>Shift</kbd> adds to the selection.
+            <kbd>Delete</kbd> removes it.
+          </p>
+        </section>
+
+        <section class="group">
+          <h2>Procedural generation</h2>
+          <label class="toggle">
+            <input type="checkbox" id="generate" checked />
+            <span>Scatter decorations around buildings</span>
+          </label>
+          <p class="hint">
+            A commit-middleware hook. Place a <b>building</b>: trees and rocks appear around it, in
+            the <em>same</em> command — so one undo removes all of it.
+          </p>
+        </section>
+
+        <section class="group">
+          <h2>History</h2>
+          <div class="row">
+            <button id="undo" class="btn" type="button" disabled>Undo</button>
+            <button id="redo" class="btn" type="button" disabled>Redo</button>
+            <button id="delete" class="btn danger" type="button" disabled>Delete</button>
+          </div>
+          <p class="hint"><kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>Z</kbd> works on the canvas too.</p>
+        </section>
+
+        <section class="group">
+          <h2>Level</h2>
+          <dl class="stats">
+            <div>
+              <dt>Entities</dt>
+              <dd id="stat-entities">0</dd>
+            </div>
+            <div>
+              <dt>Zones</dt>
+              <dd id="stat-zones">0</dd>
+            </div>
+            <div>
+              <dt>Selected</dt>
+              <dd id="stat-selected">0</dd>
+            </div>
+          </dl>
+          <button id="export" class="btn wide" type="button">Export level (world units)</button>
+          <pre class="export" id="export-out" hidden></pre>
+        </section>
+      </aside>
+
+      <div class="stage">
+        <div id="map" class="map"></div>
+
+        <div class="readout" id="readout">
+          <span class="readout-item"> pointer <b id="raw">—</b> </span>
+          <span class="readout-item"> snapped <b id="snapped">—</b> </span>
+          <span class="readout-item">
+            <b id="snapkind" class="kind">no snap</b>
+          </span>
+          <span class="readout-item status" id="status"></span>
+        </div>
+      </div>
+    </main>
+
+    <footer class="notes">
+      <div class="note">
+        <h3>What to try</h3>
+        <ol>
+          <li>
+            Pick <b>Building</b> and click. Trees and rocks scatter around it — then press Undo
+            <b>once</b>: the building and its decorations vanish together. They were one command.
+          </li>
+          <li>
+            Switch to <b>Select</b>, drag a box over a cluster, press <kbd>Delete</kbd>, then Undo.
+          </li>
+          <li>
+            Watch the readout while you move the pointer: <em>pointer</em> is where the mouse is,
+            <em>snapped</em> is what the tools actually receive.
+          </li>
+          <li>
+            Turn <b>scatter</b> off and place another building. Same tool, same kernel — one
+            disposed subscription fewer.
+          </li>
+        </ol>
+      </div>
+      <div class="note">
+        <h3>What to notice</h3>
+        <ul>
+          <li>
+            <b>Snapping is middleware, not a tool feature.</b> The place tool reads
+            <code>ctx.lngLat</code>; the snap plugin rewrote it to a tile centre before any tool saw
+            the event. The place tool has never heard of the grid — which is why a tool written by a
+            stranger next year snaps for free.
+          </li>
+          <li>
+            <b><code>tile-grid</code> is a layer type this preset registered.</b> The kernel ships
+            <code>vector</code> and <code>raster</code> and knows nothing about tiles. A deck.gl
+            layer would be added exactly the same way.
+          </li>
+          <li>
+            <b>Generation is the same seam as cadastral validation.</b> Both are commit middleware.
+            The kernel does not know that one scatters crates and the other prevents a lawsuit.
+          </li>
+          <li>
+            <b>The coordinates are world units, not degrees.</b> A custom CRS makes every planar
+            facility in the kernel — snap, quantise, distance, area — speak tiles, with no change to
+            any of them.
+          </li>
+        </ul>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

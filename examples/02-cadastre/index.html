@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FlexiMap · Kadastro / Parsel Düzenleme</title>
+    <link rel="icon" href="data:," />
+  </head>
+
+  <body>
+    <header class="app-head">
+      <div class="app-title">
+        <h1>Kadastro / Parsel Düzenleme</h1>
+        <p>
+          <code>cadastrePreset({ crs: 'EPSG:5254', locale: 'tr' })</code> — FlexiMap çekirdeği, bir
+          kadastro ürünü olarak.
+        </p>
+      </div>
+      <ul class="app-badges">
+        <li>TUREF / TM30 · EPSG:5254</li>
+        <li>Milimetre (3 hane)</li>
+        <li>Düzlemsel yüzölçümü</li>
+        <li>Topolojik düzenleme</li>
+      </ul>
+    </header>
+
+    <main class="app-body">
+      <!-- The map container. The UI plugin mounts its own chrome *inside* this element:
+           the toolbar (top-left), the undo/redo buttons, the issue panel (top-right), the
+           coordinate readout and scale bar (bottom-left) and the snap indicator, which
+           follows the cursor. None of that is written by this example. -->
+      <div id="map" class="app-map"></div>
+
+      <aside class="app-panel" id="panel">
+        <section class="card card-try">
+          <h2>Ne deneyeceksiniz</h2>
+          <ol class="steps">
+            <li>
+              <strong>Ortak köşeyi sürükleyin.</strong> <em>Köşe düzenle</em> aracını seçin, bir
+              parsele tıklayın, sonra <b>102/7 · 102/8 · 102/9</b> parsellerinin buluştuğu ortadaki
+              köşeyi sürükleyin. Aşağıdaki tabloda <b>üç satır birden</b> yanıp söner ve
+              yüzölçümleri <b>aynı anda</b> değişir — tek komut, tek geri alma. Ortak sınır tek
+              sınırdır; iki parselin arasında sahipsiz bir şerit bırakan yazılım, çizim hatası değil
+              <b>ihtilaf</b> üretir.
+            </li>
+            <li>
+              <strong>Yakalamayı görün.</strong> <em>Parsel çiz</em> ile komşu köşeye yaklaşın;
+              imlecin altındaki gösterge <em>Köşe</em> / <em>Kenar</em> yazar ve nokta tam oraya
+              oturur. <kbd>Alt</kbd> basılıyken yakalama devre dışıdır.
+            </li>
+            <li>
+              <strong>Koordinatı okuyun.</strong> Sol altta <code>Y=… X=…</code> — projeksiyonlu
+              TUREF/TM30, milimetre hassasiyetinde. Coğrafi derece değil.
+            </li>
+            <li>
+              <strong>Kuralı çiğnemeyi deneyin.</strong> Aşağıdaki iki düğme, bilerek hatalı iki
+              parsel kaydetmeye çalışır. Kayıt <b>reddedilir</b>, hata Türkçe adıyla listelenir ve
+              tıklayınca hataya uçarsınız.
+            </li>
+            <li>
+              <strong>Geri alın.</strong> <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd
+                >Y</kbd
+              >
+              — çizim, köşe taşıma, öznitelik değişikliği: hepsi tek bir geçmiş yığınında.
+            </li>
+          </ol>
+        </section>
+
+        <!-- Filled by src/panel.ts -->
+        <section class="card" id="live"></section>
+        <section class="card" id="parcels"></section>
+        <section class="card" id="attributes"></section>
+        <section class="card" id="actions"></section>
+
+        <section class="card card-why">
+          <h2>Yüzölçümü neden <em>düzlemsel</em>?</h2>
+          <p>
+            Veri deposu her zaman WGS84 coğrafi koordinattadır (<code>[lng, lat]</code>). Ama
+            yüzölçümü <b>küre üzerinde değil</b>, çalışma projeksiyonunda —
+            <b>TUREF/TM30 (EPSG:5254)</b>, metre biriminde — hesaplanır:
+            <code>map.crs.area()</code> önce <code>crs.working.forward()</code> ile düzleme taşır,
+            alanı orada bulur.
+          </p>
+          <p>
+            Neden önemli: 39°N’de 2.000 m²’lik bir parselde küresel ve düzlemsel yüzölçümü
+            <b>metrekarelerle</b> ayrışır. Tapuya yazılan sayı ile sınırın ima ettiği sayı
+            farklıysa, ortada bir yazılım hatası değil, bir <b>ihtilaf</b> vardır. Kadastro
+            müdürlüğü küresel alanı kabul etmez — ve haklıdır.
+          </p>
+          <p>
+            Yüzölçümü ayrıca <b>elle girilmez</b>: her kayıtta geometriden yeniden türetilir
+            (<code>deriveAreaMiddleware</code>). Yazılamayan bir sayı, geometriyle çelişemez.
+          </p>
+          <p class="aside" lang="en">
+            <b>In English —</b> the store is always WGS84, but no survey-grade number is
+            <i>computed</i> there. Area, length, offsets and topology all project into the working
+            CRS (TUREF/TM30, metres), do honest planar maths, and project back. A spherical area on
+            a 2,000 m² parcel at 39°N is wrong by square metres, which is enough to move a boundary
+            in a dispute. The area is also <i>derived</i>, never typed: a hand-entered area that
+            disagrees with the boundary it came from is the classic cadastral dispute, and the
+            cheapest way never to have one is to make the field un-typeable.
+          </p>
+        </section>
+
+        <section class="card card-arch">
+          <h2>Mimari not: yakalama, çizim aracını hiç tanımaz</h2>
+          <p>
+            <code>plugin-draw</code>, <code>plugin-snap</code>’i <b>import etmez</b>. Yakalama bir
+            <b>etkileşim ara katmanıdır</b>: her işaretçi olayında <code>ctx.lngLat</code>’i
+            <em>araç görmeden önce</em> yeniden yazar. Çizim aracı yalnızca “zaten köşeye oturmuş”
+            bir koordinat okur.
+          </p>
+          <p class="aside" lang="en">
+            That indirection is the architecture: a tool written by a stranger next year snaps for
+            free, because snapping happens upstream of every tool.
+          </p>
+        </section>
+      </aside>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+{
+  "name": "@fleximap/core",
+  "version": "0.1.0",
+  "description": "The FlexiMap kernel: event bus, plugin registry, pipelines, command bus, feature store.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json",
+    "./testing": {
+      "development": "./src/testing/index.ts",
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "proj4": "^2.12.1",
+    "rbush": "^4.0.1"
+  },
+  "peerDependencies": {
+    "maplibre-gl": ">=4.7.0 <6"
+  },
+  "devDependencies": {
+    "maplibre-gl": "^5.6.0",
+    "@types/proj4": "^2.5.5",
+    "@types/rbush": "^4.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

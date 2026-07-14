@@ -1,0 +1,30 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts", "dist"],
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../plugin-snap"
+    },
+    {
+      "path": "../plugin-draw"
+    },
+    {
+      "path": "../plugin-select"
+    },
+    {
+      "path": "../plugin-history"
+    },
+    {
+      "path": "../plugin-ui"
+    }
+  ]
+}

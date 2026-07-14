@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+
+    /* Strictness. All of it. A geospatial kernel that lies about nullability
+     * produces NaN coordinates, and a NaN coordinate renders as "nothing there"
+     * rather than as an error — which is the hardest class of bug to find. */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "useUnknownInCatchVariables": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "skipLibCheck": true,
+
+    "paths": {
+      "@fleximap/core": ["./packages/core/src/index.ts"],
+      "@fleximap/core/testing": ["./packages/core/src/testing/index.ts"],
+      "@fleximap/plugin-draw": ["./packages/plugin-draw/src/index.ts"],
+      "@fleximap/plugin-edit": ["./packages/plugin-edit/src/index.ts"],
+      "@fleximap/plugin-snap": ["./packages/plugin-snap/src/index.ts"],
+      "@fleximap/plugin-select": ["./packages/plugin-select/src/index.ts"],
+      "@fleximap/plugin-measure": ["./packages/plugin-measure/src/index.ts"],
+      "@fleximap/plugin-history": ["./packages/plugin-history/src/index.ts"],
+      "@fleximap/plugin-topology": ["./packages/plugin-topology/src/index.ts"],
+      "@fleximap/plugin-ui": ["./packages/plugin-ui/src/index.ts"],
+      "@fleximap/preset-cadastre": ["./packages/preset-cadastre/src/index.ts"],
+      "@fleximap/preset-urban": ["./packages/preset-urban/src/index.ts"],
+      "@fleximap/preset-game": ["./packages/preset-game/src/index.ts"]
+    }
+  }
+}

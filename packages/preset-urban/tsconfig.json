@@ -1,0 +1,39 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts", "dist"],
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../plugin-snap"
+    },
+    {
+      "path": "../plugin-draw"
+    },
+    {
+      "path": "../plugin-edit"
+    },
+    {
+      "path": "../plugin-select"
+    },
+    {
+      "path": "../plugin-measure"
+    },
+    {
+      "path": "../plugin-history"
+    },
+    {
+      "path": "../plugin-topology"
+    },
+    {
+      "path": "../plugin-ui"
+    }
+  ]
+}

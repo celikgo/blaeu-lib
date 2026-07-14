@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FlexiMap — Urban planning / zoning</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="masthead__title">
+        <h1>Urban planning / zoning</h1>
+        <p class="masthead__sub">
+          <code>urbanPlanningPreset()</code> — the same kernel and the same plugins as the cadastre
+          example, with different numbers and one inverted severity.
+        </p>
+      </div>
+
+      <!-- The whole architectural argument of this repo, on one line. The severity
+           itself is read out of the live validation registry at runtime by main.ts,
+           so it cannot become a lie in a comment. -->
+      <p class="claim">
+        Topology issues here are <strong>warnings</strong>, not errors. Draw a zone that overlaps
+        another one: it is <em>allowed</em>, stored, and merely flagged. This is the
+        <strong>same topology plugin</strong>, and the same <code>topology.overlap</code> rule, that
+        the cadastre example uses to <em>refuse</em> the write — with a different severity, decided
+        by the <strong>preset</strong>, not by the plugin. The plugin finds the overlap; only the
+        domain knows whether an overlap is a dispute or a thought.
+        <span class="claim__live">
+          live: <code>topology.overlap</code> severity = <code id="overlap-severity">…</code>
+        </span>
+      </p>
+    </header>
+
+    <main class="layout">
+      <!-- ---------------------------------------------------------------- -->
+      <aside class="rail rail--left">
+        <section class="card">
+          <h2>What to try</h2>
+          <ol class="steps">
+            <li><strong>Draw</strong> a new zone — click corners, double-click to close.</li>
+            <li>
+              Pick a <strong>category</strong> in the attribute form below. The polygon recolours
+              instantly: one layer, one <code>match</code> expression, N categories.
+            </li>
+            <li>
+              Draw a second zone that <strong>overlaps</strong> an existing one. Watch it be stored
+              anyway and flagged in <em>Topology</em>.
+            </li>
+            <li>
+              <strong>Snapshot</strong> the plan as scenario <code>A</code>, change some zoning,
+              snapshot as <code>B</code>, then <strong>compare</strong> them.
+            </li>
+          </ol>
+          <p class="note">
+            Vertices snap to the 5 m planning grid and to existing corners. The draw tool has never
+            heard of the snap plugin — snapping is interaction middleware that rewrote the pointer
+            position before any tool saw it. Hold <kbd>Alt</kbd> to suppress it.
+          </p>
+        </section>
+
+        <section class="card">
+          <h2>Tools</h2>
+          <div class="toolbar" id="toolbar">
+            <button type="button" data-tool="draw:polygon" class="btn">Draw zone</button>
+            <button type="button" data-tool="select:single" class="btn">Select</button>
+            <button type="button" id="edit-zone" class="btn" disabled>Edit vertices</button>
+            <button type="button" id="delete-zone" class="btn btn--danger" disabled>Delete</button>
+          </div>
+          <div class="toolbar">
+            <button type="button" id="undo" class="btn" disabled>Undo</button>
+            <button type="button" id="redo" class="btn" disabled>Redo</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Legend <span class="hint">live areas, planar, in EPSG:5254</span></h2>
+          <ul class="legend" id="legend"></ul>
+          <details class="expression">
+            <summary>The one expression that colours all of them</summary>
+            <pre id="fill-expression"></pre>
+            <p class="note">
+              One layer, one source read, one draw call, one place to change the opacity. A
+              municipality that adds a category passes one more object to
+              <code>zoningCategories</code> — no new layer, no new code.
+            </p>
+          </details>
+        </section>
+
+        <section class="card">
+          <h2>Attributes <span class="hint" id="attributes-subject">nothing selected</span></h2>
+          <form class="form" id="attribute-form" autocomplete="off">
+            <p class="empty">Select a zone, or draw one, to edit its plan attributes.</p>
+          </form>
+          <p class="note">
+            The form is not written by hand. It is derived from the legend
+            (<code>zoningAttributeSchema</code>) and read straight off the preset's own layer
+            config, so the KAKS/emsal and gabari caps a form can accept are the caps the
+            <em>plan</em> sets — the two cannot drift apart.
+          </p>
+        </section>
+      </aside>
+
+      <!-- ---------------------------------------------------------------- -->
+      <div class="map-wrap">
+        <div id="map"></div>
+        <div class="status" id="status" role="status"></div>
+      </div>
+
+      <!-- ---------------------------------------------------------------- -->
+      <aside class="rail rail--right">
+        <section class="card">
+          <h2>
+            Topology
+            <button type="button" id="check-topology" class="btn btn--small">Check plan</button>
+          </h2>
+          <ul class="issues" id="issues">
+            <li class="empty">No issues reported yet.</li>
+          </ul>
+          <p class="note">
+            Structural defects — an unclosed ring, a bowtie — stay <strong>errors</strong> even
+            here, because their area is undefined and area is the number the scenario report hands a
+            council. Everything else is a warning. That line is one option
+            (<code>topologySeverity</code>) in the preset.
+          </p>
+        </section>
+
+        <section class="card">
+          <h2>Scenarios</h2>
+          <div class="scenario-create">
+            <input id="scenario-name" type="text" placeholder="Scenario name (e.g. Mevcut)" />
+            <button type="button" id="scenario-snapshot" class="btn">Snapshot</button>
+          </div>
+          <ul class="scenarios" id="scenarios">
+            <li class="empty">No scenarios yet.</li>
+          </ul>
+
+          <div class="compare">
+            <label for="scenario-a">A</label>
+            <select id="scenario-a"></select>
+            <label for="scenario-b">B</label>
+            <select id="scenario-b"></select>
+            <button type="button" id="scenario-compare" class="btn btn--small" disabled>
+              Compare
+            </button>
+          </div>
+          <div id="comparison"></div>
+          <p class="note">
+            A scenario is a named store snapshot, and switching to one goes through the command bus
+            — so a scenario switch is <em>undoable</em> like everything else. The plugin that does
+            it ships inside the preset and needed no change to the core.
+          </p>
+        </section>
+      </aside>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // The example emits nothing — Vite does the emitting — and the root
+    // `tsconfig.json` deliberately does not reference `examples/*`, so this config
+    // must stand on its own: no `composite`, no project references, no build info.
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "types": ["vite/client"]
+  },
+  "include": [
+    "src",
+    "vite.config.ts",
+
+    // Friction, recorded honestly rather than papered over.
+    //
+    // This example type-checks against the packages' **source** (that is what the
+    // `paths` in `tsconfig.base.json` and the aliases in `vite.config.ts` do), and the
+    // topology and edit plugins reach at JSTS's deep module paths, which ship no types.
+    // Each plugin declares them in its own `src/jsts-modules.d.ts` — an ambient file
+    // nothing imports, so it only lands in a program that *includes* it. A package
+    // building itself does; a downstream program aliasing to source does not, and gets
+    // `TS2554: Expected 1 arguments, but got 0` from inside a library it never wrote.
+    //
+    // A consumer installing from npm never sees this: they resolve `dist/index.d.ts`,
+    // where the ambient declarations have already done their work. It bites only inside
+    // the monorepo — which is where every reader of this example is standing.
+    "../../packages/plugin-topology/src/jsts-modules.d.ts",
+    "../../packages/plugin-edit/src/jsts-modules.d.ts"
+  ]
+}

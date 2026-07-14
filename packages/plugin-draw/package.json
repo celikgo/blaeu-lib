@@ -1,0 +1,37 @@
+{
+  "name": "@fleximap/plugin-draw",
+  "version": "0.1.0",
+  "description": "Drawing tools: point, line, polygon, rectangle, circle, freehand.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "peerDependencies": {
+    "@fleximap/core": "^0.1.0"
+  },
+  "devDependencies": {
+    "@fleximap/core": "^0.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

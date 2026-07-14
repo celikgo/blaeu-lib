@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "noEmit": true
+  },
+  "include": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/plugin-snap" },
+    { "path": "./packages/plugin-draw" },
+    { "path": "./packages/plugin-edit" },
+    { "path": "./packages/plugin-select" },
+    { "path": "./packages/plugin-measure" },
+    { "path": "./packages/plugin-history" },
+    { "path": "./packages/plugin-topology" },
+    { "path": "./packages/plugin-ui" },
+    { "path": "./packages/preset-cadastre" },
+    { "path": "./packages/preset-urban" },
+    { "path": "./packages/preset-game" }
+  ]
+}

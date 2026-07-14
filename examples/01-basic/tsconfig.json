@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // The example emits nothing — Vite does the emitting — and the root
+    // `tsconfig.json` deliberately does not reference `examples/*`, so this config
+    // must stand on its own: no `composite`, no project references, no build info.
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "types": ["vite/client"]
+  },
+  "include": ["src", "vite.config.ts"]
+}

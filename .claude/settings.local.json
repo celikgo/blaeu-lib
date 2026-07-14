@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm -v)",
+      "Bash(mkdir -p fleximap-testing)",
+      "Bash(mv fleximap-core-invariants/SKILL.md fleximap-testing/SKILL.md)",
+      "Bash(rmdir fleximap-core-invariants *)",
+      "Bash(node scripts/scaffold-packages.mjs)",
+      "Bash(npm install *)",
+      "Bash(node -e \"import\\('jsts'\\).then\\(\\(\\)=>console.log\\('jsts ok'\\)\\); import\\('proj4'\\).then\\(\\(\\)=>console.log\\('proj4 ok'\\)\\); import\\('rbush'\\).then\\(\\(\\)=>console.log\\('rbush ok'\\)\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(node --input-type=module -e ' *)",
+      "WebFetch(domain:epsg.io)",
+      "Bash(awk 'NR>=11700 && NR<=12900' node_modules/maplibre-gl/dist/maplibre-gl.d.ts)",
+      "Bash(node scripts/check-boundaries.mjs)",
+      "Bash(echo \"exit=$?\")"
+    ]
+  }
+}

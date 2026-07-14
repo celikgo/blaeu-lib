@@ -1,0 +1,26 @@
+{
+  "name": "@fleximap/example-02-cadastre",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Cadastre / parcel editing: topological editing of shared boundaries in TUREF/TM30, in Turkish.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@fleximap/core": "^0.1.0",
+    "@fleximap/plugin-draw": "^0.1.0",
+    "@fleximap/plugin-edit": "^0.1.0",
+    "@fleximap/plugin-history": "^0.1.0",
+    "@fleximap/plugin-select": "^0.1.0",
+    "@fleximap/plugin-snap": "^0.1.0",
+    "@fleximap/plugin-topology": "^0.1.0",
+    "@fleximap/plugin-ui": "^0.1.0",
+    "@fleximap/preset-cadastre": "^0.1.0",
+    "maplibre-gl": "^5.6.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.5"
+  }
+}

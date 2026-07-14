@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // `baseUrl` is set explicitly so the `paths` inherited from tsconfig.base.json
+    // resolve against the repo root rather than against this directory. The root
+    // tsconfig deliberately does not `reference` the examples — they are apps, not
+    // build outputs — so this config has to stand on its own.
+    "baseUrl": "../..",
+    "noEmit": true,
+    "composite": false,
+    "types": ["vite/client"]
+  },
+  // The two `jsts-modules.d.ts` files are ambient module declarations that live inside
+  // the plugins that need them. Those plugins' own tsconfigs pick them up through
+  // `include`; ours resolves the plugins through the `paths` alias (source, not dist),
+  // and TypeScript only pulls in files reachable by *import*, never ambient ones. Left
+  // out, `new GeoJSONReader()` type-checks against jsts's own (wrong) shipped types and
+  // fails in a file this example does not own. Listing them is the whole fix.
+  "include": [
+    "src",
+    "vite.config.ts",
+    "../../packages/plugin-edit/src/jsts-modules.d.ts",
+    "../../packages/plugin-topology/src/jsts-modules.d.ts"
+  ]
+}

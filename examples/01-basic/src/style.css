@@ -1,0 +1,181 @@
+/*
+ * Chrome for the example page only.
+ *
+ * Nothing here styles the map itself. The map's own chrome — toolbar, coordinate
+ * readout, scale bar, snap indicator — comes from `@fleximap/plugin-ui`, which
+ * injects its own stylesheet and reads the CSS custom properties the core's
+ * ThemeManager writes onto the map container. If you want to restyle *that*, pass a
+ * theme to `createFlexiMap`; do not fight it from here.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  --bg: #0b1020;
+  --panel: #11172b;
+  --line: #22304f;
+  --text: #e8ecf5;
+  --muted: #97a3bd;
+  --accent: #60a5fa;
+  --accent-dim: #1e293b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font:
+    15px/1.55 ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 25rem;
+  height: 100%;
+}
+
+/* The map container. FlexiMap owns it: give it a size, then leave it alone. */
+.map {
+  position: relative;
+  min-width: 0;
+  height: 100%;
+}
+
+/* --- the explanatory panel ------------------------------------------------ */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow-y: auto;
+  padding: 1.75rem 1.5rem 2rem;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+}
+
+.eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.panel h1 {
+  margin: 0 0 0.6rem;
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+}
+
+.lede {
+  margin: 0;
+  color: var(--muted);
+}
+
+.panel h2 {
+  margin: 0 0 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.panel section {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.panel ol,
+.panel ul {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.panel li {
+  color: var(--muted);
+}
+
+.panel li strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.panel footer {
+  margin-top: auto;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.panel footer p {
+  margin: 0;
+}
+
+code {
+  padding: 0.08em 0.34em;
+  border-radius: 4px;
+  background: var(--accent-dim);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  font-size: 0.86em;
+}
+
+kbd {
+  padding: 0.1em 0.4em;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--accent-dim);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.8em;
+  white-space: nowrap;
+}
+
+/* The live event feed. Deliberately one line: it is a demonstration that the
+ * events are typed and firing, not a logging framework. */
+.feed-body {
+  display: block;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0d1324;
+  color: var(--accent);
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  font-size: 0.8rem;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 60vh auto;
+    height: auto;
+  }
+
+  .panel {
+    border-left: none;
+    border-top: 1px solid var(--line);
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // The root tsconfig references the packages, not the examples: an example is a
+    // consumer of the library, and building the library must never depend on one.
+    // So this config stands alone — no `references`, no `composite`, nothing emitted.
+    // The `paths` it inherits from the base resolve `@fleximap/*` to source, exactly
+    // as the Vite aliases do, so the compiler and the bundler agree on what they are
+    // looking at.
+    "composite": false,
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "types": ["node"]
+  },
+  "include": ["src", "vite.config.ts"]
+}

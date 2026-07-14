@@ -1,0 +1,78 @@
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FlexiMap — 01 Basic usage</title>
+<link rel="icon" href="data:," />
+
+<main class="app">
+  <!-- The map mounts here. FlexiMap owns this element: the theme's CSS custom
+       properties are written onto it, and the UI plugin's chrome is mounted
+       inside it. Give it a size and get out of the way. -->
+  <div id="map" class="map"></div>
+
+  <aside class="panel">
+    <header>
+      <p class="eyebrow">FlexiMap · example 01</p>
+      <h1>Basic usage</h1>
+      <p class="lede">
+        A bare kernel plus five plugins — <code>snap</code>, <code>draw</code>, <code>select</code>,
+        <code>history</code>, <code>ui</code>. No preset, so nothing is hidden.
+      </p>
+    </header>
+
+    <section>
+      <h2>Try this</h2>
+      <ol>
+        <li>
+          Pick <strong>Polygon</strong> in the toolbar (top-left). Click to place vertices,
+          double-click to finish.
+        </li>
+        <li>
+          Draw a parcel that <em>touches an existing corner</em>. Watch the cursor jump onto it.
+        </li>
+        <li>
+          Hold <kbd>Alt</kbd> while you click: snapping is suppressed for that one event, as in
+          every CAD package on earth.
+        </li>
+        <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd> to undo, <kbd>Shift</kbd>+that to redo.</li>
+        <li>
+          Pick <strong>Select</strong> and click a parcel. <kbd>Shift</kbd>-click to add to the
+          selection.
+        </li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Notice</h2>
+      <ul>
+        <li>
+          <strong>The draw plugin cannot snap.</strong> It has never heard of the snap plugin and
+          does not import it. Snapping is interaction middleware: it rewrites the pointer position
+          before any tool sees the event. Delete <code>snapPlugin()</code> from
+          <code>src/main.ts</code> and drawing still works — it just stops snapping.
+        </li>
+        <li>
+          <strong>Undo is not a draw feature.</strong> The history plugin subscribes to the command
+          bus. It knows nothing about polygons.
+        </li>
+        <li>
+          <strong>The toolbar was not configured.</strong> The UI plugin derives its buttons from
+          whatever tools happen to be registered.
+        </li>
+      </ul>
+    </section>
+
+    <section class="feed">
+      <h2>Event feed</h2>
+      <output id="feed" class="feed-body">Waiting for the first event…</output>
+    </section>
+
+    <footer>
+      <p>
+        Everything in this panel is plain HTML. The map is <code>src/main.ts</code> — read it top to
+        bottom; it is the documentation.
+      </p>
+    </footer>
+  </aside>
+</main>
+
+<script type="module" src="/src/main.ts"></script>

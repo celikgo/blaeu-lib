@@ -1,0 +1,21 @@
+{
+  "name": "@fleximap/example-03-urban-planning",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Urban planning: a data-driven zoning legend, an attribute form, scenario comparison — and topology as warnings.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@fleximap/core": "^0.1.0",
+    "@fleximap/plugin-select": "^0.1.0",
+    "@fleximap/plugin-topology": "^0.1.0",
+    "@fleximap/preset-urban": "^0.1.0",
+    "maplibre-gl": "^5.6.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.5"
+  }
+}

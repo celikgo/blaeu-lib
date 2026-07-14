@@ -1,0 +1,44 @@
+{
+  "name": "@fleximap/preset-game",
+  "version": "0.1.0",
+  "description": "Game map preset: entity placement, grid snapping, procedural hooks.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@fleximap/plugin-snap": "^0.1.0",
+    "@fleximap/plugin-draw": "^0.1.0",
+    "@fleximap/plugin-select": "^0.1.0",
+    "@fleximap/plugin-history": "^0.1.0",
+    "@fleximap/plugin-ui": "^0.1.0"
+  },
+  "peerDependencies": {
+    "@fleximap/core": "^0.1.0"
+  },
+  "devDependencies": {
+    "@fleximap/core": "^0.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
