@@ -106,14 +106,26 @@ parcel does.
 - **Bad.** Tests that assert on the store after a simulated gesture must `await
 map.test.flush()` first. That is the honest cost of a write path that can call a server, and
   the harness has always exposed the hook.
+- **Bad.** Writes are serialised through a queue on the bus. `#transaction` is a single
+  mutable field, and the moment writes became asynchronous it stopped being safe to read
+  after an `await`: a fire-and-forget commit could resume inside a transaction that was not
+  its own and be recorded as a child of it, so one Ctrl-Z would undo two unrelated things.
+  The store looked correct throughout, which is why no assertion caught it. Serialising
+  removes the interleaving instead of trying to detect it.
+- **Bad.** History needed a new hook. Its re-entrancy guard was a synchronous flag, and an
+  async echo of an undo (an audit-trail listener that commits a record when a feature is
+  removed) lands after the flag has reset — so the echo would be pushed onto the undo stack
+  _and_ would clear the redo stack the user had just earned. `CommandOrigin.replay` is
+  captured when the command is **submitted**, not when it executes, and carried through.
 - **Known gap, deliberately not papered over.** `plugin-edit`'s vertex drag and transform
-  still write through the synchronous path (`GeometryEditCommand` is not yet a
-  `CommitCommand`), because each `pointermove` re-writes the geometry and committing per frame
-  would let writes land out of order. The correct shape is preview-during-drag,
-  commit-on-release; until it lands, **dragging a boundary vertex is not validated**, which for
-  the cadastre preset is the gesture that matters most. Tracked, and stated here rather than
-  in a commit message, because a known hole that is written down is a bug and a known hole that
-  is not is a trap.
+  still write through the synchronous path (`GeometryEditCommand` is not a `CommitCommand`),
+  because each `pointermove` re-writes the geometry and committing per frame would let writes
+  land out of order. The correct shape is preview-during-drag, commit-on-release. Until it
+  lands, **dragging a boundary vertex is not validated** — the drag works and is undoable, but
+  no rule inspects the result, so a surveyor can still drag a parcel into self-intersection.
+  For the cadastre preset that is the gesture that matters most. Stated here rather than in a
+  commit message, because a known hole that is written down is a bug and a known hole that is
+  not is a trap.
 
 ## The test that would have caught it
 

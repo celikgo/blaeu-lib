@@ -1,4 +1,4 @@
-import type { Disposable } from '../types/common.js'
+import type { Disposable, FeatureId } from '../types/common.js'
 import type { EventBus } from '../types/events.js'
 import type { Tool, ToolManager } from '../types/extensions.js'
 
@@ -19,9 +19,18 @@ export class FlexiToolManager implements ToolManager {
   readonly #events: EventBus
   readonly #tools = new Map<string, Tool>()
   #active: string | null = null
+  #dragging: readonly FeatureId[] = []
 
   constructor(events: EventBus) {
     this.#events = events
+  }
+
+  get dragging(): readonly FeatureId[] {
+    return this.#dragging
+  }
+
+  setDragging(ids: readonly FeatureId[]): void {
+    this.#dragging = [...ids]
   }
 
   /**

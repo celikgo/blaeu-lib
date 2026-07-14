@@ -38,6 +38,21 @@ export function vertexTool(ctx: PluginContext<unknown>, controller: EditControll
     if (refs.length === 0) return
     drag = { refs, from, gesture: createId() }
     active = refs[0] ?? null
+
+    // Tell the kernel what is in play for the duration of the gesture. Without this a
+    // snapping middleware sees the corner we are dragging sitting under the cursor,
+    // helpfully snaps the pointer back onto it, and the vertex never moves — so every
+    // drag shorter than the snap tolerance is a silent no-op. In topological mode the
+    // gesture holds *several* parcels (they share the corner), so declare all of them.
+    //
+    // Note what this is not: a call into the snap plugin. This tool has never heard of
+    // it. It states a fact on a kernel type and any middleware may act on it.
+    ctx.tools.setDragging([...new Set(refs.map((ref) => ref.feature))])
+  }
+
+  const endDrag = (): void => {
+    drag = null
+    ctx.tools.setDragging([])
   }
 
   /**
@@ -113,13 +128,13 @@ export function vertexTool(ctx: PluginContext<unknown>, controller: EditControll
 
     onPointerUp(): boolean {
       if (drag === null) return false
-      drag = null
+      endDrag()
       return true
     },
 
     onKeyDown(interaction): boolean {
       if (interaction.key === 'Escape') {
-        drag = null
+        endDrag()
         controller.stop()
         return true
       }

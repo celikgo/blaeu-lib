@@ -1,4 +1,4 @@
-import type { Disposable, LngLat, ProjectedXY, ScreenPoint } from './common.js'
+import type { Disposable, FeatureId, LngLat, ProjectedXY, ScreenPoint } from './common.js'
 import type { FlexiFeature } from './feature.js'
 import type { Command } from './command.js'
 import type { SnapResult } from './extensions.js'
@@ -45,6 +45,20 @@ export interface InteractionContext {
 
   /** Set by the snapping middleware, read by UI middleware that draws the indicator. */
   snap?: SnapResult | undefined
+
+  /**
+   * The features the active tool is dragging right now — its own geometry, its handles,
+   * its guides. Empty between gestures.
+   *
+   * **Middleware must not use these as targets.** A snapping middleware that offers the
+   * dragged vertex its own current position pins it there forever: the pointer is pulled
+   * back onto the corner it is trying to move, the tool computes "it didn't move", and
+   * every drag shorter than the snap tolerance becomes a silent no-op.
+   *
+   * The tool declares this through `tools.setDragging()`. It does not, and must not, know
+   * which middleware is reading it.
+   */
+  readonly dragging: readonly FeatureId[]
 
   readonly button: number
   readonly modifiers: {

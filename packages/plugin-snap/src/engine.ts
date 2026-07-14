@@ -148,7 +148,12 @@ export class SnapEngine {
       return
     }
 
-    const result = this.#query(ctx.rawLngLat, ctx.screen)
+    // `ctx.dragging` is what the active tool declared it has hold of — its geometry, its
+    // handles, its guide box. Those must never be snap targets: offering the dragged
+    // vertex its own current position pins it there, and every drag shorter than the
+    // tolerance becomes a silent no-op. The engine learns this from the kernel, not from
+    // the edit plugin, which it has never heard of.
+    const result = this.#query(ctx.rawLngLat, ctx.screen, ctx.dragging)
     this.#publish(result)
 
     if (result !== undefined) {
@@ -166,7 +171,11 @@ export class SnapEngine {
     return this.#enabled && !this.#dormant && this.#providers.size > 0
   }
 
-  #query(point: LngLat, screen: ScreenPoint): SnapResult | undefined {
+  #query(
+    point: LngLat,
+    screen: ScreenPoint,
+    dragging: readonly FeatureId[] = [],
+  ): SnapResult | undefined {
     // One reset per event, shared by every provider: five providers all want the same
     // features projected into the same plane, and doing it five times is how a snap
     // engine turns a 120 Hz pointer into a 30 Hz one.
@@ -176,7 +185,9 @@ export class SnapEngine {
       project: (lngLat) => this.#ctx.renderer.project(lngLat),
       unproject: (p) => this.#ctx.renderer.unproject(p),
       bbox: this.#toleranceBbox(screen),
-      exclude: this.#exclude,
+      // The union of what a plugin asked to exclude (`SnapApi.exclude`, used by draw for
+      // the ring it is still closing) and what the active tool is dragging.
+      exclude: dragging.length === 0 ? this.#exclude : new Set([...this.#exclude, ...dragging]),
       inProgress: this.#inProgress,
     }
 

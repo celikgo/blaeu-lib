@@ -43,6 +43,34 @@ export interface ToolManager {
   deactivate(): void
   readonly active: string | null
   list(): readonly string[]
+
+  /**
+   * Declare the features the active tool is currently dragging, for the duration of
+   * one gesture. Call with `[]` on pointer-up.
+   *
+   * **This is what stops a dragged vertex from snapping to itself**, and it is in the
+   * kernel — rather than being a conversation between the edit plugin and the snap
+   * plugin — for a reason worth stating.
+   *
+   * A snapping middleware sees a pointer near a parcel corner and helpfully pulls it
+   * onto that corner. During a drag *of that very corner*, that is a disaster: the
+   * corner is under the cursor, so the pointer snaps back onto it, the tool is told the
+   * vertex has not moved, and the vertex never moves again. Every drag shorter than the
+   * snap tolerance silently becomes a no-op. The same is true of the vertex handles and
+   * the transform box, which are real features in the store sitting exactly where the
+   * cursor is.
+   *
+   * The tool is the only thing that knows what is in play. But it must not have to know
+   * *who is listening* — the edit plugin has never heard of the snap plugin and must not
+   * start now, or the plugin-first architecture is a fiction. So the tool states the
+   * fact, on a kernel type, and any middleware that cares can read it: snapping today, a
+   * grid lock or a constraint solver tomorrow, neither of which the edit plugin will ever
+   * import either.
+   */
+  setDragging(ids: readonly FeatureId[]): void
+
+  /** What the active tool declared it is dragging. Empty between gestures. */
+  readonly dragging: readonly FeatureId[]
 }
 
 /* ========================================================================= */

@@ -7,7 +7,14 @@
  * `EditController.applyTransform` for why that last part is not a detail.
  */
 
-import { createId, type FeatureId, type LngLat, type ProjectedXY, type Tool } from '@fleximap/core'
+import {
+  createId,
+  type FeatureId,
+  type LngLat,
+  type PluginContext,
+  type ProjectedXY,
+  type Tool,
+} from '@fleximap/core'
 import type { EditController, TransformGesture } from '../controller.js'
 import { ROTATE_HANDLE_OFFSET_FRACTION, type Handle } from '../handles.js'
 import { planarBounds } from '../geometry.js'
@@ -28,7 +35,7 @@ interface Gesture {
   readonly anchor: ProjectedXY
 }
 
-export function transformTool(controller: EditController): Tool {
+export function transformTool(ctx: PluginContext<unknown>, controller: EditController): Tool {
   let gesture: Gesture | null = null
 
   const boundsOf = (ids: readonly FeatureId[]): ReturnType<typeof planarBounds> => {
@@ -123,17 +130,17 @@ export function transformTool(controller: EditController): Tool {
       controller.setHandleRenderer(undefined)
     },
 
-    onPointerDown(ctx): boolean {
+    onPointerDown(interaction): boolean {
       const ids = controller.targets()
       if (ids.length === 0) return false
 
-      const handle = controller.handles.pick(ctx.screen, controller.options.handleSize)
+      const handle = controller.handles.pick(interaction.screen, controller.options.handleSize)
       const mode: Mode | undefined =
         handle?.role === 'rotate'
           ? 'rotate'
           : handle?.role === 'scale'
             ? 'scale'
-            : inside(ctx.lngLat)
+            : inside(interaction.lngLat)
               ? 'move'
               : undefined
       if (mode === undefined) return false
@@ -149,15 +156,20 @@ export function transformTool(controller: EditController): Tool {
         // The *pointer's* position, not the handle's: scaling by the ratio of two
         // pointer distances means the shape tracks the cursor exactly, with no jump
         // at the moment of grabbing.
-        anchor: controller.plane.forward(ctx.lngLat),
+        anchor: controller.plane.forward(interaction.lngLat),
       }
+
+      // The features under the gesture are not snap targets while it runs. Otherwise a
+      // scale grabs its own corner, the pointer is pulled back to it, the ratio of the
+      // two pointer distances stays 1, and the parcel refuses to resize.
+      ctx.tools.setDragging([...originals.keys()])
       return true
     },
 
-    onPointerMove(ctx): boolean {
+    onPointerMove(interaction): boolean {
       if (gesture === null) return false
       const { mode, transform, pivot, anchor } = gesture
-      const current = controller.plane.forward(ctx.lngLat)
+      const current = controller.plane.forward(interaction.lngLat)
       // The features the gesture grabbed, not whatever is selected now — and each
       // frame's transform is the *total* one since pointer-down, applied to the
       // geometry as it was then. Both halves of that are load-bearing.
@@ -190,15 +202,17 @@ export function transformTool(controller: EditController): Tool {
     onPointerUp(): boolean {
       if (gesture === null) return false
       gesture = null
+      ctx.tools.setDragging([])
       // Re-derive the box from where the features actually ended up, so the next
       // gesture starts from the truth rather than from the box we last drew.
       gizmo()
       return true
     },
 
-    onKeyDown(ctx): boolean {
-      if (ctx.key !== 'Escape') return false
+    onKeyDown(interaction): boolean {
+      if (interaction.key !== 'Escape') return false
       gesture = null
+      ctx.tools.setDragging([])
       return true
     },
   }

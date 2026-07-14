@@ -165,7 +165,16 @@ export class EditHandles {
   setGuide(geometry: Geometry | undefined): void {
     this.#write(
       GUIDE_COLLECTION,
-      geometry === undefined ? [] : [{ id: 'edit:guide', geometry, properties: { role: 'guide' } }],
+      geometry === undefined
+        ? []
+        : [
+            {
+              id: 'edit:guide',
+              geometry,
+              properties: { role: 'guide' },
+              meta: { snappable: false },
+            },
+          ],
     )
   }
 
@@ -316,6 +325,11 @@ function toFeature(handle: Handle): FeatureInput {
       index: handle.index,
       shared: handle.shared,
     },
+    // Scaffolding, not geometry. A handle sits exactly on the vertex it draws, so a
+    // snapping middleware would offer the dragged vertex its own handle as a target and
+    // pin it in place. `snappable: false` is a core flag, so this plugin says what the
+    // feature *is* and never has to know who is listening.
+    meta: { snappable: false },
   }
 }
 

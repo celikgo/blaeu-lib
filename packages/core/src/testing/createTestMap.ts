@@ -289,6 +289,9 @@ class TestFacadeImpl implements TestFacade {
       screen,
       rawLngLat,
       snap: undefined,
+      // The kernel populates this from the active tool; a synthetic keydown carries
+      // whatever the tool currently has hold of, exactly as a real one would.
+      dragging: this.map.tools.dragging,
       key,
       button: -1,
       modifiers: {

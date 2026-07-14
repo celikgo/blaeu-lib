@@ -37,6 +37,23 @@ export interface FeatureMeta {
   readonly locked?: boolean
   /** Hidden features stay in the store but are not sent to the renderer. */
   readonly hidden?: boolean
+  /**
+   * `false` marks a feature as **UI scaffolding**: drawn, but never a target.
+   *
+   * Vertex handles, a transform box, a snap indicator, a rubber band. They live in the
+   * store because that is where the renderer reads from — but they are pictures *of* the
+   * data, not data, and treating them as geometry produces some genuinely baffling bugs.
+   * The one that prompted this: a vertex handle sits exactly on the vertex it represents,
+   * so a snapping middleware helpfully snapped the pointer onto the handle of the very
+   * vertex the user was dragging, and the vertex could never move.
+   *
+   * Snapping is only the first consumer. Anything that treats features as *content* —
+   * measurement, selection, a nearest-feature query, an export — wants to skip these, and
+   * the alternative is every such plugin growing its own hardcoded list of the collection
+   * names other plugins happen to use for scaffolding. Defaults to `true` (snappable),
+   * because ordinary data is the common case and must not have to opt in.
+   */
+  readonly snappable?: boolean
   /** Free slot for plugins to stash their own per-feature state, namespaced by plugin id. */
   readonly ext?: Readonly<Record<string, unknown>>
 }

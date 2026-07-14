@@ -101,6 +101,13 @@ export class FrameCache {
       for (const feature of store.collection(collection).query(bbox)) {
         if (exclude.has(feature.id)) continue
         if (feature.meta.hidden === true) continue
+        // UI scaffolding: a vertex handle, a transform box. Drawn, but not geometry.
+        // A handle sits exactly on the vertex it represents, so without this the pointer
+        // snaps onto the handle of the very vertex being dragged and the vertex is pinned
+        // in place — every drag shorter than the tolerance becomes a silent no-op. The
+        // flag lives on the feature rather than in a list of collection names here,
+        // because this plugin has never heard of the edit plugin and must not start now.
+        if (feature.meta.snappable === false) continue
         out.push(feature)
       }
     }

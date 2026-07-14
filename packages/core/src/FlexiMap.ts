@@ -217,6 +217,10 @@ export class FlexiMap {
       screen: event.screen,
       rawLngLat: event.lngLat,
       snap: undefined,
+      // Whatever the active tool said it has hold of. Middleware reads this to avoid
+      // fighting the gesture — snapping's chief use is not offering a dragged vertex
+      // its own position as a target, which would pin it in place forever.
+      dragging: this.tools.dragging,
       button: event.button,
       modifiers: event.modifiers,
       hits: () => this.renderer.queryAt(event.screen),

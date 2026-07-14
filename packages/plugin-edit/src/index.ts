@@ -94,7 +94,7 @@ export function editPlugin(options: EditOptions = {}): FlexiPlugin<EditApi, Edit
       controller.handles.install()
 
       ctx.disposables.add(ctx.tools.register('edit:vertex', vertexTool(ctx, controller)))
-      ctx.disposables.add(ctx.tools.register('edit:transform', transformTool(controller)))
+      ctx.disposables.add(ctx.tools.register('edit:transform', transformTool(ctx, controller)))
       ctx.disposables.add(ctx.tools.register('edit:split', splitTool(ctx, controller)))
       ctx.disposables.add(ctx.tools.register('edit:merge', mergeTool(ctx, controller)))
 
