@@ -125,7 +125,10 @@ export function transformTool(ctx: PluginContext<unknown>, controller: EditContr
     },
 
     deactivate(): void {
+      // Commit any transform in flight rather than abandon it as an uncommitted,
+      // unvalidated preview when the tool is switched away — the same as the vertex tool.
       gesture = null
+      controller.commitGesture()
       controller.handles.setGuide(undefined)
       controller.setHandleRenderer(undefined)
     },

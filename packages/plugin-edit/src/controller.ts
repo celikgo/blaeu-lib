@@ -278,23 +278,35 @@ export class EditController {
    * It still previews-then-commits, collapsed to a single frame: a transient write
    * lands the new geometry synchronously (so a Delete key or an API call has immediate
    * effect and the handles are current), and the durable commit runs the pipeline
-   * right behind it. Capturing `previous` *before* the preview is what keeps undo
-   * pointing at the true pre-edit state.
+   * right behind it.
+   *
+   * `previous` is captured *before* the preview (the true pre-edit state); `next` is
+   * read back *after* it. That ordering is load-bearing: the preview bumps the stored
+   * feature's version, so reading `next` from the store gives the commit a version that
+   * differs from `previous`. Build `next` from the pre-edit feature instead and the
+   * commit re-lands at the pre-edit version — and then undo cannot restore the exact
+   * pre-edit meta, silently breaking `undo(execute(s)) === s`. This mirrors
+   * {@link #flushPending}, which reads its `next` from the store for the same reason.
    */
   #applyOnce(next: ReadonlyMap<FeatureId, Geometry>, type: string, label: string): void {
     const previous: BlaeuFeature[] = []
-    const nextFeatures: BlaeuFeature[] = []
-    for (const [id, geometry] of next) {
+    for (const id of next.keys()) {
       const feature = this.#ctx.store.find(id)
-      if (feature === undefined) continue
-      previous.push(feature)
-      nextFeatures.push({ ...feature, geometry })
+      if (feature !== undefined) previous.push(feature)
     }
-    if (nextFeatures.length === 0) return
+    if (previous.length === 0) return
 
     // Preview: land it now, synchronously, so the caller sees the effect immediately.
     this.#ctx.commands.dispatch(new SetGeometriesCommand(type, next, { label, transient: true }))
     this.refreshHandles()
+
+    // Read the previewed features back, so the commit carries the post-preview version.
+    const nextFeatures: BlaeuFeature[] = []
+    for (const feature of previous) {
+      const current = this.#ctx.store.find(feature.id)
+      if (current !== undefined) nextFeatures.push(current)
+    }
+    if (nextFeatures.length === 0) return
     this.#commit(previous, nextFeatures, type, label)
   }
 

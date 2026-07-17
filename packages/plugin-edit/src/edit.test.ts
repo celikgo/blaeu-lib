@@ -167,6 +167,55 @@ describe('editPlugin — undo round-trip (the plugin owes this one)', () => {
 
     await map.destroy()
   })
+
+  // The one-shot commit path (#applyOnce) is separate from the drag path, and it must
+  // hold the same deep-equality contract — version and updatedAt included, not just
+  // geometry — or a "dirty since save" / collaboration consumer keyed on version is lied to.
+  it('round-trips a one-shot vertex delete through the public commit path', async () => {
+    const map = await mapWithParcel()
+    map.plugin('edit').edit('p')
+    // The parcel itself — not the edit handles, which are transient UI that churns.
+    const before = map.store.collection('parcels').all()
+
+    const captured: Command[] = []
+    const off = map.commands.onDidExecute((command) => captured.push(command))
+
+    // Alt-click a corner: a discrete delete, previewed then committed once.
+    map.test.pointerDown(cornerNear(map, 'p', NE), { alt: true })
+    await map.test.flush()
+    off.dispose()
+
+    expect(corners(map, 'p')).toHaveLength(3)
+    expect(captured.filter((c) => c instanceof CommitEditCommand)).toHaveLength(1)
+
+    for (let i = captured.length - 1; i >= 0; i--) map.commands._apply(captured[i]!, 'undo')
+    // Deep equality, not just corner count — the pre-edit version and updatedAt too.
+    expect(map.store.collection('parcels').all()).toEqual(before)
+
+    await map.destroy()
+  })
+
+  it('round-trips a programmatic move through the public commit path', async () => {
+    const map = await mapWithParcel()
+    const before = map.store.collection('parcels').all()
+
+    const captured: Command[] = []
+    const off = map.commands.onDidExecute((command) => captured.push(command))
+
+    // The public API, no gesture — the other #applyOnce entry.
+    map.plugin('edit').move(['p'], [10, 5])
+    await map.test.flush()
+    off.dispose()
+
+    expect(map.store.collection('parcels').all()).not.toEqual(before)
+    const commits = captured.filter((c) => c instanceof CommitEditCommand)
+    expect(commits).toHaveLength(1)
+
+    map.commands._apply(commits[0]!, 'undo')
+    expect(map.store.collection('parcels').all()).toEqual(before)
+
+    await map.destroy()
+  })
 })
 
 describe('editPlugin — topological editing', () => {
