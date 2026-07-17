@@ -35,6 +35,23 @@ describe('theme → basemap wiring', () => {
     await map.destroy()
   })
 
+  it('reverts to a blank ground when switching to a theme with no basemap', async () => {
+    const map = await createTestMap()
+
+    map.theme.use('twitter-dim')
+    expect(map.test.renderer.basemap).toBe(twitterDim.basemap)
+    const calls = map.test.renderer.setBasemapCalls
+
+    // blaeu-default carries no basemap. Switching to it must not leave the dark ground
+    // under the light chrome — it reverts to a blank ground.
+    map.theme.use('blaeu-default')
+    expect(map.test.renderer.setBasemapCalls).toBe(calls + 1)
+    expect(map.test.renderer.basemap).not.toBe(twitterDim.basemap)
+    expect(map.test.renderer.basemap).toMatchObject({ version: 8, layers: [] })
+
+    await map.destroy()
+  })
+
   it('re-applies on each switch but not for an unchanged basemap', async () => {
     const map = await createTestMap()
 

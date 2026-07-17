@@ -95,6 +95,7 @@ export class BlaeuThemeManager implements ThemeManager {
   }
 
   use(id: string): void {
+    if (this.#disposed) return
     const theme = this.#registry.get(id)
     if (!theme) {
       throw new Error(
@@ -103,10 +104,24 @@ export class BlaeuThemeManager implements ThemeManager {
           `Call theme.register(theme) first, or use one of those ids.`,
       )
     }
-    // An explicit choice wins over the OS. Stop following, then apply — the manual
+    // An explicit choice wins over the OS. Stop following, then activate — the manual
     // pin sticks until follow('auto') is called again.
     this.#following = false
-    this.set(theme)
+    this.#activate(theme)
+  }
+
+  /**
+   * Activate a *whole* theme, authoritatively.
+   *
+   * Unlike {@link set}, which takes a sparse patch and inherits what the patch omits,
+   * activating a full theme must *replace* — a theme that names no basemap means "no
+   * basemap", not "keep the last theme's". Without this, switching from `twitter-dim`
+   * (a dark flat ground) to a basemap-less theme would leave the light chrome sitting
+   * on the dark ground, and a scoped-CSS theme's rules would linger under the next
+   * theme that ships none. So omitted `basemap`/`css` are coerced to `null` (clear).
+   */
+  #activate(theme: Theme): void {
+    this.set({ ...theme, basemap: theme.basemap ?? null, css: theme.css ?? null })
   }
 
   list(): readonly Theme[] {
@@ -120,6 +135,7 @@ export class BlaeuThemeManager implements ThemeManager {
   /* ---- light / dark policy ---- */
 
   setSchemeDefaults(defaults: { readonly light: string; readonly dark: string }): void {
+    if (this.#disposed) return
     for (const id of [defaults.light, defaults.dark]) {
       if (!this.#registry.has(id)) {
         throw new Error(
@@ -133,6 +149,7 @@ export class BlaeuThemeManager implements ThemeManager {
   }
 
   follow(preference: SchemePreference): void {
+    if (this.#disposed) return
     if (preference === 'auto') {
       this.#following = true
       this.#watchOs()
@@ -148,11 +165,13 @@ export class BlaeuThemeManager implements ThemeManager {
   #applyForScheme(scheme: ColorScheme): void {
     const id = this.#schemeDefaults[scheme]
     const theme = this.#registry.get(id)
-    if (theme) this.set(theme)
+    // A scheme default is a full theme, so activate it authoritatively (replace, not patch).
+    if (theme) this.#activate(theme)
   }
 
   #watchOs(): void {
-    if (this.#mql || typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+    if (this.#mql || typeof window === 'undefined' || typeof window.matchMedia !== 'function')
+      return
     const mql = window.matchMedia('(prefers-color-scheme: dark)')
     // `addEventListener` on a MediaQueryList is the modern API; the old `addListener`
     // is kept as a fallback for Safari < 14, which a field laptop may well be running.

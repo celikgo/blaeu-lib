@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { BlaeuThemeManager } from './ThemeManager.js'
 import { defaultTheme } from './defaultTheme.js'
+import { twitterLight } from './themes/index.js'
 
 /**
  * The suite runs in node, with no `document` — which is the point. The kernel must
@@ -200,6 +201,21 @@ describe('BlaeuThemeManager — basemap/css merge', () => {
     // An explicit null clears it — the case a dark→no-basemap switch depends on.
     theme.set({ basemap: null })
     expect(theme.current.basemap).toBeUndefined()
+  })
+
+  it('use() replaces css and basemap rather than inheriting the previous theme', () => {
+    const { element } = stubContainer()
+    const theme = new BlaeuThemeManager(element)
+
+    theme.use('survey-paper') // ships scoped css and a flat basemap
+    expect(theme.current.css).toBeTruthy()
+    expect(theme.current.basemap).toBeDefined()
+
+    theme.use('twitter-light') // ships neither css of its own
+    // Authoritative activation: the omitted css is CLEARED, not left over from
+    // survey-paper — otherwise a light theme would carry the last theme's rules.
+    expect(theme.current.css).toBeUndefined()
+    expect(theme.current.basemap).toBe(twitterLight.basemap)
   })
 
   it('writes color-scheme onto the container so native controls flip', () => {

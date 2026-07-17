@@ -18,7 +18,7 @@ import { BlaeuCrsService } from './crs/CrsService.js'
 import { BlaeuThemeManager } from './theme/ThemeManager.js'
 import { BlaeuI18n } from './i18n/I18n.js'
 import { BlaeuValidationRegistry } from './validation/ValidationRegistry.js'
-import { MapLibreRenderer } from './renderers/MapLibreRenderer.js'
+import { MapLibreRenderer, blankStyle } from './renderers/MapLibreRenderer.js'
 import { resolveConfig } from './config.js'
 import { normalisePluginSpec } from './presets/compose.js'
 
@@ -259,14 +259,27 @@ export class BlaeuMap {
    * `map:error` rather than rejecting the theme change and stranding the chrome.
    */
   async #applyBasemap(basemap: Theme['basemap']): Promise<void> {
-    if (basemap === undefined || basemap === null) return
-    if (basemap === this.#appliedBasemap) return
     const setBasemap = this.renderer.setBasemap
     if (typeof setBasemap !== 'function') return
-    this.#appliedBasemap = basemap
+
+    const hasBasemap = basemap !== undefined && basemap !== null
+    if (hasBasemap) {
+      if (basemap === this.#appliedBasemap) return
+    } else {
+      // The theme clears the basemap. If we had applied one (a dark ground, say),
+      // revert to a blank ground so a light theme does not sit on the old dark map;
+      // if we never applied one, leave the app's own initial style untouched.
+      if (this.#appliedBasemap === undefined) return
+    }
+
+    const target = hasBasemap ? basemap : blankStyle()
+    const previous = this.#appliedBasemap
+    // Optimistic, but rolled back on failure so a transient error stays retryable.
+    this.#appliedBasemap = hasBasemap ? basemap : undefined
     try {
-      await setBasemap.call(this.renderer, basemap)
+      await setBasemap.call(this.renderer, target)
     } catch (err) {
+      this.#appliedBasemap = previous
       this.events.emit('map:error', {
         error: err instanceof Error ? err : new Error(String(err)),
         source: 'theme:basemap',

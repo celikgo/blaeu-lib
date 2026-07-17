@@ -296,6 +296,15 @@ export class MapLibreRenderer implements Renderer {
     const map = this.#requireMap('setData')
     const source = map.getSource<GeoJSONSource>(sourceId)
     if (!source) {
+      // A source we know about can be *temporarily* absent from the native map: during
+      // a basemap swap, setStyle has wiped it and re-materialise has not yet re-added
+      // it. A store flush landing in that window must not throw and lose the update —
+      // buffer it into the bookkeeping the swap re-materialises from, and re-adding the
+      // source will pick up these latest features.
+      if (this.#sources.has(sourceId)) {
+        this.#sourceData.set(sourceId, features)
+        return
+      }
       throw new Error(
         `[blaeu] setData("${sourceId}") — no such source. Call addSource("${sourceId}") before writing to it.`,
       )
@@ -545,7 +554,11 @@ export class MapLibreRenderer implements Renderer {
   #resolveBeforeId(beforeId: string | undefined): string | undefined {
     if (beforeId === undefined) return undefined
     const own = this.#layers.get(beforeId)?.native[0]?.id
-    if (own !== undefined) return own
+    // The anchor must actually be on the map *now*. During a basemap re-materialise the
+    // referenced layer may not have been re-added yet (a move() can reorder the two);
+    // returning its id anyway makes MapLibre's addLayer throw and drops the referencing
+    // layer. Fall back to "on top" — the same graceful behaviour as a gone basemap layer.
+    if (own !== undefined) return this.#map?.getLayer(own) ? own : undefined
     return this.#map?.getLayer(beforeId) ? beforeId : undefined
   }
 
@@ -928,23 +941,51 @@ function whenLoaded(map: MapLibreMap): Promise<void> {
 }
 
 /**
- * Resolve once a freshly-set style has finished loading.
+ * Resolve once a freshly-set style has finished loading; reject rather than hang if
+ * it never will.
  *
  * `setStyle()` is asynchronous: it returns immediately and the new style becomes
  * usable a tick or several later, signalled by `styledata`. We poll `isStyleLoaded()`
  * on each `styledata` because a single event can fire before the style is fully
  * parsed (sprites, the diff), and re-adding a source into a not-yet-ready style is
  * the kind of race that fails once in fifty runs and never in a test.
+ *
+ * But a basemap that 404s — the offline/intranet case this file worries about — never
+ * fires `styledata`, so waiting only on it would leave the promise pending forever:
+ * `setBasemap` would never settle and the `map:error` the caller relies on would never
+ * fire. So we also reject on a non-source `error` (a source 404 is a blank tile, not a
+ * dead style) and on `remove` (a destroy mid-swap), and we tear down *every* listener
+ * on any outcome so a stream of failing swaps cannot accumulate them.
  */
 function whenStyleReady(map: MapLibreMap): Promise<void> {
   if (map.isStyleLoaded()) return Promise.resolve()
-  return new Promise<void>((resolve) => {
-    const onData = (): void => {
-      if (!map.isStyleLoaded()) return
-      map.off('styledata', onData)
-      resolve()
+
+  return new Promise<void>((resolve, reject) => {
+    const subs: Subscription[] = []
+    const cleanup = (): void => {
+      for (const s of subs) s.unsubscribe()
     }
-    map.on('styledata', onData)
+    subs.push(
+      map.on('styledata', () => {
+        if (!map.isStyleLoaded()) return
+        cleanup()
+        resolve()
+      }),
+      map.on('error', (event: { error?: { message?: string }; sourceId?: string }) => {
+        if (event.sourceId !== undefined) return // a missing tile is recoverable
+        cleanup()
+        reject(
+          new Error(
+            `[blaeu] MapLibre failed to load the basemap style: ${event.error?.message ?? 'unknown error'}. ` +
+              `Check the theme's \`basemap\` — it must be reachable from the browser.`,
+          ),
+        )
+      }),
+      map.on('remove', () => {
+        cleanup()
+        reject(new Error('[blaeu] the renderer was destroyed before the basemap finished loading.'))
+      }),
+    )
   })
 }
 

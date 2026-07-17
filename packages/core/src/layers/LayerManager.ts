@@ -426,9 +426,19 @@ export class BlaeuLayerManager implements LayerManager {
     const tokens = this.#theme.current.tokens
     for (const record of this.#layers.values()) {
       if (!record.styleFn) continue
-      const style = record.styleFn(tokens)
-      record.spec = { ...record.spec, style }
-      record.inner.setStyle(style)
+      try {
+        const style = record.styleFn(tokens)
+        record.spec = { ...record.spec, style }
+        record.inner.setStyle(style)
+      } catch (err) {
+        // One layer whose style function throws, or whose renderer restyle rejects
+        // (a symbol layer with no glyphs after a flat-basemap swap), must not abort the
+        // loop and leave every later layer stranded in the old palette.
+        this.#events.emit('map:error', {
+          error: err instanceof Error ? err : new Error(String(err)),
+          source: `layers:restyle:${record.inner.id}`,
+        })
+      }
     }
   }
 
