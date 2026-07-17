@@ -9,9 +9,17 @@ import {
 } from '../types/common.js'
 import type { EventBus } from '../types/events.js'
 import type { BlaeuFeature } from '../types/feature.js'
-import type { LayerInstance, LayerManager, LayerSpec, LayerTypeDef } from '../types/extensions.js'
+import type {
+  LayerInstance,
+  LayerManager,
+  LayerSpec,
+  LayerTypeDef,
+  ResolvedLayerSpec,
+  ThemeStyleFn,
+} from '../types/extensions.js'
 import type { LayerStyle, Renderer } from '../types/renderer.js'
 import type { FeatureStore } from '../types/store.js'
+import type { ThemeManager } from '../types/theme.js'
 import { createVectorLayerType } from './vectorLayerType.js'
 import { createRasterLayerType } from './rasterLayerType.js'
 
@@ -38,8 +46,18 @@ interface SourceRef {
 interface LayerRecord {
   /** The instance the *type* produced. Replaced wholesale by `move()`. */
   inner: LayerInstance
-  /** The spec as it currently stands — style/visibility edits are folded back in. */
+  /**
+   * The spec as it currently stands — style/visibility edits are folded back in.
+   * `spec.style` here is always *resolved* (a concrete `LayerStyle`, never a function),
+   * so `move()`, which rebuilds through the type, hands the type a value it understands.
+   */
   spec: LayerSpec
+  /**
+   * The theme-dependent style function, if the layer was added with one. Held so a
+   * theme change can re-evaluate it against the new tokens and restyle in place — the
+   * one path by which a *declarative* layer follows the palette.
+   */
+  styleFn?: ThemeStyleFn
   /** The handle handed to the caller. Survives `move()`. */
   readonly handle: LayerInstance
 }
@@ -52,6 +70,7 @@ export class BlaeuLayerManager implements LayerManager {
   readonly #renderer: Renderer
   readonly #store: FeatureStore
   readonly #events: EventBus
+  readonly #theme: ThemeManager
 
   readonly #types = new Map<string, LayerTypeDef>()
   readonly #layers = new Map<string, LayerRecord>()
@@ -68,10 +87,11 @@ export class BlaeuLayerManager implements LayerManager {
    */
   readonly #sources = new Map<CollectionId, SourceRef>()
 
-  constructor(renderer: Renderer, store: FeatureStore, events: EventBus) {
+  constructor(renderer: Renderer, store: FeatureStore, events: EventBus, theme: ThemeManager) {
     this.#renderer = renderer
     this.#store = store
     this.#events = events
+    this.#theme = theme
 
     this.registerType(
       createVectorLayerType(renderer, (collection) => this.#acquireSource(collection)),
@@ -132,14 +152,25 @@ export class BlaeuLayerManager implements LayerManager {
       )
     }
 
-    const record = this.#instantiate(def, spec)
+    // A function style is resolved against the live tokens *now*, and the function is
+    // kept so a later theme change can re-resolve it. The layer *type* only ever sees
+    // a concrete `LayerStyle` — the theme-awareness lives here, not in every type.
+    const styleFn = typeof spec.style === 'function' ? (spec.style as ThemeStyleFn) : undefined
+    const resolvedSpec: LayerSpec = styleFn
+      ? { ...spec, style: styleFn(this.#theme.current.tokens) }
+      : spec
+
+    const record = this.#instantiate(def, resolvedSpec)
+    if (styleFn) record.styleFn = styleFn
     this.#layers.set(spec.id, record)
     this.#insertIntoOrder(spec.id, spec.beforeId)
     return record.handle
   }
 
   #instantiate(def: LayerTypeDef, spec: LayerSpec): LayerRecord {
-    const inner = def.create(spec)
+    // `spec.style` is already resolved to a concrete value by `add()`/`move()` before
+    // it reaches here — the type still admits a function, but the value never is one.
+    const inner = def.create(spec as ResolvedLayerSpec)
 
     // Applied centrally rather than in each type: `visible` is part of the shared
     // LayerSpec, and a third-party layer type that forgets to honour it would fail
@@ -164,6 +195,9 @@ export class BlaeuLayerManager implements LayerManager {
         setStyle: (style: LayerStyle) => {
           const current = this.#layers.get(spec.id)
           if (!current) return
+          // A manual style wins over the theme function: the caller reached past the
+          // theme deliberately, and a later theme change must not clobber that.
+          delete current.styleFn
           current.spec = { ...current.spec, style }
           current.inner.setStyle(style)
         },
@@ -237,7 +271,7 @@ export class BlaeuLayerManager implements LayerManager {
       record.inner.dispose()
       this.#order = this.#order.filter((x) => x !== id)
 
-      record.inner = def.create(spec)
+      record.inner = def.create(spec as ResolvedLayerSpec)
       record.spec = spec
       if (spec.visible === false) record.inner.setVisible(false)
       this.#insertIntoOrder(id, beforeId)
@@ -375,7 +409,27 @@ export class BlaeuLayerManager implements LayerManager {
       dirty.clear()
     })
 
+    // Declarative layers added with a function style follow the theme from here: on
+    // every theme change, re-evaluate each function against the new tokens and restyle
+    // in place. A plugin-drawn overlay handles this itself; a layer added as data
+    // (a preset's parcels) has no `onChange` of its own, and this is that wire.
+    disposables.add(
+      this.#theme.onChange(() => {
+        if (!stopped) this.#restyleForTheme()
+      }),
+    )
+
     return disposables
+  }
+
+  #restyleForTheme(): void {
+    const tokens = this.#theme.current.tokens
+    for (const record of this.#layers.values()) {
+      if (!record.styleFn) continue
+      const style = record.styleFn(tokens)
+      record.spec = { ...record.spec, style }
+      record.inner.setStyle(style)
+    }
   }
 
   #push(collection: CollectionId): void {

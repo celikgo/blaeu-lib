@@ -109,3 +109,116 @@ describe('BlaeuThemeManager', () => {
     }).not.toThrow()
   })
 })
+
+describe('BlaeuThemeManager — registry', () => {
+  it('pre-registers the built-in themes, so use() works with no setup', () => {
+    const { element } = stubContainer()
+    const theme = new BlaeuThemeManager(element)
+
+    const ids = theme.list().map((t) => t.id)
+    expect(ids).toContain('twitter-light')
+    expect(ids).toContain('twitter-dim')
+    expect(theme.has('twitter-dim')).toBe(true)
+
+    theme.use('twitter-dim')
+    expect(theme.current.id).toBe('twitter-dim')
+    expect(theme.scheme).toBe('dark')
+  })
+
+  it('throws on use() of an unknown id, listing what is registered', () => {
+    const { element } = stubContainer()
+    const theme = new BlaeuThemeManager(element)
+    expect(() => theme.use('mardi-gras')).toThrow(/no theme with that id/)
+    // A silent no-op would be a blank map nobody can explain; the id list is the clue.
+    expect(() => theme.use('mardi-gras')).toThrow(/twitter-dim/)
+  })
+
+  it('registers a custom theme and activates it by id', () => {
+    const { element } = stubContainer()
+    const theme = new BlaeuThemeManager(element)
+
+    theme.register({
+      ...defaultTheme,
+      id: 'brand',
+      scheme: 'light',
+      tokens: {
+        ...defaultTheme.tokens,
+        color: { ...defaultTheme.tokens.color, accent: '#ff0000' },
+      },
+    })
+    theme.use('brand')
+    expect(theme.token('color').accent).toBe('#ff0000')
+  })
+})
+
+describe('BlaeuThemeManager — light/dark policy', () => {
+  it('follow("dark") pins the registered dark default', () => {
+    const { element } = stubContainer()
+    const theme = new BlaeuThemeManager(element)
+    theme.setSchemeDefaults({ light: 'twitter-light', dark: 'twitter-dim' })
+
+    theme.follow('dark')
+    expect(theme.current.id).toBe('twitter-dim')
+
+    theme.follow('light')
+    expect(theme.current.id).toBe('twitter-light')
+  })
+
+  it('an explicit use() wins over a following scheme', () => {
+    const { element } = stubContainer()
+    const theme = new BlaeuThemeManager(element)
+    theme.follow('dark')
+    expect(theme.scheme).toBe('dark')
+
+    theme.use('survey-paper')
+    // The manual pin sticks — a later scheme default does not silently reclaim it.
+    expect(theme.current.id).toBe('survey-paper')
+    expect(theme.scheme).toBe('light')
+  })
+
+  it('setSchemeDefaults rejects an unregistered id', () => {
+    const { element } = stubContainer()
+    const theme = new BlaeuThemeManager(element)
+    expect(() => theme.setSchemeDefaults({ light: 'nope', dark: 'twitter-dim' })).toThrow(
+      /not registered/,
+    )
+  })
+})
+
+describe('BlaeuThemeManager — basemap/css merge', () => {
+  it('null clears a previous theme basemap; undefined leaves it', () => {
+    const { element } = stubContainer()
+    const theme = new BlaeuThemeManager(element)
+
+    theme.set({ basemap: { version: 8, sources: {}, layers: [] } })
+    expect(theme.current.basemap).toBeDefined()
+
+    // A sparse patch that says nothing about the basemap inherits it.
+    theme.set({ tokens: { color: { accent: '#123456' } } })
+    expect(theme.current.basemap).toBeDefined()
+
+    // An explicit null clears it — the case a dark→no-basemap switch depends on.
+    theme.set({ basemap: null })
+    expect(theme.current.basemap).toBeUndefined()
+  })
+
+  it('writes color-scheme onto the container so native controls flip', () => {
+    const { element } = stubContainer()
+    const seen = new Map<string, string>()
+    const el = {
+      style: {
+        setProperty: (n: string, v: string) => seen.set(n, v),
+        removeProperty: (n: string) => seen.delete(n),
+      },
+      setAttribute: () => {},
+      removeAttribute: () => {},
+    } as unknown as HTMLElement
+    void element
+
+    const theme = new BlaeuThemeManager(el)
+    theme.use('twitter-dim')
+    expect(seen.get('color-scheme')).toBe('dark')
+    theme.use('twitter-light')
+    expect(seen.get('color-scheme')).toBe('light')
+  })
+})

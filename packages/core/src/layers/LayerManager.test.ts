@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { BlaeuEventBus } from '../events/EventBus.js'
 import { BlaeuLayerManager } from './LayerManager.js'
+import { BlaeuThemeManager } from '../theme/ThemeManager.js'
 import type { Bbox, Disposable, FeatureId, LngLat, ScreenPoint } from '../types/common.js'
 import type { BlaeuFeature } from '../types/feature.js'
 import type { Camera, CameraOptions, LayerStyle, Renderer } from '../types/renderer.js'
@@ -198,18 +199,75 @@ describe('BlaeuLayerManager', () => {
   let renderer: StubRenderer
   let store: StubStore
   let events: BlaeuEventBus
+  let theme: BlaeuThemeManager
   let layers: BlaeuLayerManager
 
   beforeEach(() => {
     renderer = new StubRenderer()
     store = new StubStore()
     events = new BlaeuEventBus()
-    layers = new BlaeuLayerManager(renderer, store.asStore(), events)
+    // A headless theme manager: the stub container has no `style`/`setAttribute`, so
+    // the manager writes no CSS and is pure token state — exactly what a layer style
+    // function reads.
+    theme = new BlaeuThemeManager({} as unknown as HTMLElement)
+    layers = new BlaeuLayerManager(renderer, store.asStore(), events, theme)
   })
 
   it('ships the vector and raster types', () => {
     expect(() => layers.add({ id: 'l', type: 'nope' })).toThrow(/unknown layer type "nope"/)
     expect(() => layers.add({ id: 'l', type: 'nope' })).toThrow(/\[vector, raster\]/)
+  })
+
+  describe('theme-following styles', () => {
+    const styleOf = (id: string): LayerStyle | undefined =>
+      renderer.layers.find((l) => l.id === id)?.style
+
+    it('resolves a function style against the live tokens at add()', () => {
+      store.seed('parcels', [feature('a', 'parcels')])
+      layers.add({
+        id: 'parcels',
+        type: 'vector',
+        source: 'parcels',
+        style: (t) => ({ line: { color: t.color.accent } }),
+      })
+      // The type never sees the function — only the resolved value.
+      expect(styleOf('parcels')).toEqual({ line: { color: theme.token('color').accent } })
+    })
+
+    it('re-resolves every function style when the theme changes', () => {
+      const wire = layers.connectStore() // wires the theme subscription
+      store.seed('parcels', [feature('a', 'parcels')])
+      layers.add({
+        id: 'parcels',
+        type: 'vector',
+        source: 'parcels',
+        style: (t) => ({ line: { color: t.color.accent } }),
+      })
+      const before = theme.token('color').accent
+
+      theme.use('twitter-dim')
+      const after = theme.token('color').accent
+
+      expect(after).not.toBe(before) // the dark theme really does re-tint
+      expect(styleOf('parcels')).toEqual({ line: { color: after } })
+      wire.dispose()
+    })
+
+    it('lets a manual setStyle() win over the theme function from then on', () => {
+      const wire = layers.connectStore()
+      const handle = layers.add({
+        id: 'parcels',
+        type: 'vector',
+        source: 'parcels',
+        style: (t) => ({ line: { color: t.color.accent } }),
+      })
+
+      handle.setStyle({ line: { color: '#abcdef' } })
+      theme.use('twitter-dim') // must not clobber the deliberate manual style
+
+      expect(styleOf('parcels')).toEqual({ line: { color: '#abcdef' } })
+      wire.dispose()
+    })
   })
 
   describe('vector', () => {
@@ -475,7 +533,7 @@ describe('BlaeuLayerManager', () => {
 
     it('tolerates a renderer with no feature resolver', () => {
       const plain = new StubRenderer({ featureResolver: false })
-      const bare = new BlaeuLayerManager(plain, store.asStore(), events)
+      const bare = new BlaeuLayerManager(plain, store.asStore(), events, theme)
       expect(() => bare.connectStore().dispose()).not.toThrow()
     })
 

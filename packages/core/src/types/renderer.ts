@@ -98,6 +98,18 @@ export interface Renderer {
   setLayerStyle(layerId: string, style: LayerStyle): void
   setLayerVisible(layerId: string, visible: boolean): void
 
+  /**
+   * Swap the basemap at runtime — the primitive a theme change drives.
+   *
+   * Optional: a renderer for a fixed-ground game map may have no basemap to swap. A
+   * renderer that *does* implement it must survive the swap — some renderers (MapLibre
+   * among them) tear down every source and layer on a style change, so the
+   * implementation is responsible for re-materialising the ones this library added,
+   * with their data and stacking order, or a theme change would wipe the map. The
+   * camera must not move. Callers probe for the method rather than assuming it.
+   */
+  setBasemap?(style: string | Record<string, unknown>): Promise<void>
+
   /* --- camera --- */
   getCamera(): Camera
   setCamera(options: CameraOptions): void

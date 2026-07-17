@@ -98,8 +98,11 @@ export class FakeRenderer implements Renderer {
   setLayerVisibleCalls = 0
   setCameraCalls = 0
   fitBoundsCalls = 0
+  setBasemapCalls = 0
 
   cursor = 'default'
+  /** The last basemap handed to {@link setBasemap}, for a test asserting a theme swap reached the renderer. */
+  basemap: string | Record<string, unknown> | undefined
   mounted = false
   destroyed = false
   container: HTMLElement | undefined
@@ -223,6 +226,19 @@ export class FakeRenderer implements Renderer {
     this.setLayerVisibleCalls++
     const layer = this.layers.get(layerId)
     if (layer) layer.visible = visible
+  }
+
+  /**
+   * Model the real renderer's *net* behaviour: the basemap changes and the map
+   * survives. The MapLibre implementation tears its sources and layers down on
+   * `setStyle()` and re-materialises them; the observable end state — same sources,
+   * same layers, new ground — is what this reproduces, so a test that switches theme
+   * and then queries a feature behaves as it does in the browser.
+   */
+  setBasemap(style: string | Record<string, unknown>): Promise<void> {
+    this.setBasemapCalls++
+    this.basemap = style
+    return Promise.resolve()
   }
 
   /* ===================================================================== */
@@ -434,6 +450,7 @@ export class FakeRenderer implements Renderer {
     this.setLayerVisibleCalls = 0
     this.setCameraCalls = 0
     this.fitBoundsCalls = 0
+    this.setBasemapCalls = 0
   }
 
   destroy(): void {

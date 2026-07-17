@@ -96,10 +96,14 @@ ${s} .bl-ui-button:hover:not(:disabled) { background: var(--bl-color-hover, #eef
 ${s} .bl-ui-button:disabled { opacity: 0.45; cursor: default; }
 
 /* The pressed state is driven by aria-pressed, not by a class. If the two can
-   disagree, they will, and the screen-reader user is the one who finds out. */
+   disagree, they will, and the screen-reader user is the one who finds out.
+   The fill is accentStrong, not accent: accent is tuned to read as a mark on the map
+   (3:1 is enough for a graphic), and for real palettes — Twitter blue on white is
+   exactly 3.00:1 — that same colour cannot legally carry the button label.
+   accentStrong with onAccent is the pair sized so the label on it clears 4.5:1. */
 ${s} .bl-ui-button[aria-pressed='true'] {
-  background: var(--bl-color-accent, #2563eb);
-  color: var(--bl-color-surface, #fff);
+  background: var(--bl-color-accent-strong, #1d4ed8);
+  color: var(--bl-color-on-accent, #fff);
 }
 
 ${s} .bl-ui-button-icon { font-size: var(--bl-font-size, 13px); line-height: 1; }

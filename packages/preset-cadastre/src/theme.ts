@@ -39,18 +39,27 @@ export const CADASTRE_COLORS = {
  */
 export const cadastreTheme: Theme = {
   id: 'cadastre',
+  scheme: 'light',
   tokens: {
     ...defaultTheme.tokens,
     color: {
       ...defaultTheme.tokens.color,
       accent: CADASTRE_COLORS.parcelLine,
       accentMuted: '#6b7785',
+      // The pressed toolbar button: near-black ink under a white glyph reads on
+      // paper the way the parcel ink reads on the map — the same colour, the same job.
+      accentStrong: CADASTRE_COLORS.parcelLine,
+      onAccent: '#ffffff',
       selection: CADASTRE_COLORS.selection,
       hover: CADASTRE_COLORS.hover,
       vertexActive: CADASTRE_COLORS.selection,
+      // The ground is the survey sheet. The default near-white canvas would read as a
+      // seam against the paper surface; they are the same paper on purpose.
+      canvas: CADASTRE_COLORS.surface,
       surface: CADASTRE_COLORS.surface,
       surfaceMuted: CADASTRE_COLORS.surfaceMuted,
       text: CADASTRE_COLORS.label,
+      labelHalo: CADASTRE_COLORS.labelHalo,
       border: '#d6d1c6',
     },
     size: {

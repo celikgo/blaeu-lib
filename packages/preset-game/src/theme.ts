@@ -17,6 +17,7 @@ import type { ResolvedGameOptions } from './types.js'
 export function gameTheme(options: ResolvedGameOptions): Theme {
   return {
     id: 'blaeu-game',
+    scheme: 'dark',
     basemap: {
       version: 8,
       // No sprite, no glyphs, no sources: nothing is fetched over the network to
@@ -38,6 +39,10 @@ export function gameTheme(options: ResolvedGameOptions): Theme {
         // white surfaces would sit on this background like a lightbox.
         accent: '#4ade80',
         accentMuted: '#166534',
+        // The filled control is bright green with near-black text on it — the reverse
+        // of the light themes, because on a green this dark text wins over white.
+        accentStrong: '#4ade80',
+        onAccent: '#0d1117',
         selection: '#4ade80',
         hover: '#86efac',
         vertex: '#f8fafc',
@@ -46,10 +51,14 @@ export function gameTheme(options: ResolvedGameOptions): Theme {
         // lands on an already-selected entity.
         snapIndicator: '#fbbf24',
         guide: '#38bdf8',
+        // The ground is the level: the theme's canvas is the world's background, so
+        // the flat basemap and the token agree, and on-map labels get a dark halo.
+        canvas: options.backgroundColor,
         surface: '#161b22',
         surfaceMuted: '#21262d',
         text: '#e6edf3',
         textMuted: '#8b949e',
+        labelHalo: options.backgroundColor,
         border: '#30363d',
       },
       size: {

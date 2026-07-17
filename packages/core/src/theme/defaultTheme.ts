@@ -10,10 +10,14 @@ import type { Theme } from '../types/theme.js'
  */
 export const defaultTheme: Theme = {
   id: 'blaeu-default',
+  scheme: 'light',
   tokens: {
     color: {
       accent: '#2563eb',
       accentMuted: '#93c5fd',
+      // Darker than `accent`: white on #2563eb is 5.17:1, so a filled button is legible.
+      accentStrong: '#1d4ed8',
+      onAccent: '#ffffff',
       selection: '#2563eb',
       hover: '#60a5fa',
       // Vertices are white with an accent stroke rather than solid accent: a solid
@@ -21,17 +25,26 @@ export const defaultTheme: Theme = {
       vertex: '#ffffff',
       vertexActive: '#2563eb',
       midpoint: '#cbd5e1',
-      // Amber, and specifically *not* a blue: a snap indicator that lands on an
-      // already-selected vertex must still be distinguishable from the selection.
-      snapIndicator: '#f59e0b',
+      // A deep amber, and specifically *not* a blue: a snap indicator that lands on
+      // an already-selected vertex must stay distinguishable from the selection. Deep
+      // rather than bright so the tooltip's light label clears 4.5:1 on it (the old
+      // #f59e0b was 2.15:1 — an unreadable readout) and the ring holds 3:1 on a white
+      // ground. The dark themes lift it back to a bright yellow, which their dark
+      // label reads on cleanly.
+      snapIndicator: '#b45309',
       guide: '#a855f7',
       error: '#dc2626',
       warning: '#d97706',
       success: '#16a34a',
+      // The map ground. Near-white for the neutral default, and a hair off pure
+      // white so a white feature fill still has an edge against it.
+      canvas: '#fafbfc',
       surface: '#ffffff',
       surfaceMuted: '#f1f5f9',
       text: '#0f172a',
       textMuted: '#64748b',
+      // Light map → light halo. The dark themes override this to a dark colour.
+      labelHalo: '#ffffff',
       border: '#cbd5e1',
     },
     size: {

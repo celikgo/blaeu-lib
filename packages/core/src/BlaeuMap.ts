@@ -2,6 +2,7 @@ import { DisposableStore, type Disposable, type Logger } from './types/common.js
 import type { BlaeuMapOptions, ResolvedConfig } from './types/config.js'
 import type { BlaeuPlugin, BlaeuPluginRegistry, PluginContext } from './types/plugin.js'
 import type { Preset } from './types/preset.js'
+import type { Theme } from './types/theme.js'
 import type { Renderer, RendererPointerEvent } from './types/renderer.js'
 import type { InteractionContext } from './types/pipeline.js'
 import type { Tool } from './types/extensions.js'
@@ -72,6 +73,8 @@ export class BlaeuMap {
   readonly #disposables = new DisposableStore()
   #ready: Promise<void>
   #destroyed = false
+  /** The basemap last handed to the renderer, so an unchanged theme change is not a redundant restyle. */
+  #appliedBasemap: Theme['basemap']
 
   constructor(options: BlaeuMapOptions) {
     const preset = options.preset
@@ -96,7 +99,7 @@ export class BlaeuMap {
 
     this.renderer = options.renderer ?? new MapLibreRenderer()
     this.tools = new BlaeuToolManager(this.events)
-    this.layers = new BlaeuLayerManager(this.renderer, this.store, this.events)
+    this.layers = new BlaeuLayerManager(this.renderer, this.store, this.events, this.theme)
 
     this.plugins = new BlaeuPluginManager(
       (plugin, pluginOptions, disposables) => this.#makeContext(plugin, pluginOptions, disposables),
@@ -123,6 +126,17 @@ export class BlaeuMap {
 
     if (preset?.theme) this.theme.set(preset.theme)
     if (options.theme) this.theme.set(options.theme)
+
+    // The theme owns the basemap, and this is the wire that makes that true. Until
+    // here `theme.basemap` was dead config — typed, set by presets, read by nothing.
+    // Apply it now that the renderer is mounted, and re-apply on every theme change so
+    // a day/night switch swaps the ground under the features, not just the chrome.
+    this.#disposables.add(
+      this.theme.onChange((theme) => {
+        void this.#applyBasemap(theme.basemap)
+      }),
+    )
+    await this.#applyBasemap(this.theme.current.basemap)
 
     for (const [locale, messages] of Object.entries(preset?.i18n ?? {})) {
       this.#disposables.add(this.i18n.register(locale, messages))
@@ -233,6 +247,31 @@ export class BlaeuMap {
       originalEvent: event.originalEvent,
     }
     return ctx
+  }
+
+  /**
+   * Push a theme's basemap to the renderer, if the renderer supports swapping it.
+   *
+   * `null`/`undefined` means "this theme has no opinion about the basemap" — leave
+   * whatever is there (the app's own tiles, say). A renderer with no `setBasemap`
+   * (a fixed-ground game renderer) is a no-op, not an error, which is why we probe
+   * for the method rather than requiring it. A failed swap is reported on
+   * `map:error` rather than rejecting the theme change and stranding the chrome.
+   */
+  async #applyBasemap(basemap: Theme['basemap']): Promise<void> {
+    if (basemap === undefined || basemap === null) return
+    if (basemap === this.#appliedBasemap) return
+    const setBasemap = this.renderer.setBasemap
+    if (typeof setBasemap !== 'function') return
+    this.#appliedBasemap = basemap
+    try {
+      await setBasemap.call(this.renderer, basemap)
+    } catch (err) {
+      this.events.emit('map:error', {
+        error: err instanceof Error ? err : new Error(String(err)),
+        source: 'theme:basemap',
+      })
+    }
   }
 
   #wireCamera(): Disposable {

@@ -171,6 +171,12 @@ export class MapLibreRenderer implements Renderer {
   #mounting: Promise<void> | undefined
 
   readonly #sources = new Set<string>()
+  /**
+   * The last data pushed to each source, kept so a basemap swap can re-materialise it.
+   * `map.setStyle()` deletes every source and layer; without this we would re-add
+   * empty sources and the map would go blank on a theme change.
+   */
+  readonly #sourceData = new Map<string, readonly BlaeuFeature[]>()
   readonly #layers = new Map<string, LayerEntry>()
 
   readonly #pointerHandlers = new Set<(event: RendererPointerEvent) => void>()
@@ -281,6 +287,7 @@ export class MapLibreRenderer implements Renderer {
       promoteId: ID_PROPERTY,
     })
     this.#sources.add(sourceId)
+    this.#sourceData.set(sourceId, features)
 
     return { dispose: () => this.removeSource(sourceId) }
   }
@@ -300,6 +307,7 @@ export class MapLibreRenderer implements Renderer {
       )
     }
     source.setData(toFeatureCollection(features))
+    this.#sourceData.set(sourceId, features)
   }
 
   /**
@@ -319,6 +327,7 @@ export class MapLibreRenderer implements Renderer {
     }
     if (map.getSource(sourceId)) map.removeSource(sourceId)
     this.#sources.delete(sourceId)
+    this.#sourceData.delete(sourceId)
   }
 
   /* --------------------------------------------------------------- layers */
@@ -444,6 +453,71 @@ export class MapLibreRenderer implements Renderer {
     const value = entry.visible ? 'visible' : 'none'
     for (const native of entry.native) {
       if (map.getLayer(native.id)) map.setLayoutProperty(native.id, 'visibility', value)
+    }
+  }
+
+  /* --------------------------------------------------------------- basemap */
+
+  /**
+   * Swap the basemap style at runtime — the mechanism behind a theme change.
+   *
+   * The subtlety that makes this method exist: **`map.setStyle()` deletes every
+   * source and every layer.** MapLibre replaces the entire style, and it has no idea
+   * that this library added the parcel source and the edit-handle layers on top — it
+   * throws them away with the old basemap. A naive `setStyle` therefore wipes the map
+   * clean, and the very next `setData` throws *"no such source"*.
+   *
+   * So after the new style loads we re-materialise everything we own, from our own
+   * bookkeeping: each source with the data we last pushed to it, then each layer in
+   * its original stacking order. The camera does not move — `setStyle` preserves it —
+   * so to the user the ground colour changes and nothing else does.
+   */
+  async setBasemap(style: string | Record<string, unknown>): Promise<void> {
+    const map = this.#requireMap('setBasemap')
+    // `diff: false` forces a full replacement. Diffing against a completely different
+    // basemap (raster → flat colour, say) is slower and occasionally wrong; a theme
+    // swap is not the incremental edit that diffing is built for.
+    map.setStyle(style as StyleSpecification, { diff: false })
+    await whenStyleReady(map)
+    if (this.#destroyed || this.#map !== map) return
+    this.#rematerialise(map)
+    // setStyle can reset the canvas cursor; re-assert ours.
+    if (this.#cursor !== '') map.getCanvas().style.cursor = this.#cursor
+  }
+
+  /** Re-add our sources and layers onto a freshly-loaded style, in original order. */
+  #rematerialise(map: MapLibreMap): void {
+    for (const [sourceId, features] of this.#sourceData) {
+      if (!map.getSource(sourceId)) {
+        map.addSource(sourceId, {
+          type: 'geojson',
+          data: toFeatureCollection(features),
+          promoteId: ID_PROPERTY,
+        })
+      }
+    }
+
+    // #layers is insertion-ordered, which is the order they were originally stacked;
+    // re-adding in the same order reproduces it. A beforeId that pointed at a basemap
+    // layer the new style does not have resolves to "on top" rather than throwing.
+    for (const [, entry] of this.#layers) {
+      const before = this.#resolveBeforeId(entry.beforeId)
+      for (const native of entry.native) {
+        if (map.getLayer(native.id)) continue
+        try {
+          map.addLayer(toSpec(native, entry.sourceId), before)
+        } catch (err) {
+          // A symbol layer needs glyphs; a flat theme basemap ships none. Rather than
+          // let one label layer abort the whole swap and leave a half-restored map,
+          // skip it and report — the vector features still come back.
+          console.error(
+            `[blaeu] could not re-add layer "${native.id}" after a basemap change ` +
+              `(a symbol layer needs a basemap with a \`glyphs\` endpoint):`,
+            err,
+          )
+        }
+      }
+      this.#applyVisibility(map, entry)
     }
   }
 
@@ -740,6 +814,7 @@ export class MapLibreRenderer implements Renderer {
     this.#cameraHandlers.clear()
     this.#layers.clear()
     this.#sources.clear()
+    this.#sourceData.clear()
     this.#resolveFeature = undefined
     this.#lastTap = undefined
 
@@ -849,6 +924,27 @@ function whenLoaded(map: MapLibreMap): Promise<void> {
         reject(new Error('[blaeu] the renderer was destroyed before the map finished loading.'))
       }),
     )
+  })
+}
+
+/**
+ * Resolve once a freshly-set style has finished loading.
+ *
+ * `setStyle()` is asynchronous: it returns immediately and the new style becomes
+ * usable a tick or several later, signalled by `styledata`. We poll `isStyleLoaded()`
+ * on each `styledata` because a single event can fire before the style is fully
+ * parsed (sprites, the diff), and re-adding a source into a not-yet-ready style is
+ * the kind of race that fails once in fifty runs and never in a test.
+ */
+function whenStyleReady(map: MapLibreMap): Promise<void> {
+  if (map.isStyleLoaded()) return Promise.resolve()
+  return new Promise<void>((resolve) => {
+    const onData = (): void => {
+      if (!map.isStyleLoaded()) return
+      map.off('styledata', onData)
+      resolve()
+    }
+    map.on('styledata', onData)
   })
 }
 

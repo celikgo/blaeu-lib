@@ -76,6 +76,20 @@ export {
 
 /* ---- theme / i18n defaults, so a preset can extend rather than restate them ---- */
 export { defaultTheme } from './theme/defaultTheme.js'
+/* ---- built-in themes + the builder that keeps a theme's ground and its tokens in sync ---- */
+export {
+  builtinThemes,
+  DEFAULT_SCHEME_THEMES,
+  twitterLight,
+  twitterDim,
+  twitterBlack,
+  surveyPaper,
+  highContrast,
+  imageryDark,
+  buildTheme,
+  flatBasemap,
+} from './theme/themes/index.js'
+export type { ThemeDraft } from './theme/themes/index.js'
 export { en } from './i18n/messages/en.js'
 export { tr } from './i18n/messages/tr.js'
 

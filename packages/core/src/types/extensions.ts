@@ -2,6 +2,7 @@ import type { Bbox, CollectionId, Disposable, FeatureId, LngLat, ScreenPoint } f
 import type { EdgeRef, VertexRef } from './feature.js'
 import type { InteractionContext } from './pipeline.js'
 import type { LayerStyle } from './renderer.js'
+import type { ThemeTokens } from './theme.js'
 
 /* ========================================================================= */
 /* Tools — the interactive modes                                             */
@@ -77,12 +78,29 @@ export interface ToolManager {
 /* Layers — pluggable layer *types*                                          */
 /* ========================================================================= */
 
+/**
+ * A layer style that is a *function of the theme* rather than a fixed value.
+ *
+ * A preset that writes `style: (t) => ({ line: { color: t.color.accent } })` gets a
+ * parcel outline that follows a theme change — switch to a dark theme and the line
+ * re-tints with everything else, no subscription in the preset. The layer manager
+ * resolves the function against the live tokens and re-invokes it on every theme
+ * change, which is the only way a *declarative* layer (added as data, not by a plugin
+ * with its own `onChange`) can track the palette.
+ */
+export type ThemeStyleFn = (tokens: ThemeTokens) => LayerStyle
+
 export interface LayerSpec {
   readonly id: string
   /** A registered layer type. Core ships `vector` and `raster`; plugins add more. */
   readonly type: string
   readonly source?: CollectionId
-  readonly style?: LayerStyle
+  /**
+   * A fixed style, or a function of the theme tokens. A function is re-evaluated on
+   * every theme change, so a declarative layer can follow the palette without the
+   * caller wiring `theme.onChange` themselves.
+   */
+  readonly style?: LayerStyle | ThemeStyleFn
   readonly visible?: boolean
   /** Insert beneath this layer id. */
   readonly beforeId?: string
@@ -98,6 +116,19 @@ export interface LayerInstance extends Disposable {
 }
 
 /**
+ * What a layer *type* receives: a spec whose style is already a concrete
+ * {@link LayerStyle}.
+ *
+ * The public {@link LayerSpec} lets `style` be a function of the theme, but the layer
+ * manager resolves that function against the live tokens before it ever reaches a
+ * type — so a type author writes against a plain style and never has to know the theme
+ * exists. The manager is the single place that turns a `ThemeStyleFn` into pixels.
+ */
+export interface ResolvedLayerSpec extends Omit<LayerSpec, 'style'> {
+  readonly style?: LayerStyle
+}
+
+/**
  * Registering a *layer type* — not a layer — is what lets a plugin add a whole
  * new rendering category without the core knowing about it.
  *
@@ -108,7 +139,7 @@ export interface LayerInstance extends Disposable {
  */
 export interface LayerTypeDef<TConfig = Record<string, unknown>> {
   readonly type: string
-  create(spec: LayerSpec & { config?: TConfig }): LayerInstance
+  create(spec: ResolvedLayerSpec & { config?: TConfig }): LayerInstance
 }
 
 export interface LayerManager {

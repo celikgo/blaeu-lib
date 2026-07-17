@@ -19,6 +19,7 @@ import type { DeepPartial, Theme } from '@blaeu/core'
  */
 export const urbanTheme: DeepPartial<Theme> = {
   id: 'blaeu-urban',
+  scheme: 'light',
   tokens: {
     color: {
       accent: '#1f6feb',
