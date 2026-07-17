@@ -12,7 +12,7 @@ import {
 import type { Command, FeatureId, BlaeuFeature, LngLat, Polygon } from '@blaeu/core'
 
 import { editPlugin } from './index.js'
-import { MoveVerticesCommand } from './commands.js'
+import { CommitEditCommand, MoveVerticesCommand } from './commands.js'
 
 const PARCEL_W = 50
 const PARCEL_H = 40
@@ -149,9 +149,15 @@ describe('editPlugin — undo round-trip (the plugin owes this one)', () => {
     // Grab the midpoint of the south edge and pull it out — insert, then drag.
     const midpoint = midpointBetween(map, SW, SE)
     map.test.drag(midpoint, offsetMetres(midpoint, 0, -6), { steps: 4 })
+    // The drag previews synchronously; the one durable, validated write lands on
+    // release, through the async commit pipeline.
+    await map.test.flush()
     off.dispose()
 
     expect(corners(map, 'p')).toHaveLength(5)
+
+    // Insert and drag are one gesture — one durable command, one Ctrl-Z.
+    expect(captured.filter((c) => c instanceof CommitEditCommand)).toHaveLength(1)
 
     for (let i = captured.length - 1; i >= 0; i--) map.commands._apply(captured[i]!, 'undo')
     expect(corners(map, 'p')).toHaveLength(4)
@@ -179,6 +185,7 @@ describe('editPlugin — topological editing', () => {
     map.plugin('edit').edit('parcel-left')
     const target = offsetMetres(shared, 3, 2)
     map.test.drag(cornerNear(map, 'parcel-left', shared), target, { steps: 8 })
+    await map.test.flush()
     off.dispose()
 
     // Both parcels followed the corner. If one of them had not, two adjacent parcels
@@ -186,13 +193,13 @@ describe('editPlugin — topological editing', () => {
     expectWithinMetres(cornerNear(map, 'parcel-left', target), target, 0.002)
     expectWithinMetres(cornerNear(map, 'parcel-right', target), target, 0.002)
 
-    const moves = commands.filter((command) => command instanceof MoveVerticesCommand)
-    expect(moves.length).toBeGreaterThan(0)
-    for (const move of moves) {
-      expect(new Set(move.refs.map((ref) => ref.feature))).toEqual(
-        new Set(['parcel-left', 'parcel-right']),
-      )
-    }
+    // One gesture, one durable command — and undoing that single command must put
+    // *both* parcels back, or the shared corner is not really shared.
+    const commits = commands.filter((command) => command instanceof CommitEditCommand)
+    expect(commits).toHaveLength(1)
+    map.commands._apply(commits[0]!, 'undo')
+    expectWithinMetres(cornerNear(map, 'parcel-left', shared), shared, 0.001)
+    expectWithinMetres(cornerNear(map, 'parcel-right', shared), shared, 0.001)
 
     await map.destroy()
   })

@@ -31,6 +31,7 @@ export {
   GeometryEditCommand,
   MoveVerticesCommand,
   SetGeometriesCommand,
+  CommitEditCommand,
   type EditCommandOptions,
 } from './commands.js'
 export {

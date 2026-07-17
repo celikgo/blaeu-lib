@@ -203,6 +203,8 @@ export function transformTool(ctx: PluginContext<unknown>, controller: EditContr
       if (gesture === null) return false
       gesture = null
       ctx.tools.setDragging([])
+      // Release: commit the gesture's net transform once, validated, as one undo step.
+      controller.commitGesture()
       // Re-derive the box from where the features actually ended up, so the next
       // gesture starts from the truth rather than from the box we last drew.
       gizmo()
@@ -211,8 +213,11 @@ export function transformTool(ctx: PluginContext<unknown>, controller: EditContr
 
     onKeyDown(interaction): boolean {
       if (interaction.key !== 'Escape') return false
+      // Escape cancels: roll the preview back to where the transform began.
       gesture = null
       ctx.tools.setDragging([])
+      controller.cancelGesture()
+      gizmo()
       return true
     },
   }

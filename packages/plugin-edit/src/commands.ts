@@ -7,24 +7,33 @@
  * (the stamped meta, the normalised geometry), not what we asked it to do, and
  * replay that verbatim on redo.
  *
- * Two things in here are specific to editing and worth reading before changing:
+ * The write path an interactive edit takes:
  *
- * 1. **Absolute targets, never per-frame deltas.** A drag dispatches a fresh
- *    command on every `pointermove`, each one describing the *whole* gesture so
- *    far. So a 200-frame drag applies one transform to the original geometry 200
- *    times, rather than 200 transforms in series — which would compound 200
- *    rounding errors and land the vertex somewhere the user did not drop it.
+ * - **During a drag**, every `pointermove` dispatches one of these as a *transient
+ *   preview* — it redraws the geometry but is never recorded in history and never
+ *   validated. Mid-drag geometry is legitimately invalid (a polygon self-intersects
+ *   halfway through a reshape), so validating each frame would be both slow and wrong.
+ * - **On release**, the controller commits a single {@link CommitEditCommand} through
+ *   the pipeline: the one durable, validated write, one undo step. See the controller.
  *
- * 2. **Coalescing.** Those 200 commands must collapse into one undo step, or
- *    Ctrl-Z becomes useless the moment anyone actually edits anything. They merge
- *    only when they belong to the same gesture *and* touch the same features —
- *    tracked with a gesture id, because "the previous command was also a move" is
- *    not the same question as "the user is still holding the mouse down".
+ * One thing here is load-bearing and worth reading before changing:
+ *
+ * **Absolute targets, never per-frame deltas.** Each frame describes the *whole*
+ * gesture so far — `to` is where the vertex should end up, not how far it moved this
+ * frame. So a 200-frame drag sets the vertex to one absolute position 200 times rather
+ * than summing 200 deltas, which would compound 200 rounding errors and land it
+ * somewhere the user did not drop it.
+ *
+ * `coalesceWith` remains for a caller that dispatches these *durably* (not transient)
+ * and wants a run of them to collapse into one undo step — it is no longer how the
+ * interactive drag works, which previews and commits once instead.
  */
 
 import type {
   Command,
   CommandContext,
+  CommitCommand,
+  CommitIntent,
   FeatureId,
   BlaeuFeature,
   Geometry,
@@ -38,6 +47,15 @@ export interface EditCommandOptions {
   readonly label?: string
   /** Identifies the gesture. Two commands merge only if they share one. */
   readonly gesture?: string
+  /**
+   * A preview frame, not a durable write: it updates the geometry on screen but is
+   * never recorded in history and never validated. A drag dispatches one of these per
+   * `pointermove`; the single durable, validated write happens once on release (see
+   * {@link CommitEditCommand}). Mid-drag geometry is *legitimately* invalid — a
+   * self-intersecting polygon halfway through a reshape — so running the commit
+   * pipeline on every frame would be both slow and wrong.
+   */
+  readonly transient?: boolean
 }
 
 /**
@@ -50,14 +68,17 @@ export interface EditCommandOptions {
 export abstract class GeometryEditCommand implements Command<readonly BlaeuFeature[]> {
   abstract readonly type: string
   readonly label: string
+  /** True for a per-frame drag preview: it draws but is never recorded or validated. */
+  readonly transient: boolean
 
   /** The features as they were before this command first ran. The whole of `undo`. */
   #previous: readonly BlaeuFeature[] | undefined
   /** What the store wrote. Replayed on redo so a redo reproduces the first run exactly. */
   #written: readonly BlaeuFeature[] | undefined
 
-  protected constructor(label: string) {
+  protected constructor(label: string, transient = false) {
     this.label = label
+    this.transient = transient
   }
 
   /** The features this command touches, in a stable order. */
@@ -133,7 +154,10 @@ export class MoveVerticesCommand extends GeometryEditCommand {
     to: LngLat,
     options: EditCommandOptions = {},
   ) {
-    super(options.label ?? (refs.length > 1 ? 'Move shared vertex' : 'Move vertex'))
+    super(
+      options.label ?? (refs.length > 1 ? 'Move shared vertex' : 'Move vertex'),
+      options.transient,
+    )
     if (refs.length === 0) {
       throw new Error('[blaeu/edit] MoveVerticesCommand needs at least one vertex to move.')
     }
@@ -189,7 +213,7 @@ export class SetGeometriesCommand extends GeometryEditCommand {
     next: ReadonlyMap<FeatureId, Geometry>,
     options: EditCommandOptions = {},
   ) {
-    super(options.label ?? 'Edit geometry')
+    super(options.label ?? 'Edit geometry', options.transient)
     if (next.size === 0) {
       throw new Error('[blaeu/edit] SetGeometriesCommand needs at least one feature to rewrite.')
     }
@@ -224,6 +248,65 @@ export class SetGeometriesCommand extends GeometryEditCommand {
     })
     merged.adopt(previous, this)
     return merged
+  }
+}
+
+/**
+ * The one durable, validated write an interactive edit produces — committed on
+ * release, after a gesture's worth of transient previews.
+ *
+ * Unlike the built-in `UpdateFeaturesCommand`, this carries its *own* `previous`
+ * rather than reading it from the store at commit time. It has to: by the time a drag
+ * ends, the store already holds the previewed (final) geometry, so a command that read
+ * "the state before" out of the store would read the final state and undo to a no-op.
+ * The controller captures the true pre-edit features when the gesture starts and hands
+ * them here, so undo walks all the way back past the whole drag — one Ctrl-Z, exactly.
+ *
+ * Because it is a {@link CommitCommand}, `commit()` runs it through the pipeline: the
+ * preset's derived fields (a cadastral area) get re-stamped on the final geometry, and
+ * a validation rule gets its veto — the very things the per-frame preview skips.
+ */
+export class CommitEditCommand implements CommitCommand<readonly BlaeuFeature[]> {
+  readonly type: string
+  readonly label: string
+
+  readonly #previous: readonly BlaeuFeature[]
+  #next: readonly BlaeuFeature[]
+  #written: readonly BlaeuFeature[] | undefined
+
+  constructor(
+    previous: readonly BlaeuFeature[],
+    next: readonly BlaeuFeature[],
+    options: { readonly type: string; readonly label: string },
+  ) {
+    if (next.length === 0) {
+      throw new Error('[blaeu/edit] CommitEditCommand needs at least one feature to write.')
+    }
+    this.type = options.type
+    this.label = options.label
+    this.#previous = previous
+    this.#next = next
+  }
+
+  intent(): CommitIntent {
+    return { operation: 'update', features: this.#next, previous: this.#previous }
+  }
+
+  adopt(features: readonly BlaeuFeature[]): void {
+    this.#next = features
+  }
+
+  execute(ctx: CommandContext): readonly BlaeuFeature[] {
+    // Replay `#written` on redo (not `#next`) so a redo reproduces the first write
+    // exactly — same version, same updatedAt — the store taking a meta it did not
+    // stamp itself verbatim.
+    this.#written = ctx.store._update(this.#written ?? this.#next)
+    return this.#written
+  }
+
+  undo(ctx: CommandContext): void {
+    if (this.#previous.length === 0) return
+    ctx.store._update(this.#previous)
   }
 }
 

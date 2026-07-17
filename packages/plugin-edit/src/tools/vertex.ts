@@ -34,9 +34,9 @@ export function vertexTool(ctx: PluginContext<unknown>, controller: EditControll
   const handleAt = (interaction: InteractionContext): Handle | undefined =>
     controller.handles.pick(interaction.screen, controller.options.handleSize)
 
-  const beginDrag = (refs: readonly VertexRef[], from: LngLat): void => {
+  const beginDrag = (refs: readonly VertexRef[], from: LngLat, gesture: string): void => {
     if (refs.length === 0) return
-    drag = { refs, from, gesture: createId() }
+    drag = { refs, from, gesture }
     active = refs[0] ?? null
 
     // Tell the kernel what is in play for the duration of the gesture. Without this a
@@ -50,9 +50,11 @@ export function vertexTool(ctx: PluginContext<unknown>, controller: EditControll
     ctx.tools.setDragging([...new Set(refs.map((ref) => ref.feature))])
   }
 
+  /** Release: end the gesture and commit its net effect once, through the pipeline. */
   const endDrag = (): void => {
     drag = null
     ctx.tools.setDragging([])
+    controller.commitGesture()
   }
 
   /**
@@ -80,8 +82,10 @@ export function vertexTool(ctx: PluginContext<unknown>, controller: EditControll
     },
 
     deactivate(): void {
+      // Commit any drag in flight rather than lose it when the tool is switched away.
       drag = null
       active = null
+      controller.commitGesture()
     },
 
     onPointerDown(interaction): boolean {
@@ -103,14 +107,18 @@ export function vertexTool(ctx: PluginContext<unknown>, controller: EditControll
           attempt(() => controller.deleteVertex(handle))
           return true
         }
-        beginDrag(controller.refsAt(handle.point, refOf(handle)), handle.point)
+        beginDrag(controller.refsAt(handle.point, refOf(handle)), handle.point, createId())
         return true
       }
 
       if (handle.role === 'midpoint') {
         // Insert, then keep dragging the vertex that was just created — the gesture a
         // user is already making when they grab a midpoint is "pull the edge to here".
-        attempt(() => beginDrag(controller.insertVertex(handle, handle.point), handle.point))
+        // One gesture id spans the insert and the drag, so they commit as one step.
+        const gesture = createId()
+        attempt(() =>
+          beginDrag(controller.insertVertex(handle, handle.point, gesture), handle.point, gesture),
+        )
         return true
       }
 
@@ -134,7 +142,11 @@ export function vertexTool(ctx: PluginContext<unknown>, controller: EditControll
 
     onKeyDown(interaction): boolean {
       if (interaction.key === 'Escape') {
-        endDrag()
+        // Escape cancels: roll the preview back to the pre-drag geometry rather than
+        // commit it, then leave the session.
+        drag = null
+        ctx.tools.setDragging([])
+        controller.cancelGesture()
         controller.stop()
         return true
       }

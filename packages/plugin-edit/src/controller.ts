@@ -23,7 +23,7 @@ import {
   type VertexRef,
 } from '@blaeu/core'
 
-import { MoveVerticesCommand, SetGeometriesCommand } from './commands.js'
+import { CommitEditCommand, MoveVerticesCommand, SetGeometriesCommand } from './commands.js'
 import { EditHandles, HANDLE_COLLECTIONS, handlesFor, type Handle } from './handles.js'
 import {
   cornerCount,
@@ -60,18 +60,38 @@ interface SelectionLike {
  * A transform that is still under the user's finger.
  *
  * It carries the geometries **as they were at pointer-down**, and that is the whole
- * point of the type existing. A gesture dispatches a fresh command on every
+ * point of the type existing. A gesture previews a fresh transform on every
  * `pointermove`, each describing the total transform so far — so every frame must be
  * computed from the shape the drag started with. Recomputing from whatever is in the
  * store *now* applies frame 2's delta to frame 1's result: a 10 m drag over 10 frames
  * moves the parcel 55 m, a rotate winds up like a clock spring, and a scale runs away
- * exponentially. (The store is not a scratchpad you can read back mid-gesture.)
+ * exponentially. (The store holds the previous frame's preview, not a scratchpad you
+ * can read back mid-gesture.)
  */
 export interface TransformGesture {
-  /** Identifies the gesture, so the frames coalesce into one undo step. */
+  /** Identifies the gesture, so its frames belong to one commit. */
   readonly id: string
   /** The originals, captured once, at pointer-down. */
   readonly originals: ReadonlyMap<FeatureId, Geometry>
+}
+
+/**
+ * The state an in-progress interactive edit accumulates so it can be committed, once,
+ * on release.
+ *
+ * Every `pointermove` writes a transient *preview* — fast, unvalidated, never in
+ * history — and records here the pre-edit snapshot of each feature the gesture has
+ * touched (captured the first time it touches each, before any preview mutates it).
+ * On `pointerup` the controller commits the final geometry through the pipeline with
+ * `previous` taken from this snapshot, so validation and derived fields run on the
+ * finished shape and undo restores the state from before the drag began — one step.
+ */
+interface PendingEdit {
+  readonly gesture: string
+  type: string
+  label: string
+  /** Pre-edit features, keyed by id, captured lazily as the gesture first touches each. */
+  readonly previous: Map<FeatureId, BlaeuFeature>
 }
 
 export class EditController {
@@ -82,6 +102,8 @@ export class EditController {
   #editing: FeatureId | null = null
   /** Set by whichever tool is active, so that a transform's gizmo is not clobbered by vertex handles. */
   #renderHandles: (() => void) | undefined
+  /** The interactive edit being previewed, awaiting its single commit on release. */
+  #pending: PendingEdit | undefined
 
   constructor(ctx: PluginContext<unknown>, options: ResolvedEditOptions) {
     this.#ctx = ctx
@@ -180,6 +202,144 @@ export class EditController {
   }
 
   /* ===================================================================== */
+  /* Gesture lifecycle — preview while dragging, commit once on release     */
+  /* ===================================================================== */
+
+  /**
+   * Start (or continue) the pending edit for an interactive gesture.
+   *
+   * The first frame of a gesture opens a fresh pending; later frames keep the same
+   * one (and its pre-edit snapshot), only updating the operation label — an insert
+   * that becomes a drag is one gesture and owes exactly one Ctrl-Z. A new gesture
+   * arriving while an old one is still open means the old one never released (an
+   * interrupted drag); we flush it rather than silently lose the edit.
+   */
+  #beginPending(gesture: string, type: string, label: string): void {
+    const pending = this.#pending
+    if (pending && pending.gesture === gesture) {
+      pending.type = type
+      pending.label = label
+      return
+    }
+    if (pending) this.#flushPending()
+    this.#pending = { gesture, type, label, previous: new Map() }
+  }
+
+  /** Snapshot each feature's pre-edit state the first time the gesture touches it. */
+  #capturePrevious(ids: Iterable<FeatureId>): void {
+    const pending = this.#pending
+    if (pending === undefined) return
+    for (const id of ids) {
+      if (pending.previous.has(id)) continue
+      const feature = this.#ctx.store.find(id)
+      if (feature !== undefined) pending.previous.set(id, feature)
+    }
+  }
+
+  /**
+   * End the gesture and commit its net effect once, through the pipeline.
+   *
+   * The tools call this on `pointerup`. `previous` is the pre-edit snapshot; `next` is
+   * whatever the previews left in the store. The commit validates the finished shape
+   * and stamps derived fields; if a rule vetoes it, the pre-edit geometry is put back.
+   * One durable, validated write, one undo step — after a gesture's worth of previews.
+   */
+  commitGesture(): void {
+    this.#flushPending()
+  }
+
+  /** Abandon the gesture and roll the preview back to the pre-edit geometry (Escape). */
+  cancelGesture(): void {
+    const pending = this.#pending
+    this.#pending = undefined
+    if (pending === undefined) return
+    this.#revert([...pending.previous.values()])
+    this.refreshHandles()
+  }
+
+  #flushPending(): void {
+    const pending = this.#pending
+    this.#pending = undefined
+    if (pending === undefined) return
+
+    const previous = [...pending.previous.values()]
+    const next: BlaeuFeature[] = []
+    for (const feature of previous) {
+      const current = this.#ctx.store.find(feature.id)
+      if (current !== undefined) next.push(current)
+    }
+    if (next.length === 0) return
+    this.#commit(previous, next, pending.type, pending.label)
+  }
+
+  /**
+   * A one-shot edit — a vertex delete, or a programmatic `move`/`rotate`/`scale`.
+   *
+   * It still previews-then-commits, collapsed to a single frame: a transient write
+   * lands the new geometry synchronously (so a Delete key or an API call has immediate
+   * effect and the handles are current), and the durable commit runs the pipeline
+   * right behind it. Capturing `previous` *before* the preview is what keeps undo
+   * pointing at the true pre-edit state.
+   */
+  #applyOnce(next: ReadonlyMap<FeatureId, Geometry>, type: string, label: string): void {
+    const previous: BlaeuFeature[] = []
+    const nextFeatures: BlaeuFeature[] = []
+    for (const [id, geometry] of next) {
+      const feature = this.#ctx.store.find(id)
+      if (feature === undefined) continue
+      previous.push(feature)
+      nextFeatures.push({ ...feature, geometry })
+    }
+    if (nextFeatures.length === 0) return
+
+    // Preview: land it now, synchronously, so the caller sees the effect immediately.
+    this.#ctx.commands.dispatch(new SetGeometriesCommand(type, next, { label, transient: true }))
+    this.refreshHandles()
+    this.#commit(previous, nextFeatures, type, label)
+  }
+
+  /** Commit the durable write, fire-and-forget; revert on a validation veto. */
+  #commit(
+    previous: readonly BlaeuFeature[],
+    next: readonly BlaeuFeature[],
+    type: string,
+    label: string,
+  ): void {
+    void this.#ctx.commands
+      .commit(new CommitEditCommand(previous, next, { type, label }))
+      .then((result) => {
+        if (result.ok) {
+          this.refreshHandles()
+          return
+        }
+        // The finished edit was vetoed: put the pre-edit geometry back rather than
+        // leave an invalid shape on the map. The veto is the answer, not an undo step.
+        this.#revert(previous)
+        this.refreshHandles()
+        this.#ctx.log.warn(`edit rejected: ${result.rejectedReason ?? 'unknown reason'}`)
+      })
+      .catch((err: unknown) => {
+        this.#ctx.events.emit('map:error', {
+          error: err instanceof Error ? err : new Error(String(err)),
+          source: 'edit:commit',
+        })
+      })
+  }
+
+  /** Restore geometry to a captured pre-edit state, transiently (not an undo entry). */
+  #revert(previous: readonly BlaeuFeature[]): void {
+    if (previous.length === 0) return
+    const geometries = new Map<FeatureId, Geometry>()
+    for (const feature of previous) geometries.set(feature.id, feature.geometry)
+    this.#ctx.commands.dispatch(
+      new SetGeometriesCommand('edit:revert', geometries, {
+        label: this.#t('edit.move'),
+        transient: true,
+      }),
+    )
+  }
+
+  /* ===================================================================== */
   /* Vertex editing                                                        */
   /* ===================================================================== */
 
@@ -202,11 +362,20 @@ export class EditController {
 
   moveVertices(refs: readonly VertexRef[], from: LngLat, to: LngLat, gesture: string): void {
     const label = this.#t(refs.length > 1 ? 'edit.moveSharedVertex' : 'edit.moveVertex')
+    this.#beginPending(gesture, 'edit:move-vertices', label)
+    this.#capturePrevious(refs.map((ref) => ref.feature))
+
+    // A transient preview: it draws the moved corner now, fast and unvalidated. `to`
+    // is absolute, so this sets the vertex there regardless of the previous frame —
+    // no accumulated float error over a long drag. The one validated write lands on
+    // release, in commitGesture().
     const result = this.#ctx.commands.dispatch(
-      new MoveVerticesCommand(refs, from, to, { gesture, label }),
+      new MoveVerticesCommand(refs, from, to, { gesture, label, transient: true }),
     )
     if (!result.ok) {
-      this.#ctx.log.warn(`vertex move rejected: ${result.rejectedReason ?? 'unknown reason'}`)
+      this.#ctx.log.warn(
+        `vertex move preview rejected: ${result.rejectedReason ?? 'unknown reason'}`,
+      )
       return
     }
 
@@ -226,7 +395,7 @@ export class EditController {
    *
    * @returns the refs of the newly inserted vertices, so the caller can keep dragging.
    */
-  insertVertex(handle: Handle, at: LngLat): readonly VertexRef[] {
+  insertVertex(handle: Handle, at: LngLat, gesture: string): readonly VertexRef[] {
     const target = this.#require(handle.target)
     const edits = new Map<FeatureId, Geometry>()
     const refs: VertexRef[] = []
@@ -256,13 +425,20 @@ export class EditController {
       }
     }
 
+    // An insert is the opening frame of a gesture: the tool immediately drags the new
+    // vertex. Preview it (transient) and fold it into the pending edit, so the insert
+    // and the drag commit together as one validated write and one undo step on release.
+    const label = this.#t('edit.insertVertex')
+    this.#beginPending(gesture, 'edit:insert-vertex', label)
+    this.#capturePrevious(edits.keys())
+
     const result = this.#ctx.commands.dispatch(
-      new SetGeometriesCommand('edit:insert-vertex', edits, {
-        label: this.#t('edit.insertVertex'),
-      }),
+      new SetGeometriesCommand('edit:insert-vertex', edits, { label, gesture, transient: true }),
     )
     if (!result.ok) {
-      this.#ctx.log.warn(`vertex insert rejected: ${result.rejectedReason ?? 'unknown reason'}`)
+      this.#ctx.log.warn(
+        `vertex insert preview rejected: ${result.rejectedReason ?? 'unknown reason'}`,
+      )
       return []
     }
 
@@ -301,18 +477,11 @@ export class EditController {
       )
     }
 
-    const result = this.#ctx.commands.dispatch(
-      new SetGeometriesCommand('edit:delete-vertex', edits, {
-        label: this.#t('edit.deleteVertex'),
-      }),
-    )
-    if (!result.ok) {
-      this.#ctx.log.warn(`vertex delete rejected: ${result.rejectedReason ?? 'unknown reason'}`)
-      return
-    }
-
+    // A delete is a discrete click, not a drag: apply it once — preview synchronously
+    // (so the corner is gone the instant Delete is pressed) and commit through the
+    // pipeline right behind it, so a rule may still veto it.
+    this.#applyOnce(edits, 'edit:delete-vertex', this.#t('edit.deleteVertex'))
     this.#ctx.events.emit('edit:vertex-delete', { id: handle.target, at: handle.point, refs })
-    this.refreshHandles()
   }
 
   /* ===================================================================== */
@@ -347,14 +516,24 @@ export class EditController {
       next.set(id, transformInPlane(geometry, plane, transform))
     }
 
+    // A one-shot call (the public API, a script) has no gesture: apply it once,
+    // validated. An interactive frame has one: preview it now, commit on release.
+    if (options.gesture === undefined) {
+      this.#applyOnce(next, options.type, options.label)
+      return
+    }
+
+    this.#beginPending(options.gesture, options.type, options.label)
+    this.#capturePrevious(next.keys())
     const result = this.#ctx.commands.dispatch(
       new SetGeometriesCommand(options.type, next, {
         label: options.label,
-        ...(options.gesture !== undefined ? { gesture: options.gesture } : {}),
+        gesture: options.gesture,
+        transient: true,
       }),
     )
     if (!result.ok) {
-      this.#ctx.log.warn(`transform rejected: ${result.rejectedReason ?? 'unknown reason'}`)
+      this.#ctx.log.warn(`transform preview rejected: ${result.rejectedReason ?? 'unknown reason'}`)
       return
     }
     this.refreshHandles()
