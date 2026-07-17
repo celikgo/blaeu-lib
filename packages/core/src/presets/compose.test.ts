@@ -199,6 +199,42 @@ describe('composePresets', () => {
     })
   })
 
+  it('replaces a theme basemap wholesale — it does not field-merge two style JSONs', () => {
+    const osm = {
+      version: 8,
+      sources: { osm: { type: 'raster' } },
+      layers: [{ id: 'osm', type: 'raster' }],
+    }
+    const flat = {
+      version: 8,
+      sources: {},
+      layers: [{ id: 'bg', type: 'background' }],
+    }
+
+    const composed = composePresets(
+      definePreset({ id: 'base', theme: { tokens: { color: { accent: '#0af' } }, basemap: osm } }),
+      definePreset({ id: 'dark', theme: { tokens: { color: { accent: '#111' } }, basemap: flat } }),
+    )
+
+    const theme = composed.theme as { tokens: { color: { accent: string } }; basemap: unknown }
+    // Tokens still deep-merge — the later accent wins, nothing else is disturbed.
+    expect(theme.tokens.color.accent).toBe('#111')
+    // The basemap is the later one, whole — NOT the base's `sources` unioned with the
+    // override's `layers`, which is the blank-map Frankenstein the theme manager refuses
+    // to build. Deep-merging these two would have produced `sources: { osm }` (from base)
+    // with `layers: [bg]` (from override): a raster source nothing draws, over a flat bg.
+    expect(theme.basemap).toEqual(flat)
+  })
+
+  it('inherits the base theme basemap when a later preset sets none', () => {
+    const osm = { version: 8, sources: { osm: { type: 'raster' } }, layers: [] }
+    const composed = composePresets(
+      definePreset({ id: 'base', theme: { basemap: osm } }),
+      definePreset({ id: 'tune', theme: { tokens: { color: { accent: '#111' } } } }),
+    )
+    expect((composed.theme as { basemap: unknown }).basemap).toEqual(osm)
+  })
+
   it('appends validation, layers, and both middleware stacks', () => {
     const first: InteractionMiddleware = vi.fn(noopMiddleware)
     const second: InteractionMiddleware = vi.fn(noopMiddleware)

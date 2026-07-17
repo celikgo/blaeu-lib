@@ -151,6 +151,36 @@ function concat<T>(a: readonly T[] | undefined, b: readonly T[] | undefined): re
   return [...a, ...b]
 }
 
+/**
+ * Merge two preset themes, later wins — {@link deepMerge}, *except* that `basemap` and
+ * `css` are replaced wholesale rather than merged field-by-field.
+ *
+ * A theme's `basemap` is a MapLibre style JSON, and deep-merging two of them unions the
+ * `sources` of one with the `layers` of the other — a blank map, the exact Frankenstein
+ * `ThemeManager.mergeTheme` refuses to build. `css` is one indivisible string. Compose
+ * and the theme manager must agree about this, or a theme composed through two presets
+ * renders differently from the same theme set directly. Everything else — the `tokens`,
+ * the `id`, the `scheme` — still deep-merges, so a preset that retunes one colour keeps
+ * the base's other tokens.
+ */
+function mergePresetTheme(base: Preset['theme'], override: Preset['theme']): Preset['theme'] {
+  if (override === undefined) return base
+  if (base === undefined) return override
+
+  const b = base as Record<string, unknown>
+  const o = override as Record<string, unknown>
+  const merged = deepMerge(b, o) as Record<string, unknown>
+
+  // Replace, not deep-merge. `undefined` in the override means "not set" (inherit the
+  // base); any other value — including `null`, which `ThemeManager` reads as "clear it"
+  // — wins wholesale.
+  for (const key of ['basemap', 'css'] as const) {
+    if (o[key] !== undefined) merged[key] = o[key]
+    else if (b[key] !== undefined) merged[key] = b[key]
+  }
+  return merged as Preset['theme']
+}
+
 /* ========================================================================= */
 /* definePreset                                                              */
 /* ========================================================================= */
@@ -247,7 +277,8 @@ interface PluginEntry {
  *
  * | field | rule |
  * |---|---|
- * | `config`, `theme` | deep merge |
+ * | `config` | deep merge |
+ * | `theme` | deep merge — except `basemap` and `css`, which replace wholesale (a style JSON is one value, not a bag of fields to interleave) |
  * | `plugins` | append — but a repeated plugin id **deep-merges its options into the existing entry, in place** |
  * | `validation`, `layers`, `interactionMiddleware`, `commitMiddleware` | append |
  * | `i18n` | merge per locale, later wins per key |
@@ -299,7 +330,7 @@ export function composePresets(...presets: readonly Preset[]): Preset {
     if (preset.locale !== undefined) locale = preset.locale
 
     config = deepMerge(config, preset.config) as Preset['config']
-    theme = deepMerge(theme, preset.theme) as Preset['theme']
+    theme = mergePresetTheme(theme, preset.theme)
 
     layers = concat(layers, preset.layers)
     validation = concat(validation, preset.validation)
