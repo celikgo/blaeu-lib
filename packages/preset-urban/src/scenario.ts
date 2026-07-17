@@ -126,13 +126,27 @@ declare module '@blaeu/core' {
  * ------------------------------------------------------------------ */
 
 /**
- * Swap the whole store for a snapshot.
+ * Swap the whole store for a snapshot, and move the plugin's active pointer with it.
  *
  * A scenario switch is a mutation, so it is a `Command` — not a call to
- * `store.restore()` from a click handler. That is invariant 2, and the payoff is
- * concrete: undo works, the renderer repaints from the diff `restore()` emits, and
- * a history panel shows "Senaryo: Yoğun" as one step instead of showing nothing at
- * all while the map silently changes underneath it.
+ * `store.restore()` from a click handler. The payoff is concrete: undo works, the
+ * renderer repaints from the diff `restore()` emits, and a history panel shows
+ * "Senaryo: Yoğun" as one step instead of showing nothing at all while the map
+ * silently changes underneath it.
+ *
+ * **It restores two things, not one: the store *and* the active-scenario pointer.**
+ * The pointer is the plugin's own state, not the store's, so undoing the store restore
+ * without moving the pointer back leaves `active` naming a scenario that is no longer
+ * on the map — and the very next `switch()` calls `save()`, which then writes the
+ * current plan into the *wrong* scenario, silently overwriting its baseline. Carrying
+ * the pointer transition inside the command is what keeps undo/redo honest about which
+ * scenario the map is showing.
+ *
+ * A restore is deliberately dispatched, not committed. It loads an already-validated
+ * snapshot (every feature in it passed validation when it was edited), and a
+ * whole-store swap is a mix of adds, updates and removes that a single `CommitIntent`
+ * cannot express anyway. It is undoable, but it is not re-run through the commit
+ * pipeline — see the error `switch()` throws.
  *
  * `undo` restores the snapshot taken *inside* `execute`. Since `FeatureStore.snapshot()`
  * derives its revision from the content, the round-trip is deep-equal, which is the
@@ -143,21 +157,35 @@ class SwitchScenarioCommand implements Command {
   readonly label: string
 
   readonly #target: StoreSnapshot
+  readonly #toName: string
+  readonly #fromName: string | null
+  readonly #applyActive: (name: string | null) => void
   #before: StoreSnapshot | undefined
 
-  constructor(target: StoreSnapshot, label: string) {
+  constructor(
+    target: StoreSnapshot,
+    toName: string,
+    fromName: string | null,
+    label: string,
+    applyActive: (name: string | null) => void,
+  ) {
     this.#target = target
+    this.#toName = toName
+    this.#fromName = fromName
+    this.#applyActive = applyActive
     this.label = label
   }
 
   execute(ctx: CommandContext): void {
     this.#before = ctx.store.snapshot()
     ctx.store.restore(this.#target)
+    this.#applyActive(this.#toName)
   }
 
   undo(ctx: CommandContext): void {
     if (this.#before === undefined) return
     ctx.store.restore(this.#before)
+    this.#applyActive(this.#fromName)
   }
 }
 
@@ -214,6 +242,13 @@ export function scenarioPlugin(
         }
       }
 
+      /** Move the active pointer and tell everyone. The one place `active` is written. */
+      const setActive = (name: string | null): void => {
+        const previous = active
+        active = name
+        announce(previous)
+      }
+
       const require_ = (name: string, verb: string): Scenario => {
         const scenario = scenarios.get(name)
         if (scenario === undefined) {
@@ -246,9 +281,7 @@ export function scenarioPlugin(
         const scenario = snapshotNow(name, Date.now())
         scenarios.set(name, scenario)
 
-        const previous = active
-        active = name
-        announce(previous)
+        setActive(name)
         return scenario
       }
 
@@ -273,20 +306,26 @@ export function scenarioPlugin(
         // will never click again.
         if (active !== null) save()
 
+        // The command carries the active-pointer transition, so undo/redo move it in
+        // step with the store — `active` is set by execute (via setActive), not here.
         const result = ctx.commands.dispatch(
-          new SwitchScenarioCommand(target.snapshot, ctx.i18n.t('urban.scenario.switch', { name })),
+          new SwitchScenarioCommand(
+            target.snapshot,
+            name,
+            active,
+            ctx.i18n.t('urban.scenario.switch', { name }),
+            setActive,
+          ),
         )
         if (!result.ok) {
           throw new Error(
             `[blaeu] switching to scenario "${name}" was rejected: ` +
-              `${result.rejectedReason ?? 'a commit-pipeline middleware vetoed it'}. ` +
-              `A validation rule with severity "error" blocks the restore — the scenario is unchanged.`,
+              `${result.rejectedReason ?? 'a before:command:execute listener vetoed it'}. ` +
+              `The scenario is unchanged. A scenario restore loads an already-validated ` +
+              `snapshot, so it rides the command bus for undo but is not re-run through the ` +
+              `commit pipeline — only a before:command:execute listener can veto it, never a validation rule.`,
           )
         }
-
-        const previous = active
-        active = name
-        announce(previous)
       }
 
       const areasOf = (snapshot: StoreSnapshot): Map<string, number> => {
@@ -366,9 +405,7 @@ export function scenarioPlugin(
       const remove = (name: string): void => {
         if (!scenarios.delete(name)) return
         if (active !== name) return
-        const previous = active
-        active = null
-        announce(previous)
+        setActive(null)
       }
 
       return {

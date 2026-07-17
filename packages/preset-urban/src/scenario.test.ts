@@ -160,6 +160,34 @@ describe('scenarios', () => {
     expect(map.store.snapshot()).toEqual(before)
   })
 
+  it('undo of a switch moves the active pointer back too, so a later switch cannot corrupt a baseline', async () => {
+    const scenarios = map.plugin('scenario')
+    const history = map.plugin('history')
+    const zoningOf = (snapshot: ReturnType<typeof map.store.snapshot>, id: string): unknown =>
+      snapshot.collections['zoning']?.find((f) => f.id === id)?.properties['zoning']
+
+    // Two scenarios that genuinely differ: "Mevcut" has ada-2 = T, "Yoğun" has it re-zoned to K.
+    scenarios.create('Mevcut')
+    await map.commands.commit(new SetPropertiesCommand(['ada-2'], { zoning: 'K' }))
+    scenarios.create('Yoğun') // active, snapshot has ada-2 = K
+
+    scenarios.switch('Mevcut') // store back to ada-2 = T, active = Mevcut
+    expect(scenarios.active).toBe('Mevcut')
+
+    // Undo the switch. The store returns to Yoğun's content — and the active pointer
+    // must return to Yoğun with it, or `active` now names a scenario that is not on the map.
+    expect(history.undo()).toBe(true)
+    expect(scenarios.active).toBe('Yoğun') // the fix — was stuck on 'Mevcut', desynced from the store
+    expect(map.store.find('ada-2')?.properties['zoning']).toBe('K')
+
+    // The bite: switch again. `save()` must check the current plan into Yoğun (the true
+    // active), never into Mevcut. With the pointer desynced it wrote Yoğun's plan into
+    // Mevcut, silently destroying the baseline.
+    scenarios.switch('Mevcut')
+    expect(zoningOf(scenarios.get('Mevcut')!.snapshot, 'ada-2')).toBe('T') // baseline intact
+    expect(zoningOf(scenarios.get('Yoğun')!.snapshot, 'ada-2')).toBe('K')
+  })
+
   it('names the scenarios you have when you ask for one you do not', () => {
     const scenarios = map.plugin('scenario')
     scenarios.create('Mevcut')
