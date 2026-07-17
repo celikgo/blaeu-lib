@@ -7,7 +7,7 @@
  * "selected" looks like).
  *
  * The map's own chrome — toolbar, coordinate readout, scale bar, snap indicator, issue
- * panel — is styled by `@fleximap/plugin-ui` from the theme's design tokens. Nothing
+ * panel — is styled by `@blaeu/plugin-ui` from the theme's design tokens. Nothing
  * in this file touches it.
  */
 

@@ -3,9 +3,9 @@ import type {
   CommandOrigin,
   Disposable,
   EventBus,
-  FlexiCommandBus,
+  BlaeuCommandBus,
   Logger,
-} from '@fleximap/core'
+} from '@blaeu/core'
 import type { ResolvedHistoryOptions } from './options.js'
 
 /** What `map.plugin('history')` gives you. */
@@ -42,7 +42,7 @@ export interface HistoryApi {
  * without either of us having heard of the other.
  */
 export class HistoryStack implements HistoryApi {
-  readonly #bus: FlexiCommandBus
+  readonly #bus: BlaeuCommandBus
   readonly #events: EventBus
   readonly #log: Logger
   readonly #limit: number
@@ -84,7 +84,7 @@ export class HistoryStack implements HistoryApi {
   #recording = true
 
   constructor(
-    bus: FlexiCommandBus,
+    bus: BlaeuCommandBus,
     events: EventBus,
     options: ResolvedHistoryOptions,
     log: Logger,

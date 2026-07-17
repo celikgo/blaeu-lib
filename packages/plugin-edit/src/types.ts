@@ -1,4 +1,4 @@
-import type { FeatureId, LineString, LngLat, ProjectedXY } from '@fleximap/core'
+import type { FeatureId, LineString, LngLat, ProjectedXY } from '@blaeu/core'
 
 export interface EditOptions {
   /**

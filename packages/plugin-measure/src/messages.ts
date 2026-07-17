@@ -1,4 +1,4 @@
-import type { Messages } from '@fleximap/core'
+import type { Messages } from '@blaeu/core'
 
 /**
  * The plugin's own strings. Registered on top of the core bundles, so a preset

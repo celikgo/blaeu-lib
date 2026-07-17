@@ -1,6 +1,6 @@
-# @fleximap/plugin-ui
+# @blaeu/plugin-ui
 
-Framework-free map chrome for FlexiMap: a toolbar, a coordinate readout, a snap
+Framework-free map chrome for BlaeuMap: a toolbar, a coordinate readout, a snap
 indicator, undo/redo, an issue panel, a measurement readout, a scale bar and an
 attribution line.
 
@@ -10,21 +10,21 @@ its addressable audience on the day it ships. A React wrapper is a separate pack
 on the roadmap, and it is a thin one — a `useEffect` around `addControl`.
 
 ```bash
-npm install @fleximap/plugin-ui
+npm install @blaeu/plugin-ui
 ```
 
 ## Usage
 
 ```ts
-import { createFlexiMap } from '@fleximap/core'
-import { uiPlugin } from '@fleximap/plugin-ui'
+import { createBlaeuMap } from '@blaeu/core'
+import { uiPlugin } from '@blaeu/plugin-ui'
 
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
   plugins: [drawPlugin(), snapPlugin(), uiPlugin({ attributions: ['© OpenStreetMap'] })],
 })
 
-// Typed with no cast — the plugin augments FlexiPluginRegistry.
+// Typed with no cast — the plugin augments BlaeuPluginRegistry.
 const ui = map.plugin('ui')
 ui.status.set('hint', 'Click to place the first vertex')
 ```
@@ -32,7 +32,7 @@ ui.status.set('hint', 'Click to place the first vertex')
 Take only the controls you want, and everything else tree-shakes away:
 
 ```ts
-import { uiPlugin, toolbarControl, coordinateReadoutControl } from '@fleximap/plugin-ui'
+import { uiPlugin, toolbarControl, coordinateReadoutControl } from '@blaeu/plugin-ui'
 
 uiPlugin({ controls: [toolbarControl(), [coordinateReadoutControl(), 'bottom-right']] })
 ```
@@ -41,7 +41,7 @@ uiPlugin({ controls: [toolbarControl(), [coordinateReadoutControl(), 'bottom-rig
 
 | Thing                                                                | Where                              |
 | -------------------------------------------------------------------- | ---------------------------------- |
-| `ui` in `FlexiPluginRegistry`                                        | `map.plugin('ui') → UiApi`         |
+| `ui` in `BlaeuPluginRegistry`                                        | `map.plugin('ui') → UiApi`         |
 | One interaction middleware, `ui:pointer-feed` (priority −1000)       | reads the cursor _after_ snapping  |
 | Message bundles `en` / `tr` under the `ui.*` and `snap.kind.*` keys  | disable with `{ messages: false }` |
 | A `<style>` element in `document.head`, scoped to this map's UI root | removed on teardown                |
@@ -120,7 +120,7 @@ A missing translation falls back to the tool id, never to the raw i18n key.
 
 ## Theming
 
-Every colour, radius, font and stacking order is a `var(--fx-*)` written by the
+Every colour, radius, font and stacking order is a `var(--bl-*)` written by the
 core's `ThemeManager`. Nothing in this package hardcodes a palette, and no element
 carries an inline style for anything themeable — so the selected row in the issue
 panel is the _same_ blue as the selection halo on the map, because both read the
@@ -130,7 +130,7 @@ same token.
 map.theme.set({ tokens: { color: { accent: '#c026d3' } } }) // the whole UI follows
 ```
 
-The two exceptions are the snap indicator's `--fx-ui-x` / `--fx-ui-y` and the scale
+The two exceptions are the snap indicator's `--bl-ui-x` / `--bl-ui-y` and the scale
 bar's width. Those are the cursor's position and a measured distance: data, not
 design.
 

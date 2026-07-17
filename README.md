@@ -1,6 +1,6 @@
-# FlexiMap
+# Blaeu
 
-FlexiMap is a geospatial **kernel**, not a map viewer. The core owns five things — a typed
+Blaeu is a geospatial **kernel**, not a map viewer. The core owns five things — a typed
 event bus with cancellable `before:` hooks, a plugin registry, two middleware pipelines
 (one synchronous for interaction, one asynchronous for commits), a command bus, and a
 feature store — and nothing else. Drawing, snapping, editing, measurement, selection,
@@ -14,18 +14,18 @@ same kernel drives a land-registry cadastre tool, an urban-planning tool, and a 
 game level editor — with no forks and no `if (domain === …)` anywhere inside it.
 
 ```
-npm install @fleximap/core maplibre-gl
+npm install @blaeu/core maplibre-gl
 ```
 
 ## Quick start
 
 ```ts
-import { createFlexiMap } from '@fleximap/core'
-import { drawPlugin } from '@fleximap/plugin-draw'
-import { snapPlugin } from '@fleximap/plugin-snap'
-import { historyPlugin } from '@fleximap/plugin-history'
+import { createBlaeuMap } from '@blaeu/core'
+import { drawPlugin } from '@blaeu/plugin-draw'
+import { snapPlugin } from '@blaeu/plugin-snap'
+import { historyPlugin } from '@blaeu/plugin-history'
 
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
   crs: { working: 'EPSG:5254', display: 'projected', precision: 3 }, // TUREF/TM30, mm
   plugins: [snapPlugin({ tolerance: 12 }), drawPlugin({ collection: 'parcels' }), historyPlugin()],
@@ -59,7 +59,7 @@ draw plugin is responsible for none of that.
 │                      peer-depend on core and never import each other.│
 ├─────────────────────────────────────────────────────────────────────┤
 │  Core (the kernel)   EventBus · PluginManager · SyncInteractionPipe- │
-│  @fleximap/core      line · AsyncCommitPipeline · CommandBus ·       │
+│  @blaeu/core      line · AsyncCommitPipeline · CommandBus ·       │
 │                      FeatureStore (+ spatial & topology indexes)     │
 │                      + the seams: Renderer, CrsService, LayerManager,│
 │                      ToolManager, ThemeManager, I18n, Validation     │
@@ -87,10 +87,10 @@ leaked into the wrong tier.
 parcel-to-parcel topology rules, `ada`/`parsel` attribute schema.
 
 ```ts
-import { createFlexiMap } from '@fleximap/core'
-import { cadastrePreset } from '@fleximap/preset-cadastre'
+import { createBlaeuMap } from '@blaeu/core'
+import { cadastrePreset } from '@blaeu/preset-cadastre'
 
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
   preset: cadastrePreset({ crs: 'EPSG:5255', locale: 'tr' }), // İzmir belt
 })
@@ -104,9 +104,9 @@ _warnings_, because a planner dragging a commercial zone across a residential on
 what it looks like is doing their job.
 
 ```ts
-import { urbanPlanningPreset } from '@fleximap/preset-urban'
+import { urbanPlanningPreset } from '@blaeu/preset-urban'
 
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
   preset: urbanPlanningPreset({ crs: 'EPSG:5254', locale: 'tr' }),
 })
@@ -124,9 +124,9 @@ not carry JSTS at all). The world is a plane in arbitrary units, registered thro
 generation is commit middleware — the same seam cadastre uses for topology validation.
 
 ```ts
-import { gameMapPreset } from '@fleximap/preset-game'
+import { gameMapPreset } from '@blaeu/preset-game'
 
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
   preset: gameMapPreset({ gridSize: 32, gridType: 'square' }),
 })
@@ -149,7 +149,7 @@ are in [`docs/adr/`](docs/adr/).
 ### Every mutation is a Command, and history is a _subscriber_
 
 The `Command` interface (`execute`/`undo`, with the contract that `undo(execute(s))`
-restores `s` to **deep equality**) is the only way anything in FlexiMap changes state.
+restores `s` to **deep equality**) is the only way anything in BlaeuMap changes state.
 
 The payoff is that undo works across plugins that have never heard of each other. The
 history plugin does not know what a "move vertex" is; it subscribes to
@@ -229,8 +229,8 @@ coordinate readouts and exports use, because a Turkish surveyor wants to see
 ### The plugin registry is typed by declaration merging
 
 ```ts
-declare module '@fleximap/core' {
-  interface FlexiPluginRegistry {
+declare module '@blaeu/core' {
+  interface BlaeuPluginRegistry {
     draw: DrawApi
   }
 }
@@ -238,9 +238,9 @@ declare module '@fleximap/core' {
 
 After that, `map.plugin('draw')` is a `DrawApi` — no cast, no generic parameter, no import
 of an internal type — and autocomplete lists every installed plugin by id. The same trick
-on `FlexiEventMap` makes `map.events.on('draw:complete', (e) => e.payload.feature)`
+on `BlaeuEventMap` makes `map.events.on('draw:complete', (e) => e.payload.feature)`
 type-check with full inference, so a typo in an event name is a compile error rather than a
-listener that silently never fires. `FlexiPluginRegistry` ships empty on purpose. It is not
+listener that silently never fires. `BlaeuPluginRegistry` ships empty on purpose. It is not
 an oversight; it is the seam.
 
 The `before:` prefix on an event name is not a convention either — it is a capability.
@@ -267,19 +267,19 @@ parcel corners, the kind of thing a domain adds — including the registry augme
 buys the typed handle.
 
 ```ts
-import type { FlexiPlugin, LngLat, SnapCandidate, SnapProvider } from '@fleximap/core'
+import type { BlaeuPlugin, LngLat, SnapCandidate, SnapProvider } from '@blaeu/core'
 
 export interface CornerApi {
   readonly collection: string
 }
 
-declare module '@fleximap/core' {
-  interface FlexiPluginRegistry {
+declare module '@blaeu/core' {
+  interface BlaeuPluginRegistry {
     'parcel-corner': CornerApi // → map.plugin('parcel-corner') is CornerApi, no cast
   }
 }
 
-export function parcelCornerPlugin(collection = 'parcels'): FlexiPlugin<CornerApi> {
+export function parcelCornerPlugin(collection = 'parcels'): BlaeuPlugin<CornerApi> {
   return {
     id: 'parcel-corner',
     version: '1.0.0',
@@ -345,11 +345,11 @@ A preset is a **pure function returning plain data**. No map, no DOM, no globals
 what makes it inspectable, snapshot-testable, and composable.
 
 ```ts
-import { definePreset, type Preset } from '@fleximap/core'
-import { drawPlugin } from '@fleximap/plugin-draw'
-import { snapPlugin } from '@fleximap/plugin-snap'
-import { historyPlugin } from '@fleximap/plugin-history'
-import { topologyPlugin, noOverlapWithNeighbours, closedRings } from '@fleximap/plugin-topology'
+import { definePreset, type Preset } from '@blaeu/core'
+import { drawPlugin } from '@blaeu/plugin-draw'
+import { snapPlugin } from '@blaeu/plugin-snap'
+import { historyPlugin } from '@blaeu/plugin-history'
+import { topologyPlugin, noOverlapWithNeighbours, closedRings } from '@blaeu/plugin-topology'
 
 export interface UtilityOptions {
   readonly crs?: string
@@ -393,10 +393,10 @@ export function utilityNetworkPreset(options: UtilityOptions = {}): Preset {
 `composePresets` is how a municipality customises a national preset. Later wins:
 
 ```ts
-import { composePresets, definePreset, createFlexiMap } from '@fleximap/core'
-import { cadastrePreset } from '@fleximap/preset-cadastre'
-import { snapPlugin } from '@fleximap/plugin-snap'
-import { minParcelArea } from '@fleximap/plugin-topology'
+import { composePresets, definePreset, createBlaeuMap } from '@blaeu/core'
+import { cadastrePreset } from '@blaeu/preset-cadastre'
+import { snapPlugin } from '@blaeu/plugin-snap'
+import { minParcelArea } from '@blaeu/plugin-topology'
 
 const izmir = composePresets(
   cadastrePreset({ crs: 'EPSG:5255' }), // national base
@@ -409,7 +409,7 @@ const izmir = composePresets(
   }),
 )
 
-const map = await createFlexiMap({ container: '#map', preset: izmir })
+const map = await createBlaeuMap({ container: '#map', preset: izmir })
 ```
 
 The merge semantics are the whole contract of the preset system, and they are deliberate:
@@ -430,22 +430,22 @@ option.
 
 ## Packages
 
-| Package                     | Install                            | What it is                                                                       |
-| --------------------------- | ---------------------------------- | -------------------------------------------------------------------------------- |
-| `@fleximap/core`            | `npm i @fleximap/core maplibre-gl` | The kernel, the MapLibre renderer, and `@fleximap/core/testing`                  |
-| `@fleximap/plugin-snap`     | `npm i @fleximap/plugin-snap`      | Snapping as interaction middleware; 7 built-in providers, pluggable              |
-| `@fleximap/plugin-draw`     | `npm i @fleximap/plugin-draw`      | point / line / polygon / rectangle / circle / freehand                           |
-| `@fleximap/plugin-edit`     | `npm i @fleximap/plugin-edit`      | Vertex editing, transforms, split, merge. Topological mode. JSTS                 |
-| `@fleximap/plugin-select`   | `npm i @fleximap/plugin-select`    | Click, multi-select, box, lasso                                                  |
-| `@fleximap/plugin-measure`  | `npm i @fleximap/plugin-measure`   | Distance, area, grid bearing — planar, in the working CRS                        |
-| `@fleximap/plugin-history`  | `npm i @fleximap/plugin-history`   | Undo/redo for every plugin, including the ones that do not exist yet             |
-| `@fleximap/plugin-topology` | `npm i @fleximap/plugin-topology`  | Overlap, gap, sliver, self-intersection, ring closure. JSTS                      |
-| `@fleximap/plugin-ui`       | `npm i @fleximap/plugin-ui`        | Framework-free chrome: toolbar, readouts, undo buttons, issue panel              |
-| `@fleximap/preset-cadastre` | `npm i @fleximap/preset-cadastre`  | Turkish cadastre: TUREF/TM, mm precision, topological editing, ada/parsel        |
-| `@fleximap/preset-urban`    | `npm i @fleximap/preset-urban`     | Zoning legend, 5 m planning grid, scenario comparison                            |
-| `@fleximap/preset-game`     | `npm i @fleximap/preset-game`      | Tile/hex level editor: custom world CRS, entity placement, procedural generation |
+| Package                  | Install                         | What it is                                                                       |
+| ------------------------ | ------------------------------- | -------------------------------------------------------------------------------- |
+| `@blaeu/core`            | `npm i @blaeu/core maplibre-gl` | The kernel, the MapLibre renderer, and `@blaeu/core/testing`                     |
+| `@blaeu/plugin-snap`     | `npm i @blaeu/plugin-snap`      | Snapping as interaction middleware; 7 built-in providers, pluggable              |
+| `@blaeu/plugin-draw`     | `npm i @blaeu/plugin-draw`      | point / line / polygon / rectangle / circle / freehand                           |
+| `@blaeu/plugin-edit`     | `npm i @blaeu/plugin-edit`      | Vertex editing, transforms, split, merge. Topological mode. JSTS                 |
+| `@blaeu/plugin-select`   | `npm i @blaeu/plugin-select`    | Click, multi-select, box, lasso                                                  |
+| `@blaeu/plugin-measure`  | `npm i @blaeu/plugin-measure`   | Distance, area, grid bearing — planar, in the working CRS                        |
+| `@blaeu/plugin-history`  | `npm i @blaeu/plugin-history`   | Undo/redo for every plugin, including the ones that do not exist yet             |
+| `@blaeu/plugin-topology` | `npm i @blaeu/plugin-topology`  | Overlap, gap, sliver, self-intersection, ring closure. JSTS                      |
+| `@blaeu/plugin-ui`       | `npm i @blaeu/plugin-ui`        | Framework-free chrome: toolbar, readouts, undo buttons, issue panel              |
+| `@blaeu/preset-cadastre` | `npm i @blaeu/preset-cadastre`  | Turkish cadastre: TUREF/TM, mm precision, topological editing, ada/parsel        |
+| `@blaeu/preset-urban`    | `npm i @blaeu/preset-urban`     | Zoning legend, 5 m planning grid, scenario comparison                            |
+| `@blaeu/preset-game`     | `npm i @blaeu/preset-game`      | Tile/hex level editor: custom world CRS, entity placement, procedural generation |
 
-Every plugin declares `@fleximap/core` as a **peerDependency**, never a dependency. Two
+Every plugin declares `@blaeu/core` as a **peerDependency**, never a dependency. Two
 copies of the core in a user's `node_modules` means two event buses and two stores; nothing
 throws, the plugin just silently never receives an event, and someone loses a day to it.
 
@@ -467,9 +467,9 @@ A library honest about its edges is worth more than one that is not, so:
   `dispatch` async would make every tool's click handler async; making the pipeline sync
   would forbid a server-side check. Resolving that properly (probably a `dispatchAsync`)
   is on the roadmap and is a contract change, so it will get an ADR.
-- **No React (or Vue, or Svelte) binding.** `@fleximap/plugin-ui` is framework-free DOM on
+- **No React (or Vue, or Svelte) binding.** `@blaeu/plugin-ui` is framework-free DOM on
   purpose, and every subscription returns a `Disposable` that maps cleanly onto an effect
-  cleanup — but there is no `@fleximap/react` package yet.
+  cleanup — but there is no `@blaeu/react` package yet.
 - **No 3D and no terrain.** The `Renderer` interface is the seam a Three.js renderer would
   come through, and `Camera` already carries `pitch`, but nothing behind that seam exists.
 - **Collaboration is designed for, not built.** The command bus is the right seam for it

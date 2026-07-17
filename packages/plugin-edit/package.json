@@ -1,5 +1,5 @@
 {
-  "name": "@fleximap/plugin-edit",
+  "name": "@blaeu/plugin-edit",
   "version": "0.1.0",
   "description": "Editing: vertex editing, move, rotate, scale, split, merge — with topological awareness.",
   "license": "MIT",
@@ -29,10 +29,10 @@
     "jsts": "^2.12.1"
   },
   "peerDependencies": {
-    "@fleximap/core": "^0.1.0"
+    "@blaeu/core": "^0.1.0"
   },
   "devDependencies": {
-    "@fleximap/core": "^0.1.0"
+    "@blaeu/core": "^0.1.0"
   },
   "publishConfig": {
     "access": "public"

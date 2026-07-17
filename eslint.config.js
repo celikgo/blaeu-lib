@@ -16,8 +16,8 @@ export default tseslint.config(
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
-      // Empty interfaces are load-bearing here: `FlexiPluginRegistry` and
-      // `FlexiEventMap` ship empty and are filled in by plugins via declaration
+      // Empty interfaces are load-bearing here: `BlaeuPluginRegistry` and
+      // `BlaeuEventMap` ship empty and are filled in by plugins via declaration
       // merging. That is the whole typed-plugin mechanism, not an oversight.
       '@typescript-eslint/no-empty-object-type': ['error', { allowInterfaces: 'always' }],
     },
@@ -40,7 +40,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['@fleximap/plugin-*', '@fleximap/preset-*'],
+              group: ['@blaeu/plugin-*', '@blaeu/preset-*'],
               message:
                 'Core must not import plugins (invariant 1). If core needs this, add an extension point instead.',
             },

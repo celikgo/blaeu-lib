@@ -1,5 +1,5 @@
 {
-  "name": "@fleximap/plugin-snap",
+  "name": "@blaeu/plugin-snap",
   "version": "0.1.0",
   "description": "Snapping engine: vertex, edge, midpoint, intersection, grid and guide providers.",
   "license": "MIT",
@@ -26,10 +26,10 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "peerDependencies": {
-    "@fleximap/core": "^0.1.0"
+    "@blaeu/core": "^0.1.0"
   },
   "devDependencies": {
-    "@fleximap/core": "^0.1.0"
+    "@blaeu/core": "^0.1.0"
   },
   "publishConfig": {
     "access": "public"

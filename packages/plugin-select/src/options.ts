@@ -1,4 +1,4 @@
-import type { CollectionId } from '@fleximap/core'
+import type { CollectionId } from '@blaeu/core'
 
 /** Which modifier turns a click into a multi-select. */
 export type MultiKey = 'shift' | 'ctrl' | 'meta'

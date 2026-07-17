@@ -33,18 +33,18 @@ export function historyButtonsControl(): Control {
 
     render(ctx: ControlContext): HTMLElement {
       const element = el('div', {
-        class: 'fx-ui-control fx-ui-toolbar fx-ui-history',
+        class: 'bl-ui-control bl-ui-toolbar bl-ui-history',
         attrs: { role: 'group', 'aria-label': ctx.i18n.t('ui.undo') },
       })
       element.hidden = true
 
-      const undo = button('fx-ui-button', ctx.i18n.t('ui.undo'))
+      const undo = button('bl-ui-button', ctx.i18n.t('ui.undo'))
       undo.appendChild(
-        el('span', { class: 'fx-ui-button-icon', text: '↶', attrs: { 'aria-hidden': 'true' } }),
+        el('span', { class: 'bl-ui-button-icon', text: '↶', attrs: { 'aria-hidden': 'true' } }),
       )
-      const redo = button('fx-ui-button', ctx.i18n.t('ui.redo'))
+      const redo = button('bl-ui-button', ctx.i18n.t('ui.redo'))
       redo.appendChild(
-        el('span', { class: 'fx-ui-button-icon', text: '↷', attrs: { 'aria-hidden': 'true' } }),
+        el('span', { class: 'bl-ui-button-icon', text: '↷', attrs: { 'aria-hidden': 'true' } }),
       )
       element.append(undo, redo)
 

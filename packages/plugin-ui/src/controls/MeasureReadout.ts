@@ -20,7 +20,7 @@ export function measureReadoutControl(): Control {
 
     render(ctx: ControlContext): HTMLElement {
       const element = el('div', {
-        class: 'fx-ui-control fx-ui-readout fx-ui-measure',
+        class: 'bl-ui-control bl-ui-readout bl-ui-measure',
         attrs: {
           'aria-label': ctx.i18n.t('ui.measure'),
           role: 'status',

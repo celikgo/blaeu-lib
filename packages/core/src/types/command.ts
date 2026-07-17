@@ -1,7 +1,7 @@
 import type { Disposable } from './common.js'
 import type { FeatureStore } from './store.js'
 import type { EventBus } from './events.js'
-import type { FlexiFeature } from './feature.js'
+import type { BlaeuFeature } from './feature.js'
 
 /** What a command is allowed to touch when it runs. */
 export interface CommandContext {
@@ -10,7 +10,7 @@ export interface CommandContext {
 }
 
 /**
- * A reversible mutation. **The only way anything in FlexiMap changes state.**
+ * A reversible mutation. **The only way anything in BlaeuMap changes state.**
  *
  * This is the single most important interface in the library, and the reason
  * undo/redo works *across plugins that have never heard of each other*: the
@@ -24,7 +24,7 @@ export interface CommandContext {
  *
  * Not "close enough", not "visually identical". If your `undo` can't restore
  * deep equality, the command captured too little state — capture more. Every
- * command owes the round-trip test from the `fleximap-testing` skill.
+ * command owes the round-trip test from the `blaeu-testing` skill.
  */
 export interface Command<R = void> {
   /** Namespaced identifier, e.g. `draw:add-feature`. Used in history UIs and telemetry. */
@@ -107,10 +107,10 @@ export interface CommitIntent {
    * normalisation yet. A rule that passes on the input and fails on the stored
    * feature is worse than no rule at all.
    */
-  readonly features: readonly FlexiFeature[]
+  readonly features: readonly BlaeuFeature[]
 
   /** The state being replaced. Empty for `add`. */
-  readonly previous: readonly FlexiFeature[]
+  readonly previous: readonly BlaeuFeature[]
 }
 
 /**
@@ -147,7 +147,7 @@ export interface CommitCommand<R = void> extends Command<R> {
    * that ignores this and writes its original inputs anyway has silently opted out
    * of every middleware in the product.
    */
-  adopt(features: readonly FlexiFeature[]): void
+  adopt(features: readonly BlaeuFeature[]): void
 }
 
 /** Narrowing guard. A command is committable iff it declares an intent. */

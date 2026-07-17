@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalisePluginSpec, type Preset } from '@fleximap/core'
+import { normalisePluginSpec, type Preset } from '@blaeu/core'
 
 import { gameMapPreset } from './preset.js'
 import { RULE_IN_BOUNDS, RULE_TILE_OCCUPIED } from './validation.js'
@@ -147,7 +147,7 @@ describe('gameMapPreset — shape', () => {
   /**
    * `working` must be absent, and that absence is load-bearing.
    *
-   * `FlexiCrsService` is built from `config.crs` in the `FlexiMap` constructor, before
+   * `BlaeuCrsService` is built from `config.crs` in the `BlaeuMap` constructor, before
    * any plugin's setup runs, and it throws on a code it does not know. Naming
    * `GAME:WORLD` here would kill every map this preset builds — which is exactly what
    * it used to do. `worldCrsPlugin` registers the plane and calls `setWorking()`.
@@ -276,7 +276,7 @@ describe('gameMapPreset — shape', () => {
           "history",
           "ui",
         ],
-        "themeId": "fleximap-game",
+        "themeId": "blaeu-game",
         "validation": {
           "game.entity.inBounds": "error",
           "game.entity.tileOccupied": "warning",

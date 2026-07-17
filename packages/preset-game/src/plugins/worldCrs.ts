@@ -1,4 +1,4 @@
-import type { FlexiPlugin, PluginContext } from '@fleximap/core'
+import type { BlaeuPlugin, PluginContext } from '@blaeu/core'
 import { resolveGameOptions } from '../options.js'
 import type { GameOptions, ResolvedGameOptions, WorldApi, WorldXY } from '../types.js'
 import { createWorldTransform, snapToSquare, worldContains, worldCrsSpec } from '../world.js'
@@ -18,7 +18,7 @@ import { nearestHexCentre } from '../hex.js'
  *
  * ## Why this is a plugin and not `config.crs.working`
  *
- * `FlexiCrsService` is constructed in the `FlexiMap` constructor, from
+ * `BlaeuCrsService` is constructed in the `BlaeuMap` constructor, from
  * `config.crs.working`, *before* any plugin runs. So a preset that wrote
  * `config: { crs: { working: 'GAME:WORLD' } }` would throw `unknown CRS "GAME:WORLD"`
  * before it ever got the chance to register it. Registration therefore has to happen
@@ -29,7 +29,7 @@ import { nearestHexCentre } from '../hex.js'
  * (That ordering is a genuine sharp edge in the kernel rather than a nicety of this
  * preset. A `config.crs.register` hook would remove it.)
  */
-export function worldCrsPlugin(options: GameOptions = {}): FlexiPlugin<WorldApi, GameOptions> {
+export function worldCrsPlugin(options: GameOptions = {}): BlaeuPlugin<WorldApi, GameOptions> {
   return {
     id: 'game-world',
     version: '1.0.0',
@@ -77,8 +77,8 @@ export function worldCrsPlugin(options: GameOptions = {}): FlexiPlugin<WorldApi,
   }
 }
 
-declare module '@fleximap/core' {
-  interface FlexiPluginRegistry {
+declare module '@blaeu/core' {
+  interface BlaeuPluginRegistry {
     'game-world': WorldApi
   }
 }

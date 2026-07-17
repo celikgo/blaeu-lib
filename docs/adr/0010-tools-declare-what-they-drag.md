@@ -8,7 +8,7 @@ Amends [ADR 0003](./0003-snapping-as-interaction-middleware.md).
 [ADR 0003](./0003-snapping-as-interaction-middleware.md) claims that snapping reaches every
 tool **purely** through interaction middleware that rewrites `ctx.lngLat`, and that this is
 why the measure plugin snaps to parcel corners without containing a line of snapping code or
-ever importing `@fleximap/plugin-snap`.
+ever importing `@blaeu/plugin-snap`.
 
 That claim is true for tools that _place_ new geometry. It was false — and destructively so —
 for tools that _drag existing_ geometry, which is most of `plugin-edit`.

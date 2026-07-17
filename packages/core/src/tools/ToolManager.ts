@@ -15,7 +15,7 @@ import type { Tool, ToolManager } from '../types/extensions.js'
  * indicator — is *not* a tool. It is interaction middleware, and it composes with
  * every tool rather than competing with them.
  */
-export class FlexiToolManager implements ToolManager {
+export class BlaeuToolManager implements ToolManager {
   readonly #events: EventBus
   readonly #tools = new Map<string, Tool>()
   #active: string | null = null
@@ -42,7 +42,7 @@ export class FlexiToolManager implements ToolManager {
     const existing = this.#tools.get(id)
     if (existing) {
       throw new Error(
-        `[fleximap] tool "${id}" is already registered. ` +
+        `[blaeu] tool "${id}" is already registered. ` +
           `Two tools under one id means activate("${id}") silently picks one of them. ` +
           `Register under a distinct id, or dispose the first registration.`,
       )
@@ -68,7 +68,7 @@ export class FlexiToolManager implements ToolManager {
     const tool = this.#tools.get(id)
     if (!tool) {
       throw new Error(
-        `[fleximap] no tool registered as "${id}". Registered: [${this.list().join(', ')}]. ` +
+        `[blaeu] no tool registered as "${id}". Registered: [${this.list().join(', ')}]. ` +
           `Tools are registered by plugins — check that the plugin providing "${id}" is installed.`,
       )
     }
@@ -100,7 +100,7 @@ export class FlexiToolManager implements ToolManager {
       // into a half-constructed tool.
       this.#active = null
       throw new Error(
-        `[fleximap] tool "${id}" threw during activate(): ${err instanceof Error ? err.message : String(err)}`,
+        `[blaeu] tool "${id}" threw during activate(): ${err instanceof Error ? err.message : String(err)}`,
         { cause: err },
       )
     }
@@ -122,7 +122,7 @@ export class FlexiToolManager implements ToolManager {
     } catch (err) {
       // A throwing teardown must not strand the manager with no active tool *and*
       // no way to activate the next one. Report and carry on.
-      console.error(`[fleximap] tool "${id}" threw during deactivate():`, err)
+      console.error(`[blaeu] tool "${id}" threw during deactivate():`, err)
     }
 
     this.#events.emit('tool:deactivated', { id })
@@ -137,7 +137,7 @@ export class FlexiToolManager implements ToolManager {
    *
    * `active` (the id) is the public, serialisable answer to "what mode am I in?";
    * this is the kernel's handle for actually delivering events, and is why
-   * {@link FlexiMap} does not have to look the tool up on every pointer move.
+   * {@link BlaeuMap} does not have to look the tool up on every pointer move.
    */
   get activeTool(): Tool | null {
     if (this.#active === null) return null

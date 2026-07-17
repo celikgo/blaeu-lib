@@ -1,14 +1,14 @@
 /**
- * `@fleximap/preset-game` — the same kernel, aimed at a level editor.
+ * `@blaeu/preset-game` — the same kernel, aimed at a level editor.
  *
  * ```ts
- * const map = await createFlexiMap({
+ * const map = await createBlaeuMap({
  *   container: '#map',
  *   preset: gameMapPreset({ gridSize: 32, gridType: 'square' }),
  * })
  * ```
  *
- * This package exists to falsify the obvious objection to FlexiMap — that a
+ * This package exists to falsify the obvious objection to BlaeuMap — that a
  * "geospatial kernel" is really just a GIS library with a plugin API bolted on.
  * A game world has no geodesy, no basemap, and no cadastral topology. If the core
  * had assumed any of those, this preset would be impossible without forking it.
@@ -25,7 +25,7 @@
  *   is the same seam the cadastre preset uses for topology validation. The kernel
  *   does not know that one spawns decorations and the other prevents a lawsuit.
  *
- * And one thing it *doesn't* install: `@fleximap/plugin-topology`. A level has no
+ * And one thing it *doesn't* install: `@blaeu/plugin-topology`. A level has no
  * parcels, so the preset omits it — and the bundle does not carry JSTS. That is
  * only possible because topology was a plugin rather than a core feature.
  */

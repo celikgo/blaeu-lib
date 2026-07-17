@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { FlexiCrsService } from '@fleximap/core'
-import type { CrsService, LngLat } from '@fleximap/core'
+import { BlaeuCrsService } from '@blaeu/core'
+import type { CrsService, LngLat } from '@blaeu/core'
 
 import {
   assertWorldFits,
@@ -30,10 +30,10 @@ const UNITS_PER_DEGREE = 100_000
 
 function crsFor(options = {}): { crs: CrsService; code: string } {
   const o = resolveGameOptions(options)
-  // The service is constructed exactly as `FlexiMap` constructs it — decimal places,
+  // The service is constructed exactly as `BlaeuMap` constructs it — decimal places,
   // not a grid — and then the world plane is registered into it, exactly as
   // `worldCrsPlugin` does.
-  const crs = new FlexiCrsService({ working: 'EPSG:3857', display: 'projected', precision: 3 })
+  const crs = new BlaeuCrsService({ working: 'EPSG:3857', display: 'projected', precision: 3 })
   const registered = crs.register(worldCrsSpec(o))
   crs.setWorking(registered.code)
   return { crs, code: registered.code }

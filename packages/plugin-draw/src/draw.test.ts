@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createTestMap, expectWithinMetres, offsetMetres, ANKARA } from '@fleximap/core/testing'
-import type { TestMap } from '@fleximap/core/testing'
-import type { Command, FeatureId, FlexiPlugin, LngLat, Polygon } from '@fleximap/core'
+import { createTestMap, expectWithinMetres, offsetMetres, ANKARA } from '@blaeu/core/testing'
+import type { TestMap } from '@blaeu/core/testing'
+import type { Command, FeatureId, BlaeuPlugin, LngLat, Polygon } from '@blaeu/core'
 
 import {
   CIRCLE_CENTRE_PROPERTY,
@@ -44,12 +44,12 @@ async function drawTriangle(map: TestMap): Promise<void> {
 }
 
 /**
- * A stand-in for `@fleximap/plugin-snap`.
+ * A stand-in for `@blaeu/plugin-snap`.
  *
  * This package may not import the real one (boundary rule 2), so the handshake is
  * structural and nothing checks it at compile time. That makes the *names* below
  * load-bearing: they are `SnapApi.setInProgress` and `SnapApi.exclude`, exactly as
- * `@fleximap/plugin-snap` declares them. A fake that invents its own names would pass
+ * `@blaeu/plugin-snap` declares them. A fake that invents its own names would pass
  * while the real integration silently did nothing — which is precisely the bug this test
  * exists to catch, so the fake must not be allowed to be more forgiving than reality.
  */
@@ -58,7 +58,7 @@ interface FakeSnap {
   excluded: readonly FeatureId[]
 }
 
-function fakeSnapPlugin(state: FakeSnap): FlexiPlugin<FakeSnap, unknown> {
+function fakeSnapPlugin(state: FakeSnap): BlaeuPlugin<FakeSnap, unknown> {
   return {
     id: 'snap',
     version: '1.0.0',
@@ -506,7 +506,7 @@ describe('the snap handshake', () => {
 
   it('warns rather than no-ops when a snap plugin does not answer to the handshake', async () => {
     const warn = vi.fn()
-    const strangeSnap: FlexiPlugin<Record<string, never>, unknown> = {
+    const strangeSnap: BlaeuPlugin<Record<string, never>, unknown> = {
       id: 'snap',
       version: '1.0.0',
       setup: () => ({}),

@@ -35,7 +35,7 @@ const METRES_PER_UNIT: Record<ProjectedCrs['unit'], number> = {
 /**
  * The CRS service — the reason cadastral numbers come out right.
  *
- * Everything in FlexiMap is stored in WGS84 lng/lat (core invariant 3), and
+ * Everything in BlaeuMap is stored in WGS84 lng/lat (core invariant 3), and
  * nothing survey-grade is *computed* there. Each measurement below follows the
  * same three steps: project into the working plane, do honest planar maths in
  * metres, and — where a coordinate comes back — unproject. The projection
@@ -46,7 +46,7 @@ const METRES_PER_UNIT: Record<ProjectedCrs['unit'], number> = {
  * the places where a unit or a datum changes silently, so this file makes every
  * one of those places explicit and refuses the ambiguous ones.
  */
-export class FlexiCrsService implements CrsService {
+export class BlaeuCrsService implements CrsService {
   readonly #config: CrsConfig
   /** Registered definitions, keyed by normalised code. */
   readonly #defs = new Map<string, CrsDefinition>()
@@ -107,14 +107,14 @@ export class FlexiCrsService implements CrsService {
 
     if (isGeographic(crs.code) || isLongLat(crs.proj4)) {
       throw new Error(
-        `[fleximap] cannot register "${crs.code}" as a projected CRS: it is geographic ` +
-          `(lng/lat degrees), and every survey-grade measurement in FlexiMap needs a plane in ` +
+        `[blaeu] cannot register "${crs.code}" as a projected CRS: it is geographic ` +
+          `(lng/lat degrees), and every survey-grade measurement in BlaeuMap needs a plane in ` +
           `metres. Register a projected system instead — e.g. EPSG:5254 (TUREF / TM30).`,
       )
     }
     if (!(crs.precision > 0) || !Number.isFinite(crs.precision)) {
       throw new Error(
-        `[fleximap] CRS "${crs.code}" has precision ${String(crs.precision)}. It must be the ` +
+        `[blaeu] CRS "${crs.code}" has precision ${String(crs.precision)}. It must be the ` +
           `quantisation grid in metres — 0.001 for millimetres, which is what cadastre wants.`,
       )
     }
@@ -133,7 +133,7 @@ export class FlexiCrsService implements CrsService {
         return this.get(crs.code)!
       }
       throw new Error(
-        `[fleximap] CRS "${crs.code}" is already registered with a different definition. ` +
+        `[blaeu] CRS "${crs.code}" is already registered with a different definition. ` +
           `Redefining a code would silently change every coordinate already measured against ` +
           `it. Choose a distinct code (e.g. "${crs.code}-LOCAL") instead.`,
       )
@@ -341,15 +341,15 @@ export class FlexiCrsService implements CrsService {
 
     if (isGeographic(code)) {
       throw new Error(
-        `[fleximap] "${code}" is a geographic CRS (degrees), not a plane, so it cannot be the ` +
-          `working CRS: area, length and offsets in FlexiMap are planar and in metres, and ` +
+        `[blaeu] "${code}" is a geographic CRS (degrees), not a plane, so it cannot be the ` +
+          `working CRS: area, length and offsets in BlaeuMap are planar and in metres, and ` +
           `degrees have neither property. Use a projected CRS — EPSG:5254 (TUREF / TM30) for ` +
           `Türkiye, or EPSG:3857 for a general-purpose map. Coordinates stay WGS84 either way; ` +
           `only the measuring plane changes.`,
       )
     }
     throw new Error(
-      `[fleximap] unknown CRS "${code}". Registered: ${this.list().join(', ')}. ` +
+      `[blaeu] unknown CRS "${code}". Registered: ${this.list().join(', ')}. ` +
         `Register a custom system with map.crs.register({ code, name, proj4, unit, precision }).`,
     )
   }
@@ -390,7 +390,7 @@ function gridFromDecimalPlaces(places: number): number {
           `precision ${String(Math.round(-Math.log10(places)))}.`
         : ''
     throw new Error(
-      `[fleximap] crs.precision must be a whole number of decimal places in the working CRS's ` +
+      `[blaeu] crs.precision must be a whole number of decimal places in the working CRS's ` +
         `unit (3 = millimetres), but got ${String(places)}.${hint}`,
     )
   }
@@ -423,7 +423,7 @@ function materialise(def: CrsDefinition): ProjectedCrs {
       // paying to turn that into a stack trace.
       if (x === undefined || y === undefined || !Number.isFinite(x) || !Number.isFinite(y)) {
         throw new Error(
-          `[fleximap] ${def.code}: cannot project [${String(lngLat[0])}, ${String(lngLat[1])}]. ` +
+          `[blaeu] ${def.code}: cannot project [${String(lngLat[0])}, ${String(lngLat[1])}]. ` +
             `Check the coordinate is WGS84 lng/lat (in that order) and inside the CRS's extent.`,
         )
       }
@@ -441,7 +441,7 @@ function materialise(def: CrsDefinition): ProjectedCrs {
         !Number.isFinite(lat)
       ) {
         throw new Error(
-          `[fleximap] ${def.code}: cannot unproject [${String(xy[0])}, ${String(xy[1])}]. ` +
+          `[blaeu] ${def.code}: cannot unproject [${String(xy[0])}, ${String(xy[1])}]. ` +
             `Check the coordinate is in ${def.code}'s ${def.unit}s, not in degrees.`,
         )
       }
@@ -458,7 +458,7 @@ function buildConverter(def: CrsDefinition) {
     return proj4(WGS84_PROJ4, def.proj4)
   } catch (err) {
     throw new Error(
-      `[fleximap] CRS "${def.code}" has a proj4 definition that proj4 cannot parse: ` +
+      `[blaeu] CRS "${def.code}" has a proj4 definition that proj4 cannot parse: ` +
         `"${def.proj4}" (${String(err)}). Copy the definition from epsg.io, or from the ` +
         `authority that issued the grid.`,
     )
@@ -484,7 +484,7 @@ function probe(crs: ProjectedCrs): void {
   // broken in a way no tolerance forgives.
   if (Math.abs(back[0] - centre[0]) > 1e-6 || Math.abs(back[1] - centre[1]) > 1e-6) {
     throw new Error(
-      `[fleximap] CRS "${crs.code}" does not round-trip: [${String(centre[0])}, ` +
+      `[blaeu] CRS "${crs.code}" does not round-trip: [${String(centre[0])}, ` +
         `${String(centre[1])}] came back as [${String(back[0])}, ${String(back[1])}]. ` +
         `Its proj4 definition is wrong, and every coordinate measured against it would be too.`,
     )
@@ -496,7 +496,7 @@ function toXY(plane: ProjectedCrs, position: Position): ProjectedXY {
   const lat = position[1]
   if (lng === undefined || lat === undefined) {
     throw new Error(
-      `[fleximap] malformed position [${position.join(', ')}]: a GeoJSON position needs at ` +
+      `[blaeu] malformed position [${position.join(', ')}]: a GeoJSON position needs at ` +
         `least [lng, lat]. Measuring around it would produce a plausible, wrong number.`,
     )
   }

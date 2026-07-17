@@ -1,6 +1,6 @@
-# @fleximap/plugin-history
+# @blaeu/plugin-history
 
-Undo/redo for FlexiMap — including for plugins that do not exist yet.
+Undo/redo for BlaeuMap — including for plugins that do not exist yet.
 
 This plugin is the proof that the command-bus design works. It knows **nothing**
 about drawing, editing, parcels or vertices. It subscribes to
@@ -15,10 +15,10 @@ undoable; if it does not, it is not, and that is the only rule.
 ## Install
 
 ```ts
-import { createFlexiMap } from '@fleximap/core'
-import { historyPlugin } from '@fleximap/plugin-history'
+import { createBlaeuMap } from '@blaeu/core'
+import { historyPlugin } from '@blaeu/plugin-history'
 
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
   plugins: [historyPlugin({ limit: 200 })],
 })
@@ -54,7 +54,7 @@ exactly where it was — there is a test for that.
 ## Dependencies
 
 **None**, and it must stay that way. The moment history knows the name of another
-plugin, it has stopped being a general undo system. `@fleximap/core` is a peer
+plugin, it has stopped being a general undo system. `@blaeu/core` is a peer
 dependency.
 
 ## Options

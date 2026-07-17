@@ -1,5 +1,5 @@
 /**
- * `@fleximap/plugin-topology` — topology validation for people whose job is to be
+ * `@blaeu/plugin-topology` — topology validation for people whose job is to be
  * exactly right.
  *
  * The plugin owns the *engine*: JSTS, run in the projected working CRS, over
@@ -12,13 +12,13 @@ import {
   UpdateFeaturesCommand,
   type Disposable,
   type FeatureId,
-  type FlexiFeature,
-  type FlexiPlugin,
+  type BlaeuFeature,
+  type BlaeuPlugin,
   type PluginContext,
   type ValidationContext,
   type ValidationIssue,
   type ValidationRule,
-} from '@fleximap/core'
+} from '@blaeu/core'
 
 import { isFixable, repair } from './fix.js'
 import { en, tr } from './messages.js'
@@ -87,12 +87,12 @@ export interface TopologyApi {
   onIssues(handler: (issues: readonly ValidationIssue[]) => void): Disposable
 }
 
-declare module '@fleximap/core' {
-  interface FlexiPluginRegistry {
+declare module '@blaeu/core' {
+  interface BlaeuPluginRegistry {
     topology: TopologyApi
   }
 
-  interface FlexiEventMap {
+  interface BlaeuEventMap {
     /** Emitted by every `validate()`, including the ones that find nothing — a UI needs to clear its panel. */
     'topology:issues': { readonly issues: readonly ValidationIssue[] }
   }
@@ -104,7 +104,7 @@ declare module '@fleximap/core' {
 
 export function topologyPlugin(
   options: TopologyOptions = {},
-): FlexiPlugin<TopologyApi, TopologyOptions> {
+): BlaeuPlugin<TopologyApi, TopologyOptions> {
   const autoFix = options.autoFix ?? false
   const tolerance = options.tolerance ?? DEFAULT_TOLERANCE_METRES
   const sliverRatio = options.sliverRatio ?? DEFAULT_SLIVER_RATIO
@@ -148,9 +148,9 @@ export function topologyPlugin(
         }
       }
 
-      const collect = (ids: readonly FeatureId[] | undefined): readonly FlexiFeature[] => {
+      const collect = (ids: readonly FeatureId[] | undefined): readonly BlaeuFeature[] => {
         if (ids === undefined) return allFeatures(ctx)
-        const found: FlexiFeature[] = []
+        const found: BlaeuFeature[] = []
         for (const id of ids) {
           const feature = ctx.store.find(id)
           if (feature === undefined) {
@@ -162,7 +162,7 @@ export function topologyPlugin(
         return found
       }
 
-      const run = async (features: readonly FlexiFeature[]): Promise<ValidationIssue[]> => {
+      const run = async (features: readonly BlaeuFeature[]): Promise<ValidationIssue[]> => {
         const rules = ctx.validation.list().filter((r) => r.id.startsWith(TOPOLOGY_RULE_PREFIX))
         const structural = rules.filter((r) => STRUCTURAL_RULE_IDS.has(r.id))
         const heavy = rules.filter((r) => !STRUCTURAL_RULE_IDS.has(r.id))
@@ -305,8 +305,8 @@ function registerDefaultRules(ctx: PluginContext<TopologyOptions>, defaults: Rul
   }
 }
 
-function allFeatures(ctx: PluginContext<TopologyOptions>): readonly FlexiFeature[] {
-  const features: FlexiFeature[] = []
+function allFeatures(ctx: PluginContext<TopologyOptions>): readonly BlaeuFeature[] {
+  const features: BlaeuFeature[] = []
   for (const id of ctx.store.collections()) {
     features.push(...ctx.store.collection(id).all())
   }
@@ -315,7 +315,7 @@ function allFeatures(ctx: PluginContext<TopologyOptions>): readonly FlexiFeature
 
 async function checkAll(
   rules: readonly ValidationRule[],
-  feature: FlexiFeature,
+  feature: BlaeuFeature,
   ctx: ValidationContext,
 ): Promise<readonly ValidationIssue[]> {
   const results = await Promise.all(rules.map((rule) => checkOne(rule, feature, ctx)))
@@ -331,7 +331,7 @@ async function checkAll(
  */
 async function checkOne(
   rule: ValidationRule,
-  feature: FlexiFeature,
+  feature: BlaeuFeature,
   ctx: ValidationContext,
 ): Promise<readonly ValidationIssue[]> {
   try {

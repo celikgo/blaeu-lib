@@ -1,4 +1,4 @@
-import type { CrsSpec, LngLat } from '@fleximap/core'
+import type { CrsSpec, LngLat } from '@blaeu/core'
 import type { ResolvedGameOptions, WorldBbox, WorldTransform, WorldXY } from './types.js'
 
 /**
@@ -8,7 +8,7 @@ import type { ResolvedGameOptions, WorldBbox, WorldTransform, WorldXY } from './
  *
  * A game world has no geodesy. It is a plane in arbitrary units — "the chest is at
  * (128, 96)" — with no datum, no ellipsoid, and no opinion about the poles. But
- * FlexiMap's store is WGS84 lng/lat, without exception (core invariant 3), and that
+ * BlaeuMap's store is WGS84 lng/lat, without exception (core invariant 3), and that
  * invariant is not negotiable: it is what lets the spatial index, the topology
  * index, GeoJSON export and every plugin ever written agree on what a coordinate
  * *is*.
@@ -16,7 +16,7 @@ import type { ResolvedGameOptions, WorldBbox, WorldTransform, WorldXY } from './
  * ## The trick
  *
  * Register a projected CRS whose plane **is** the game world, and let the kernel's
- * existing projection sandwich do the rest. Everything survey-grade in FlexiMap —
+ * existing projection sandwich do the rest. Everything survey-grade in BlaeuMap —
  * area, length, distance, quantisation, grid snapping — already runs as
  * `working.forward → planar maths → working.inverse`. Make `working` the game
  * plane and all of it works, unchanged, in world units. The snap engine's grid

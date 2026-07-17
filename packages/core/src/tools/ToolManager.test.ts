@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { FlexiEventBus } from '../events/EventBus.js'
-import { FlexiToolManager } from './ToolManager.js'
+import { BlaeuEventBus } from '../events/EventBus.js'
+import { BlaeuToolManager } from './ToolManager.js'
 import type { Tool } from '../types/extensions.js'
 
 /** A tool that records its own lifecycle into a shared transcript. */
@@ -12,13 +12,13 @@ function makeTool(id: string, log: string[]): Tool {
   }
 }
 
-function setup(): { events: FlexiEventBus; tools: FlexiToolManager; log: string[] } {
-  const events = new FlexiEventBus()
-  const tools = new FlexiToolManager(events)
+function setup(): { events: BlaeuEventBus; tools: BlaeuToolManager; log: string[] } {
+  const events = new BlaeuEventBus()
+  const tools = new BlaeuToolManager(events)
   return { events, tools, log: [] }
 }
 
-describe('FlexiToolManager', () => {
+describe('BlaeuToolManager', () => {
   it('registers, lists, and activates', () => {
     const { tools, log } = setup()
     tools.register('draw:polygon', makeTool('draw:polygon', log))

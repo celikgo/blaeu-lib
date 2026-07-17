@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { FlexiEventBus } from '../events/EventBus.js'
-import { FlexiLayerManager } from './LayerManager.js'
+import { BlaeuEventBus } from '../events/EventBus.js'
+import { BlaeuLayerManager } from './LayerManager.js'
 import type { Bbox, Disposable, FeatureId, LngLat, ScreenPoint } from '../types/common.js'
-import type { FlexiFeature } from '../types/feature.js'
+import type { BlaeuFeature } from '../types/feature.js'
 import type { Camera, CameraOptions, LayerStyle, Renderer } from '../types/renderer.js'
 import type { Collection, FeatureStore, StoreChange } from '../types/store.js'
 
@@ -21,16 +21,16 @@ interface LayerCall {
 class StubRenderer implements Renderer {
   readonly kind = 'stub'
 
-  readonly sources = new Map<string, readonly FlexiFeature[]>()
+  readonly sources = new Map<string, readonly BlaeuFeature[]>()
   readonly layers: LayerCall[] = []
   readonly addSourceCalls: string[] = []
   readonly removeSourceCalls: string[] = []
-  readonly setDataCalls: { source: string; features: readonly FlexiFeature[] }[] = []
+  readonly setDataCalls: { source: string; features: readonly BlaeuFeature[] }[] = []
   readonly visible = new Map<string, boolean>()
 
-  resolver: ((id: FeatureId) => FlexiFeature | undefined) | undefined
+  resolver: ((id: FeatureId) => BlaeuFeature | undefined) | undefined
   /** Optional on the `Renderer` contract, so it is an own property, not a method. */
-  setFeatureResolver?: (resolve: (id: FeatureId) => FlexiFeature | undefined) => void
+  setFeatureResolver?: (resolve: (id: FeatureId) => BlaeuFeature | undefined) => void
 
   constructor(options: { featureResolver?: boolean } = {}) {
     if (options.featureResolver !== false) {
@@ -48,12 +48,12 @@ class StubRenderer implements Renderer {
     return Promise.resolve()
   }
 
-  setData(sourceId: string, features: readonly FlexiFeature[]): void {
+  setData(sourceId: string, features: readonly BlaeuFeature[]): void {
     this.setDataCalls.push({ source: sourceId, features })
     this.sources.set(sourceId, features)
   }
 
-  addSource(sourceId: string, features: readonly FlexiFeature[] = []): Disposable {
+  addSource(sourceId: string, features: readonly BlaeuFeature[] = []): Disposable {
     this.addSourceCalls.push(sourceId)
     this.sources.set(sourceId, features)
     return { dispose: () => this.removeSource(sourceId) }
@@ -98,10 +98,10 @@ class StubRenderer implements Renderer {
   }
   setCamera(_options: CameraOptions): void {}
   fitBounds(_bbox: Bbox): void {}
-  queryAt(): readonly FlexiFeature[] {
+  queryAt(): readonly BlaeuFeature[] {
     return []
   }
-  queryInBox(): readonly FlexiFeature[] {
+  queryInBox(): readonly BlaeuFeature[] {
     return []
   }
   onPointer(): Disposable {
@@ -118,7 +118,7 @@ class StubRenderer implements Renderer {
 }
 
 class StubStore {
-  readonly #collections = new Map<string, FlexiFeature[]>()
+  readonly #collections = new Map<string, BlaeuFeature[]>()
   readonly #handlers: ((change: StoreChange) => void)[] = []
 
   collections(): readonly string[] {
@@ -134,7 +134,7 @@ class StubStore {
     } as unknown as Collection
   }
 
-  find(id: FeatureId): FlexiFeature | undefined {
+  find(id: FeatureId): BlaeuFeature | undefined {
     for (const features of this.#collections.values()) {
       const found = features.find((f) => f.id === id)
       if (found) return found
@@ -154,12 +154,12 @@ class StubStore {
 
   /* --- test helpers --- */
 
-  seed(collection: string, features: FlexiFeature[]): void {
+  seed(collection: string, features: BlaeuFeature[]): void {
     this.#collections.set(collection, features)
   }
 
   /** One store change, as a command would emit it. */
-  touch(collection: string, feature: FlexiFeature): void {
+  touch(collection: string, feature: BlaeuFeature): void {
     const features = this.#collections.get(collection) ?? []
     this.#collections.set(collection, [...features.filter((f) => f.id !== feature.id), feature])
     for (const h of [...this.#handlers]) {
@@ -172,7 +172,7 @@ class StubStore {
   }
 }
 
-function feature(id: string, collection: string, hidden = false): FlexiFeature {
+function feature(id: string, collection: string, hidden = false): BlaeuFeature {
   return {
     id,
     geometry: { type: 'Point', coordinates: [32.85, 39.93] },
@@ -194,17 +194,17 @@ function tick(): Promise<void> {
 
 /* ------------------------------------------------------------------------- */
 
-describe('FlexiLayerManager', () => {
+describe('BlaeuLayerManager', () => {
   let renderer: StubRenderer
   let store: StubStore
-  let events: FlexiEventBus
-  let layers: FlexiLayerManager
+  let events: BlaeuEventBus
+  let layers: BlaeuLayerManager
 
   beforeEach(() => {
     renderer = new StubRenderer()
     store = new StubStore()
-    events = new FlexiEventBus()
-    layers = new FlexiLayerManager(renderer, store.asStore(), events)
+    events = new BlaeuEventBus()
+    layers = new BlaeuLayerManager(renderer, store.asStore(), events)
   })
 
   it('ships the vector and raster types', () => {
@@ -475,7 +475,7 @@ describe('FlexiLayerManager', () => {
 
     it('tolerates a renderer with no feature resolver', () => {
       const plain = new StubRenderer({ featureResolver: false })
-      const bare = new FlexiLayerManager(plain, store.asStore(), events)
+      const bare = new BlaeuLayerManager(plain, store.asStore(), events)
       expect(() => bare.connectStore().dispose()).not.toThrow()
     })
 

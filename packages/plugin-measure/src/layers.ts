@@ -1,4 +1,4 @@
-import type { LayerSpec, LayerStyle, ThemeManager } from '@fleximap/core'
+import type { LayerSpec, LayerStyle, ThemeManager } from '@blaeu/core'
 
 import {
   DRAFT_COLLECTION,

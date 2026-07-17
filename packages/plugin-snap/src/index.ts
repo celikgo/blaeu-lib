@@ -1,4 +1,4 @@
-import type { FlexiPlugin, PluginContext, SnapResult } from '@fleximap/core'
+import type { BlaeuPlugin, PluginContext, SnapResult } from '@blaeu/core'
 import { resolveOptions, SnapEngine } from './engine.js'
 import { snapMessagesEn, snapMessagesTr } from './messages.js'
 import type { SnapApi, SnapOptions } from './types.js'
@@ -38,7 +38,7 @@ export {
  * Snapping, as interaction middleware.
  *
  * ```ts
- * const map = await createFlexiMap({
+ * const map = await createBlaeuMap({
  *   container: '#map',
  *   plugins: [snapPlugin({ tolerance: 12, gridSize: 5 }), drawPlugin()],
  * })
@@ -55,7 +55,7 @@ export {
  *
  * Hold **Alt** to suppress it for one event, as every CAD package on earth does.
  */
-export function snapPlugin(options: SnapOptions = {}): FlexiPlugin<SnapApi, SnapOptions> {
+export function snapPlugin(options: SnapOptions = {}): BlaeuPlugin<SnapApi, SnapOptions> {
   // Bound to this plugin *instance*, which is bound to one map: `snapPlugin()` is
   // called once per installation, by the user or by `normalisePluginSpec`.
   let engine: SnapEngine | undefined
@@ -104,12 +104,12 @@ export function snapPlugin(options: SnapOptions = {}): FlexiPlugin<SnapApi, Snap
   }
 }
 
-declare module '@fleximap/core' {
-  interface FlexiPluginRegistry {
+declare module '@blaeu/core' {
+  interface BlaeuPluginRegistry {
     snap: SnapApi
   }
 
-  interface FlexiEventMap {
+  interface BlaeuEventMap {
     /**
      * The snap target changed — including to `undefined`, when the pointer leaves
      * everything snappable. Fires at most once per pointer event, and only when the

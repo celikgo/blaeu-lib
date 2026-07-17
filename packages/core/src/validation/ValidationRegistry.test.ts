@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { FlexiEventBus } from '../events/EventBus.js'
+import { BlaeuEventBus } from '../events/EventBus.js'
 import { AsyncCommitPipeline } from '../pipeline/Pipeline.js'
-import { FlexiI18n } from '../i18n/I18n.js'
-import { FlexiValidationRegistry } from './ValidationRegistry.js'
+import { BlaeuI18n } from '../i18n/I18n.js'
+import { BlaeuValidationRegistry } from './ValidationRegistry.js'
 import type { CrsService } from '../types/crs.js'
-import type { FlexiFeature } from '../types/feature.js'
+import type { BlaeuFeature } from '../types/feature.js'
 import type { CommitContext } from '../types/pipeline.js'
 import type { FeatureStore } from '../types/store.js'
 import type { ValidationIssue, ValidationRule } from '../types/validation.js'
@@ -16,11 +16,11 @@ import type { ValidationIssue, ValidationRule } from '../types/validation.js'
 const store = {} as unknown as FeatureStore
 const crs = {} as unknown as CrsService
 
-function makeRegistry(): FlexiValidationRegistry {
-  return new FlexiValidationRegistry(store, crs, new FlexiI18n('en'))
+function makeRegistry(): BlaeuValidationRegistry {
+  return new BlaeuValidationRegistry(store, crs, new BlaeuI18n('en'))
 }
 
-function feature(id: string): FlexiFeature {
+function feature(id: string): BlaeuFeature {
   return {
     id,
     geometry: { type: 'Point', coordinates: [32.85, 39.93] },
@@ -34,7 +34,7 @@ function issue(rule: string, severity: ValidationIssue['severity'], id: string):
 }
 
 function commitContext(
-  features: FlexiFeature[],
+  features: BlaeuFeature[],
   operation: CommitContext['operation'] = 'add',
 ): CommitContext {
   let rejected = false
@@ -58,7 +58,7 @@ function commitContext(
   }
 }
 
-describe('FlexiValidationRegistry', () => {
+describe('BlaeuValidationRegistry', () => {
   describe('the registry', () => {
     it('lists what was added and removes what was disposed', () => {
       const registry = makeRegistry()
@@ -90,7 +90,7 @@ describe('FlexiValidationRegistry', () => {
   describe('run', () => {
     it('uses appliesTo as a pre-filter and never calls check for a feature it excludes', async () => {
       const registry = makeRegistry()
-      const check = vi.fn((_feature: FlexiFeature): ValidationIssue[] => [])
+      const check = vi.fn((_feature: BlaeuFeature): ValidationIssue[] => [])
 
       registry.add({
         id: 'parcels.only',
@@ -99,7 +99,7 @@ describe('FlexiValidationRegistry', () => {
         check,
       })
 
-      const other: FlexiFeature = {
+      const other: BlaeuFeature = {
         ...feature('b'),
         meta: { ...feature('b').meta, collection: 'buildings' },
       }
@@ -154,7 +154,7 @@ describe('FlexiValidationRegistry', () => {
 
     it('catches a throwing appliesTo as well', async () => {
       const registry = makeRegistry()
-      const check = vi.fn((_feature: FlexiFeature): ValidationIssue[] => [])
+      const check = vi.fn((_feature: BlaeuFeature): ValidationIssue[] => [])
 
       registry.add({
         id: 'bad.filter',
@@ -175,8 +175,8 @@ describe('FlexiValidationRegistry', () => {
 
   describe('asCommitMiddleware', () => {
     /** Registers validation plus a downstream spy, so a test can see whether next() ran. */
-    function wire(registry: FlexiValidationRegistry) {
-      const events = new FlexiEventBus()
+    function wire(registry: BlaeuValidationRegistry) {
+      const events = new BlaeuEventBus()
       const commit = new AsyncCommitPipeline()
       const downstream = vi.fn(async (_ctx: CommitContext, next: () => Promise<void>) => {
         await next()
@@ -279,7 +279,7 @@ describe('FlexiValidationRegistry', () => {
 
     it('does not validate a removal — an invalid parcel must still be deletable', async () => {
       const registry = makeRegistry()
-      const check = vi.fn((f: FlexiFeature) => [issue('geometry.valid', 'error', f.id)])
+      const check = vi.fn((f: BlaeuFeature) => [issue('geometry.valid', 'error', f.id)])
       registry.add({ id: 'geometry.valid', severity: 'error', check })
       const { commit, downstream } = wire(registry)
 
@@ -302,8 +302,8 @@ describe('FlexiValidationRegistry', () => {
     })
 
     it('localises the rejection message through i18n', async () => {
-      const i18n = new FlexiI18n('tr')
-      const registry = new FlexiValidationRegistry(store, crs, i18n)
+      const i18n = new BlaeuI18n('tr')
+      const registry = new BlaeuValidationRegistry(store, crs, i18n)
       registry.add({
         id: 'geometry.valid',
         severity: 'error',

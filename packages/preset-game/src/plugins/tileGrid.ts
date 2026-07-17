@@ -1,7 +1,7 @@
 import type {
   Disposable,
-  FlexiFeature,
-  FlexiPlugin,
+  BlaeuFeature,
+  BlaeuPlugin,
   LayerInstance,
   LayerSpec,
   LayerStyle,
@@ -11,7 +11,7 @@ import type {
   SnapCandidate,
   SnapProvider,
   SnapQueryContext,
-} from '@fleximap/core'
+} from '@blaeu/core'
 import { resolveGameOptions } from '../options.js'
 import type { GameOptions, GridType, ResolvedGameOptions, WorldApi, WorldBbox } from '../types.js'
 import { hexCentresIn, hexRing, nearestHexCentre } from '../hex.js'
@@ -60,7 +60,7 @@ const MAJOR_PROPERTY = '$major'
  * level file, which would ship 256 line features describing a number the game already
  * knows.
  */
-export function tileGridPlugin(options: GameOptions = {}): FlexiPlugin<void, GameOptions> {
+export function tileGridPlugin(options: GameOptions = {}): BlaeuPlugin<void, GameOptions> {
   return {
     id: 'game-grid',
     version: '1.0.0',
@@ -197,7 +197,7 @@ function gridFeature(
   path: readonly (readonly [number, number])[],
   transform: Transform,
   major: boolean,
-): FlexiFeature {
+): BlaeuFeature {
   const now = 0
   return {
     id,
@@ -220,7 +220,7 @@ function squareFeatures(
   majorEvery: number,
   maxCells: number,
   transform: Transform,
-): readonly FlexiFeature[] {
+): readonly BlaeuFeature[] {
   const [minX, minY, maxX, maxY] = bounds
   const firstColumn = Math.ceil(minX / gridSize)
   const lastColumn = Math.floor(maxX / gridSize)
@@ -230,7 +230,7 @@ function squareFeatures(
   const lines = lastColumn - firstColumn + 1 + (lastRow - firstRow + 1)
   assertWithinBudget(lines, maxCells, gridSize, bounds)
 
-  const features: FlexiFeature[] = []
+  const features: BlaeuFeature[] = []
 
   for (let column = firstColumn; column <= lastColumn; column++) {
     const x = column * gridSize
@@ -273,7 +273,7 @@ function hexFeatures(
   gridSize: number,
   maxCells: number,
   transform: Transform,
-): readonly FlexiFeature[] {
+): readonly BlaeuFeature[] {
   const centres = hexCentresIn(bounds, gridSize)
   assertWithinBudget(centres.length, maxCells, gridSize, bounds)
 

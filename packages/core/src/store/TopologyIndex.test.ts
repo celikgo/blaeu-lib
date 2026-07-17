@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { Polygon, Position } from 'geojson'
 
-import { FlexiEventBus } from '../events/EventBus.js'
-import { FlexiFeatureStore } from './FeatureStore.js'
+import { BlaeuEventBus } from '../events/EventBus.js'
+import { BlaeuFeatureStore } from './FeatureStore.js'
 import { createTestCrs, offsetMetres } from './test-crs.js'
 import type { CrsService } from '../types/crs.js'
 import type { LngLat } from '../types/common.js'
@@ -11,7 +11,7 @@ const ANKARA: LngLat = [32.85, 39.93]
 
 function setup() {
   const crs = createTestCrs() // 1 mm grid
-  const store = new FlexiFeatureStore(crs, new FlexiEventBus(), { strict: true })
+  const store = new BlaeuFeatureStore(crs, new BlaeuEventBus(), { strict: true })
   return { crs, store }
 }
 
@@ -25,7 +25,7 @@ function rect(crs: CrsService, origin: LngLat, x0: number, y0: number, x1: numbe
   return geometry
 }
 
-describe('FlexiTopologyIndex', () => {
+describe('BlaeuTopologyIndex', () => {
   it('resolves a corner shared by two parcels to one key with two vertex refs', () => {
     const { crs, store } = setup()
     // Two 20 m parcels meeting along x = 20 m. The corner at (20, 0) belongs to both.

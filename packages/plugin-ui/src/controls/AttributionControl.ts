@@ -26,7 +26,7 @@ export function attributionControl(options: AttributionOptions = {}): Control {
       const items = options.attributions ?? ctx.options.attributions
 
       const element = el('div', {
-        class: 'fx-ui-attribution',
+        class: 'bl-ui-attribution',
         text: items.join(separator),
         attrs: { role: 'contentinfo', 'aria-label': ctx.i18n.t('ui.attribution') },
       })

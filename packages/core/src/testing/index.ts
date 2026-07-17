@@ -1,5 +1,5 @@
 /**
- * `@fleximap/core/testing` — the headless harness.
+ * `@blaeu/core/testing` — the headless harness.
  *
  * A real kernel, a real store, real plugins, real pipelines; a fake renderer and a
  * fake container. Nothing here imports a test framework, because this is a

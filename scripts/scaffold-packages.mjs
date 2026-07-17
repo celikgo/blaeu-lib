@@ -6,7 +6,7 @@
  * Doing this from one script — rather than hand-writing thirteen sets of nearly
  * identical files — is what keeps dependency versions, the `exports` map, and the
  * peer-dependency rule consistent across the monorepo. The rule that matters most:
- * `@fleximap/core` is a **peerDependency** of every plugin, never a dependency.
+ * `@blaeu/core` is a **peerDependency** of every plugin, never a dependency.
  * Two copies of the core means two event buses, and the symptom is a listener
  * that silently never fires.
  */
@@ -17,13 +17,13 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 const VERSION = '0.1.0'
-const CORE_PEER = { '@fleximap/core': '^0.1.0' }
+const CORE_PEER = { '@blaeu/core': '^0.1.0' }
 
 /** @type {Array<{name: string, deps?: Record<string,string>, peers?: Record<string,string>, refs?: string[], desc: string}>} */
 const packages = [
   {
     name: 'core',
-    desc: 'The FlexiMap kernel: event bus, plugin registry, pipelines, command bus, feature store.',
+    desc: 'The BlaeuMap kernel: event bus, plugin registry, pipelines, command bus, feature store.',
     deps: {
       proj4: '^2.12.1',
       rbush: '^4.0.1',
@@ -87,14 +87,14 @@ const packages = [
     desc: 'Cadastre / land registry preset. Turkish CRS defaults, topological editing, mm precision.',
     peers: CORE_PEER,
     deps: {
-      '@fleximap/plugin-snap': `^${VERSION}`,
-      '@fleximap/plugin-draw': `^${VERSION}`,
-      '@fleximap/plugin-edit': `^${VERSION}`,
-      '@fleximap/plugin-select': `^${VERSION}`,
-      '@fleximap/plugin-measure': `^${VERSION}`,
-      '@fleximap/plugin-history': `^${VERSION}`,
-      '@fleximap/plugin-topology': `^${VERSION}`,
-      '@fleximap/plugin-ui': `^${VERSION}`,
+      '@blaeu/plugin-snap': `^${VERSION}`,
+      '@blaeu/plugin-draw': `^${VERSION}`,
+      '@blaeu/plugin-edit': `^${VERSION}`,
+      '@blaeu/plugin-select': `^${VERSION}`,
+      '@blaeu/plugin-measure': `^${VERSION}`,
+      '@blaeu/plugin-history': `^${VERSION}`,
+      '@blaeu/plugin-topology': `^${VERSION}`,
+      '@blaeu/plugin-ui': `^${VERSION}`,
     },
     refs: [
       'core',
@@ -113,13 +113,13 @@ const packages = [
     desc: 'Urban planning preset: zoning layers, scenario comparison, attribute forms.',
     peers: CORE_PEER,
     deps: {
-      '@fleximap/plugin-snap': `^${VERSION}`,
-      '@fleximap/plugin-draw': `^${VERSION}`,
-      '@fleximap/plugin-edit': `^${VERSION}`,
-      '@fleximap/plugin-select': `^${VERSION}`,
-      '@fleximap/plugin-measure': `^${VERSION}`,
-      '@fleximap/plugin-history': `^${VERSION}`,
-      '@fleximap/plugin-ui': `^${VERSION}`,
+      '@blaeu/plugin-snap': `^${VERSION}`,
+      '@blaeu/plugin-draw': `^${VERSION}`,
+      '@blaeu/plugin-edit': `^${VERSION}`,
+      '@blaeu/plugin-select': `^${VERSION}`,
+      '@blaeu/plugin-measure': `^${VERSION}`,
+      '@blaeu/plugin-history': `^${VERSION}`,
+      '@blaeu/plugin-ui': `^${VERSION}`,
     },
     refs: [
       'core',
@@ -137,11 +137,11 @@ const packages = [
     desc: 'Game map preset: entity placement, grid snapping, procedural hooks.',
     peers: CORE_PEER,
     deps: {
-      '@fleximap/plugin-snap': `^${VERSION}`,
-      '@fleximap/plugin-draw': `^${VERSION}`,
-      '@fleximap/plugin-select': `^${VERSION}`,
-      '@fleximap/plugin-history': `^${VERSION}`,
-      '@fleximap/plugin-ui': `^${VERSION}`,
+      '@blaeu/plugin-snap': `^${VERSION}`,
+      '@blaeu/plugin-draw': `^${VERSION}`,
+      '@blaeu/plugin-select': `^${VERSION}`,
+      '@blaeu/plugin-history': `^${VERSION}`,
+      '@blaeu/plugin-ui': `^${VERSION}`,
     },
     refs: ['core', 'plugin-snap', 'plugin-draw', 'plugin-select', 'plugin-history', 'plugin-ui'],
   },
@@ -176,7 +176,7 @@ for (const pkg of packages) {
     join(dir, 'package.json'),
     JSON.stringify(
       {
-        name: `@fleximap/${pkg.name}`,
+        name: `@blaeu/${pkg.name}`,
         version: VERSION,
         description: pkg.desc,
         license: 'MIT',
@@ -195,7 +195,7 @@ for (const pkg of packages) {
         ...(pkg.deps ? { dependencies: pkg.deps } : {}),
         ...(pkg.peers ? { peerDependencies: pkg.peers } : {}),
         devDependencies: {
-          ...(isCore ? { 'maplibre-gl': '^5.6.0' } : { '@fleximap/core': `^${VERSION}` }),
+          ...(isCore ? { 'maplibre-gl': '^5.6.0' } : { '@blaeu/core': `^${VERSION}` }),
           ...(pkg.name === 'core' ? { '@types/proj4': '^2.5.5', '@types/rbush': '^4.0.0' } : {}),
         },
         publishConfig: { access: 'public' },
@@ -238,7 +238,7 @@ export default defineConfig({
   treeshake: true,
   // Never bundle the core into a plugin — that is how you end up with two event
   // buses in a user's app and a listener that mysteriously never fires.
-  external: [${isCore ? "'maplibre-gl'" : "'@fleximap/core', 'maplibre-gl'"}],
+  external: [${isCore ? "'maplibre-gl'" : "'@blaeu/core', 'maplibre-gl'"}],
 })
 `,
   )

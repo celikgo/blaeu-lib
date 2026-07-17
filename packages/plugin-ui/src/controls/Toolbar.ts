@@ -27,7 +27,7 @@ export function toolbarControl(): Control {
 
     render(ctx: ControlContext): HTMLElement {
       const element = el('div', {
-        class: 'fx-ui-control fx-ui-toolbar',
+        class: 'bl-ui-control bl-ui-toolbar',
         attrs: {
           role: 'toolbar',
           'aria-label': ctx.i18n.t('ui.toolbar'),
@@ -91,19 +91,19 @@ function renderButtons(ctx: ControlContext, element: HTMLElement, focusIndex: nu
 function renderButton(ctx: ControlContext, spec: ToolbarButton, tabbable: boolean): HTMLElement {
   const model = ctx.toolbarModel
   const label = labelFor(ctx, spec)
-  const node = button('fx-ui-button', label)
+  const node = button('bl-ui-button', label)
   node.dataset['fxId'] = spec.id
 
   if (spec.icon !== undefined) {
     node.appendChild(
       el('span', {
-        class: 'fx-ui-button-icon',
+        class: 'bl-ui-button-icon',
         text: spec.icon,
         attrs: { 'aria-hidden': 'true' },
       }),
     )
   }
-  node.appendChild(el('span', { class: 'fx-ui-button-label', text: label }))
+  node.appendChild(el('span', { class: 'bl-ui-button-label', text: label }))
 
   // `aria-pressed` goes only on buttons that genuinely are toggles. On a button
   // that merely fires an action it tells a screen-reader user there is a state to
@@ -144,7 +144,7 @@ function labelFor(ctx: ControlContext, spec: ToolbarButton): string {
  * was not ours — a toolbar that swallows Tab traps the keyboard user inside it.
  */
 function moveFocus(element: HTMLElement, event: KeyboardEvent): number | undefined {
-  const nodes = [...element.querySelectorAll<HTMLButtonElement>('.fx-ui-button')]
+  const nodes = [...element.querySelectorAll<HTMLButtonElement>('.bl-ui-button')]
   if (nodes.length === 0) return undefined
 
   const current = nodes.findIndex((node) => node === element.ownerDocument.activeElement)

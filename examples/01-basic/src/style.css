@@ -2,10 +2,10 @@
  * Chrome for the example page only.
  *
  * Nothing here styles the map itself. The map's own chrome — toolbar, coordinate
- * readout, scale bar, snap indicator — comes from `@fleximap/plugin-ui`, which
+ * readout, scale bar, snap indicator — comes from `@blaeu/plugin-ui`, which
  * injects its own stylesheet and reads the CSS custom properties the core's
  * ThemeManager writes onto the map container. If you want to restyle *that*, pass a
- * theme to `createFlexiMap`; do not fight it from here.
+ * theme to `createBlaeuMap`; do not fight it from here.
  */
 
 :root {
@@ -48,7 +48,7 @@ body {
   height: 100%;
 }
 
-/* The map container. FlexiMap owns it: give it a size, then leave it alone. */
+/* The map container. BlaeuMap owns it: give it a size, then leave it alone. */
 .map {
   position: relative;
   min-width: 0;

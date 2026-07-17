@@ -70,7 +70,7 @@ export class SyncInteractionPipeline implements InteractionPipeline {
       // rest of the chain a second time and — because middleware mutates
       // `ctx.lngLat` — double-apply the snap offset. Silent, and horrible to find.
       if (i <= index) {
-        throw new Error('[fleximap] next() called multiple times in interaction middleware')
+        throw new Error('[blaeu] next() called multiple times in interaction middleware')
       }
       index = i
       const entry = entries[i]
@@ -84,7 +84,7 @@ export class SyncInteractionPipeline implements InteractionPipeline {
       // A thrown middleware must not wedge the map. Report and let the tool see
       // the context as far as it got — a partly-processed pointer event is far
       // better than a dead cursor.
-      console.error('[fleximap] interaction middleware threw:', err)
+      console.error('[blaeu] interaction middleware threw:', err)
     }
     return ctx
   }
@@ -138,7 +138,7 @@ export class AsyncCommitPipeline implements CommitPipeline {
 
     const dispatch = async (i: number): Promise<void> => {
       if (i <= index) {
-        throw new Error('[fleximap] next() called multiple times in commit middleware')
+        throw new Error('[blaeu] next() called multiple times in commit middleware')
       }
       index = i
       // Short-circuit the moment anything vetoes. There is no point running an
@@ -157,7 +157,7 @@ export class AsyncCommitPipeline implements CommitPipeline {
       // A middleware that throws must not let a half-validated write through.
       // Failing closed is the only defensible default when the thing being
       // guarded is a land registry.
-      console.error('[fleximap] commit middleware threw:', err)
+      console.error('[blaeu] commit middleware threw:', err)
       ctx.reject(err instanceof Error ? err.message : String(err))
     }
     return ctx

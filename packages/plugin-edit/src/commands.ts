@@ -26,11 +26,11 @@ import type {
   Command,
   CommandContext,
   FeatureId,
-  FlexiFeature,
+  BlaeuFeature,
   Geometry,
   LngLat,
   VertexRef,
-} from '@fleximap/core'
+} from '@blaeu/core'
 import { withVerticesMoved } from './geometry.js'
 
 export interface EditCommandOptions {
@@ -47,14 +47,14 @@ export interface EditCommandOptions {
  * machinery is here, once, because getting it subtly wrong is how an undo stack
  * rots — and it rots silently, three user actions after the bug.
  */
-export abstract class GeometryEditCommand implements Command<readonly FlexiFeature[]> {
+export abstract class GeometryEditCommand implements Command<readonly BlaeuFeature[]> {
   abstract readonly type: string
   readonly label: string
 
   /** The features as they were before this command first ran. The whole of `undo`. */
-  #previous: readonly FlexiFeature[] | undefined
+  #previous: readonly BlaeuFeature[] | undefined
   /** What the store wrote. Replayed on redo so a redo reproduces the first run exactly. */
-  #written: readonly FlexiFeature[] | undefined
+  #written: readonly BlaeuFeature[] | undefined
 
   protected constructor(label: string) {
     this.label = label
@@ -64,15 +64,15 @@ export abstract class GeometryEditCommand implements Command<readonly FlexiFeatu
   protected abstract featureIds(): readonly FeatureId[]
 
   /** The new geometry for one feature, given its state before the command ran. */
-  protected abstract rewrite(feature: FlexiFeature): Geometry
+  protected abstract rewrite(feature: BlaeuFeature): Geometry
 
-  execute(ctx: CommandContext): readonly FlexiFeature[] {
+  execute(ctx: CommandContext): readonly BlaeuFeature[] {
     if (this.#previous === undefined) {
       this.#previous = this.featureIds().map((id) => {
         const feature = ctx.store.find(id)
         if (feature === undefined) {
           throw new Error(
-            `[fleximap/edit] cannot edit feature "${id}": it is not in the store. ` +
+            `[blaeu/edit] cannot edit feature "${id}": it is not in the store. ` +
               `It was probably deleted while the edit session was still open — call edit.stop() when ` +
               `the feature being edited goes away.`,
           )
@@ -135,7 +135,7 @@ export class MoveVerticesCommand extends GeometryEditCommand {
   ) {
     super(options.label ?? (refs.length > 1 ? 'Move shared vertex' : 'Move vertex'))
     if (refs.length === 0) {
-      throw new Error('[fleximap/edit] MoveVerticesCommand needs at least one vertex to move.')
+      throw new Error('[blaeu/edit] MoveVerticesCommand needs at least one vertex to move.')
     }
     this.refs = refs
     this.from = from
@@ -147,7 +147,7 @@ export class MoveVerticesCommand extends GeometryEditCommand {
     return [...new Set(this.refs.map((ref) => ref.feature))]
   }
 
-  protected override rewrite(feature: FlexiFeature): Geometry {
+  protected override rewrite(feature: BlaeuFeature): Geometry {
     const mine = this.refs.filter((ref) => ref.feature === feature.id)
     // `to` is absolute, so the result is the same whether this runs against the
     // original geometry or against the previous frame's — which is exactly the
@@ -191,7 +191,7 @@ export class SetGeometriesCommand extends GeometryEditCommand {
   ) {
     super(options.label ?? 'Edit geometry')
     if (next.size === 0) {
-      throw new Error('[fleximap/edit] SetGeometriesCommand needs at least one feature to rewrite.')
+      throw new Error('[blaeu/edit] SetGeometriesCommand needs at least one feature to rewrite.')
     }
     this.type = type
     this.#next = next
@@ -202,11 +202,11 @@ export class SetGeometriesCommand extends GeometryEditCommand {
     return [...this.#next.keys()]
   }
 
-  protected override rewrite(feature: FlexiFeature): Geometry {
+  protected override rewrite(feature: BlaeuFeature): Geometry {
     const geometry = this.#next.get(feature.id)
     if (geometry === undefined) {
       throw new Error(
-        `[fleximap/edit] SetGeometriesCommand has no geometry for "${feature.id}", which it claimed to touch.`,
+        `[blaeu/edit] SetGeometriesCommand has no geometry for "${feature.id}", which it claimed to touch.`,
       )
     }
     return geometry

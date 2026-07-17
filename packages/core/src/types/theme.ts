@@ -3,7 +3,7 @@ import type { DeepPartial, Disposable } from './common.js'
 /**
  * Design tokens.
  *
- * These feed **both** the UI chrome (as CSS custom properties: `--fx-color-accent`)
+ * These feed **both** the UI chrome (as CSS custom properties: `--bl-color-accent`)
  * **and** the map styling (as values inside MapLibre paint expressions). That
  * single-source-of-truth is why the selection halo on the map is exactly the same
  * blue as the selected row in the attribute table — a detail that separates a

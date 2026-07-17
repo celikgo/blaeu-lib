@@ -1,4 +1,4 @@
-import { defaultTheme, type Theme } from '@fleximap/core'
+import { defaultTheme, type Theme } from '@blaeu/core'
 import type { ResolvedGameOptions } from './types.js'
 
 /**
@@ -16,7 +16,7 @@ import type { ResolvedGameOptions } from './types.js'
  */
 export function gameTheme(options: ResolvedGameOptions): Theme {
   return {
-    id: 'fleximap-game',
+    id: 'blaeu-game',
     basemap: {
       version: 8,
       // No sprite, no glyphs, no sources: nothing is fetched over the network to

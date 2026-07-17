@@ -1,4 +1,4 @@
-import type { Geometry, InteractionContext, LngLat, Position } from '@fleximap/core'
+import type { Geometry, InteractionContext, LngLat, Position } from '@blaeu/core'
 
 import type { DrawSession } from '../session.js'
 import type { DrawTool } from './tool.js'

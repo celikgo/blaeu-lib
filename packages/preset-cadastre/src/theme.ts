@@ -1,4 +1,4 @@
-import { defaultTheme, type Theme } from '@fleximap/core'
+import { defaultTheme, type Theme } from '@blaeu/core'
 
 /**
  * The palette, exported so the layer styles and the UI chrome read the *same*
@@ -69,7 +69,7 @@ export const cadastreTheme: Theme = {
   },
   css: `
     .maplibregl-canvas-container { background: ${CADASTRE_COLORS.surface}; }
-    .fx-coordinate-readout { font-variant-numeric: tabular-nums; }
+    .bl-coordinate-readout { font-variant-numeric: tabular-nums; }
   `,
 }
 
@@ -105,7 +105,7 @@ export function paleRasterBasemap(
 ): Record<string, unknown> {
   if (tiles.length === 0) {
     throw new Error(
-      '[fleximap] paleRasterBasemap() needs at least one tile URL template, e.g. ' +
+      '[blaeu] paleRasterBasemap() needs at least one tile URL template, e.g. ' +
         "paleRasterBasemap(['https://tiles.example.com/{z}/{x}/{y}.png']).",
     )
   }

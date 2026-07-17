@@ -1,10 +1,10 @@
 /**
- * FlexiMap example 04 — a game map / level editor.
+ * BlaeuMap example 04 — a game map / level editor.
  *
  * ## Read this file for one idea
  *
  * It is the **same kernel** as the cadastre example. Not a fork, not a "game mode",
- * not a second rendering path. The same `@fleximap/core`, the same command bus, the
+ * not a second rendering path. The same `@blaeu/core`, the same command bus, the
  * same interaction pipeline, the same snap plugin. What changed is entirely outside
  * the kernel:
  *
@@ -12,7 +12,7 @@
  *   is fetched over the network to render this map; a level editor should work on a
  *   plane.
  * - **No topology plugin.** A level has no parcels, so `gameMapPreset` simply does
- *   not install `@fleximap/plugin-topology` — and JSTS, the bulk of that plugin's
+ *   not install `@blaeu/plugin-topology` — and JSTS, the bulk of that plugin's
  *   weight, is not in this bundle. You do not pay for what you do not use, which is
  *   only true because topology was a plugin rather than a core feature.
  * - **A custom CRS, registered at runtime.** A game world is a plane in arbitrary
@@ -40,13 +40,13 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import './style.css'
 
 import {
-  createFlexiMap,
+  createBlaeuMap,
   RemoveFeaturesCommand,
   type Disposable,
   type FeatureId,
-  type FlexiFeature,
-} from '@fleximap/core'
-import { BOX_TOOL } from '@fleximap/plugin-select'
+  type BlaeuFeature,
+} from '@blaeu/core'
+import { BOX_TOOL } from '@blaeu/plugin-select'
 import {
   DEFAULT_COLLECTION,
   DEFAULT_ZONE_COLLECTION,
@@ -56,7 +56,7 @@ import {
   scatterAround,
   type EntityType,
   type WorldXY,
-} from '@fleximap/preset-game'
+} from '@blaeu/preset-game'
 
 /** One tile, in world units. Not metres — there is no Earth under this map. */
 const GRID = 32
@@ -78,17 +78,17 @@ const ENTITIES: readonly EntityType[] = [
   { id: 'spawn', label: 'Spawn', icon: '🚩', size: 14 },
 ]
 
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
   preset: gameMapPreset({
     gridSize: GRID,
     entities: ENTITIES,
     // The playable rectangle, in world units — 64 × 64 tiles.
     bounds: [-1024, -1024, 1024, 1024],
-    // The preset ships framework-free chrome (`@fleximap/plugin-ui`), and a real
+    // The preset ships framework-free chrome (`@blaeu/plugin-ui`), and a real
     // product would probably keep it. It is off here to make a point: everything
     // below is driven through the public API from plain HTML, exactly as a game
-    // embedding FlexiMap in its own React/Svelte editor chrome would drive it.
+    // embedding BlaeuMap in its own React/Svelte editor chrome would drive it.
     // Nothing in the kernel requires the UI plugin to exist.
     ui: false,
   }),
@@ -96,7 +96,7 @@ const map = await createFlexiMap({
 
 /*
  * The world plane. `map.plugin('game-world')` is typed with no cast, because the
- * preset augmented `FlexiPluginRegistry` — a typo in the id here is a compile error,
+ * preset augmented `BlaeuPluginRegistry` — a typo in the id here is a compile error,
  * not an `undefined` at runtime.
  */
 const world = map.plugin('game-world')
@@ -227,7 +227,7 @@ const GENERATORS = [
 let scatter: Disposable[] = []
 
 function setScatter(on: boolean): void {
-  // `onGenerate` hands back a Disposable, like every subscription in FlexiMap
+  // `onGenerate` hands back a Disposable, like every subscription in BlaeuMap
   // (core invariant 5). Disposing it is the *entire* implementation of turning
   // procedural generation off — there is no flag to check and no branch in the tool.
   for (const generator of scatter) generator.dispose()
@@ -409,7 +409,7 @@ function formatXY(xy: WorldXY): string {
   return `${Math.round(xy[0])}, ${Math.round(xy[1])}`
 }
 
-function pointOf(feature: FlexiFeature): readonly [number, number] {
+function pointOf(feature: BlaeuFeature): readonly [number, number] {
   if (feature.geometry.type !== 'Point') return [0, 0]
   const [lng, lat] = feature.geometry.coordinates
   return [lng ?? 0, lat ?? 0]

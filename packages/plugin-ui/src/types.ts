@@ -1,4 +1,4 @@
-import type { Disposable, DisposableStore, PluginContext } from '@fleximap/core'
+import type { Disposable, DisposableStore, PluginContext } from '@blaeu/core'
 
 /** The four corners of the map container. Anything else is the host app's job, not ours. */
 export type ControlPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'

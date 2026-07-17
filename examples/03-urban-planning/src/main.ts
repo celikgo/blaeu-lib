@@ -1,5 +1,5 @@
 /**
- * FlexiMap — example 03: urban planning / zoning.
+ * BlaeuMap — example 03: urban planning / zoning.
  *
  * Read this file top to bottom and you should finish it understanding the
  * architecture. Four things are being demonstrated, and only one of them is about
@@ -33,20 +33,20 @@ import {
   MapLibreRenderer,
   RemoveFeaturesCommand,
   SetPropertiesCommand,
-  createFlexiMap,
+  createBlaeuMap,
   type Bbox,
   type FeatureId,
   type FeatureInput,
-  type FlexiFeature,
-  type FlexiMap,
+  type BlaeuFeature,
+  type BlaeuMap,
   type Json,
   type LngLat,
   type Polygon,
   type ProjectedXY,
   type ValidationIssue,
-} from '@fleximap/core'
-import { SINGLE_TOOL } from '@fleximap/plugin-select'
-import { RULE_IDS } from '@fleximap/plugin-topology'
+} from '@blaeu/core'
+import { SINGLE_TOOL } from '@blaeu/plugin-select'
+import { RULE_IDS } from '@blaeu/plugin-topology'
 import {
   DEFAULT_ZONING_CATEGORIES,
   FIELD,
@@ -57,7 +57,7 @@ import {
   type AttributeSchemas,
   type ScenarioComparison,
   type ZoningCategory,
-} from '@fleximap/preset-urban'
+} from '@blaeu/preset-urban'
 
 /* ================================================================== *
  * 1. The preset — constructed, and read, before any map exists.
@@ -135,7 +135,7 @@ const basemap: StyleSpecification = {
   ],
 }
 
-const map: FlexiMap = await createFlexiMap({
+const map: BlaeuMap = await createBlaeuMap({
   container: '#map',
   preset,
 
@@ -388,7 +388,7 @@ function renderAttributeForm(): void {
   form.replaceChildren(...fields.map((field) => renderField(field, feature)))
 }
 
-function renderField(field: AttributeField, feature: FlexiFeature): HTMLElement {
+function renderField(field: AttributeField, feature: BlaeuFeature): HTMLElement {
   const row = document.createElement('label')
   row.className = 'form__row'
 
@@ -691,7 +691,7 @@ function status(message: string): void {
 }
 
 /** The zoning code on a feature, with the same fallback bucket the preset's report uses. */
-function codeOf(feature: FlexiFeature): string {
+function codeOf(feature: BlaeuFeature): string {
   const raw = feature.properties[FIELD.zoning]
   return typeof raw === 'string' && raw.length > 0 ? raw : 'unzoned'
 }
@@ -700,7 +700,7 @@ function colorOf(code: string): string {
   return categories.find((category) => category.code === code)?.color ?? '#b8b8b8'
 }
 
-function boundsOf(features: readonly FlexiFeature[]): Bbox {
+function boundsOf(features: readonly BlaeuFeature[]): Bbox {
   let [w, s, e, n] = [180, 90, -180, -90]
   for (const feature of features) {
     if (feature.geometry.type !== 'Polygon') continue

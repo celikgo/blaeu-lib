@@ -1,4 +1,4 @@
-import type { FeatureInput, FlexiFeature } from '@fleximap/core'
+import type { FeatureInput, BlaeuFeature } from '@blaeu/core'
 import { ENTITY_PROPERTY } from './styles.js'
 import type { EntityGenerator, WorldXY } from './types.js'
 
@@ -84,12 +84,12 @@ export function scatterAround(options: ScatterOptions): EntityGenerator {
 
 /* ------------------------------------------------------------------ helpers */
 
-function entityTypeOf(feature: FlexiFeature): string | undefined {
+function entityTypeOf(feature: BlaeuFeature): string | undefined {
   const id = feature.properties[ENTITY_PROPERTY]
   return typeof id === 'string' ? id : undefined
 }
 
-function pointOf(feature: FlexiFeature): readonly [number, number] | undefined {
+function pointOf(feature: BlaeuFeature): readonly [number, number] | undefined {
   if (feature.geometry.type !== 'Point') return undefined
   const [lng, lat] = feature.geometry.coordinates
   return lng === undefined || lat === undefined ? undefined : [lng, lat]

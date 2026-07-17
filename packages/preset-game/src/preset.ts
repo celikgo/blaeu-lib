@@ -1,9 +1,9 @@
-import { definePreset, type Preset } from '@fleximap/core'
-import { drawPlugin } from '@fleximap/plugin-draw'
-import { historyPlugin } from '@fleximap/plugin-history'
-import { selectPlugin } from '@fleximap/plugin-select'
-import { snapPlugin } from '@fleximap/plugin-snap'
-import { uiPlugin } from '@fleximap/plugin-ui'
+import { definePreset, type Preset } from '@blaeu/core'
+import { drawPlugin } from '@blaeu/plugin-draw'
+import { historyPlugin } from '@blaeu/plugin-history'
+import { selectPlugin } from '@blaeu/plugin-select'
+import { snapPlugin } from '@blaeu/plugin-snap'
+import { uiPlugin } from '@blaeu/plugin-ui'
 
 import { entityPlugin } from './plugins/entity.js'
 import { tileGridPlugin } from './plugins/tileGrid.js'
@@ -42,7 +42,7 @@ import type { GameOptions } from './types.js'
  * domain-agnostic, and the judgement lives here.
  *
  * ```ts
- * const map = await createFlexiMap({
+ * const map = await createBlaeuMap({
  *   container: '#map',
  *   preset: gameMapPreset({ gridSize: 32, gridType: 'square' }),
  * })
@@ -62,8 +62,8 @@ export function gameMapPreset(options: GameOptions = {}): Preset {
     config: {
       crs: {
         // `working` is deliberately absent, and this is the one place in the preset
-        // where that absence is load-bearing. `FlexiCrsService` is constructed from
-        // `config.crs` in the `FlexiMap` constructor, *before* any plugin's setup runs,
+        // where that absence is load-bearing. `BlaeuCrsService` is constructed from
+        // `config.crs` in the `BlaeuMap` constructor, *before* any plugin's setup runs,
         // and it throws on a code it does not know — so naming `GAME:WORLD` here would
         // kill the map before `worldCrsPlugin` ever got the chance to register it. The
         // plugin calls `crs.setWorking()` instead, in the few milliseconds before

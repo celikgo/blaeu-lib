@@ -1,5 +1,5 @@
 /**
- * `@fleximap/preset-urban` — the kernel, as an urban planning tool.
+ * `@blaeu/preset-urban` — the kernel, as an urban planning tool.
  *
  * Everything importable from this package is here (core invariant 6). The preset
  * itself is a pure function returning plain data: no map, no DOM, no globals.

@@ -1,4 +1,4 @@
-import type { DeepPartial, Theme } from '@fleximap/core'
+import type { DeepPartial, Theme } from '@blaeu/core'
 
 /**
  * A *partial* theme, deliberately.
@@ -18,7 +18,7 @@ import type { DeepPartial, Theme } from '@fleximap/core'
  * hard-code somebody else's tile server.
  */
 export const urbanTheme: DeepPartial<Theme> = {
-  id: 'fleximap-urban',
+  id: 'blaeu-urban',
   tokens: {
     color: {
       accent: '#1f6feb',

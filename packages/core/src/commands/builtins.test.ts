@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { Polygon, Position } from 'geojson'
 
-import { FlexiEventBus } from '../events/EventBus.js'
-import { FlexiCommandBus } from './CommandBus.js'
+import { BlaeuEventBus } from '../events/EventBus.js'
+import { BlaeuCommandBus } from './CommandBus.js'
 import { AsyncCommitPipeline } from '../pipeline/Pipeline.js'
-import { FlexiFeatureStore } from '../store/FeatureStore.js'
+import { BlaeuFeatureStore } from '../store/FeatureStore.js'
 import { createTestCrs, offsetMetres } from '../store/test-crs.js'
 import {
   AddFeaturesCommand,
@@ -20,12 +20,12 @@ const ANKARA: LngLat = [32.85, 39.93]
 
 function setup() {
   const crs = createTestCrs()
-  const events = new FlexiEventBus()
-  const store = new FlexiFeatureStore(crs, events, { strict: true })
+  const events = new BlaeuEventBus()
+  const store = new BlaeuFeatureStore(crs, events, { strict: true })
   // A real pipeline, with no middleware in it. The bus runs every durable write through
   // this; a bus built without one cannot commit at all.
   const commit = new AsyncCommitPipeline()
-  const commands = new FlexiCommandBus(store, events, commit)
+  const commands = new BlaeuCommandBus(store, events, commit)
   const ctx: CommandContext = { store, events }
   return { crs, events, store, commit, commands, ctx }
 }

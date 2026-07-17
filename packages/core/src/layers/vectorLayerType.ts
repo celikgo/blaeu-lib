@@ -27,7 +27,7 @@ export function createVectorLayerType(
       const collection: CollectionId | undefined = spec.source
       if (collection === undefined || collection === '') {
         throw new Error(
-          `[fleximap] vector layer "${spec.id}" has no "source". ` +
+          `[blaeu] vector layer "${spec.id}" has no "source". ` +
             `A vector layer renders one store collection, so it needs the collection id — ` +
             `e.g. { id: "${spec.id}", type: "vector", source: "parcels" }. ` +
             `Use type "raster" for a layer with no store data behind it.`,

@@ -1,17 +1,17 @@
 {
-  "name": "@fleximap/example-04-game-map",
+  "name": "@blaeu/example-04-game-map",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Game map / level editor — the FlexiMap kernel with no basemap, no geodesy and no topology plugin.",
+  "description": "Game map / level editor — the BlaeuMap kernel with no basemap, no geodesy and no topology plugin.",
   "scripts": {
     "dev": "vite",
     "build": "vite build"
   },
   "dependencies": {
-    "@fleximap/core": "^0.1.0",
-    "@fleximap/plugin-select": "^0.1.0",
-    "@fleximap/preset-game": "^0.1.0",
+    "@blaeu/core": "^0.1.0",
+    "@blaeu/plugin-select": "^0.1.0",
+    "@blaeu/preset-game": "^0.1.0",
     "maplibre-gl": "^5.6.0"
   },
   "devDependencies": {

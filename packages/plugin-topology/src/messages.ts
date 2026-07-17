@@ -1,7 +1,7 @@
-import type { Messages } from '@fleximap/core'
+import type { Messages } from '@blaeu/core'
 
 /**
- * The rule messages, in the two locales FlexiMap ships.
+ * The rule messages, in the two locales BlaeuMap ships.
  *
  * Exported so a preset that composes the rules **without** installing the plugin
  * still gets the strings: the rules go through `ctx.t()` for every word they say,

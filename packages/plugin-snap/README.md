@@ -1,6 +1,6 @@
-# @fleximap/plugin-snap
+# @blaeu/plugin-snap
 
-Snapping for FlexiMap — vertex, intersection, midpoint, edge, extension, perpendicular and grid.
+Snapping for BlaeuMap — vertex, intersection, midpoint, edge, extension, perpendicular and grid.
 
 ## Snapping is middleware, not a service
 
@@ -22,11 +22,11 @@ architecture is telling you something.
 ## Install
 
 ```ts
-import { createFlexiMap } from '@fleximap/core'
-import { snapPlugin } from '@fleximap/plugin-snap'
-import { drawPlugin } from '@fleximap/plugin-draw'
+import { createBlaeuMap } from '@blaeu/core'
+import { snapPlugin } from '@blaeu/plugin-snap'
+import { drawPlugin } from '@blaeu/plugin-draw'
 
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
   plugins: [
     snapPlugin({ tolerance: 12, gridSize: 5 }),
@@ -65,13 +65,13 @@ plugin's undo test would then pass or fail depending on where the mouse was.
 
 ## Dependencies
 
-None. Not on other plugins, not optionally. `@fleximap/core` is a peer dependency.
+None. Not on other plugins, not optionally. `@blaeu/core` is a peer dependency.
 
 ## Events
 
 ```ts
-declare module '@fleximap/core' {
-  interface FlexiEventMap {
+declare module '@blaeu/core' {
+  interface BlaeuEventMap {
     'snap:changed': { readonly result: SnapResult | undefined }
   }
 }

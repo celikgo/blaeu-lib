@@ -1,4 +1,4 @@
-import type { FeatureInput, Json } from '@fleximap/core'
+import type { FeatureInput, Json } from '@blaeu/core'
 
 import { formatLength } from './format.js'
 import { ringCentroid, segmentMidpoint, type MeasureEnv } from './measurement.js'

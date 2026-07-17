@@ -16,14 +16,7 @@
  * trigonometry on degrees.
  */
 
-import type {
-  Geometry,
-  LngLat,
-  Position,
-  ProjectedCrs,
-  ProjectedXY,
-  VertexRef,
-} from '@fleximap/core'
+import type { Geometry, LngLat, Position, ProjectedCrs, ProjectedXY, VertexRef } from '@blaeu/core'
 
 /** A polygon ring is stored closed; a line is not. This decides whether index 0 has a twin at the end. */
 export function hasClosedRings(geometry: Geometry): boolean {
@@ -117,7 +110,7 @@ export function withVerticesMoved(
     const positions = ringOf(next, ref.part, ref.ring)
     if (positions === undefined || positions[ref.index] === undefined) {
       throw new Error(
-        `[fleximap/edit] no vertex at part ${ref.part}, ring ${ref.ring}, index ${ref.index} of ` +
+        `[blaeu/edit] no vertex at part ${ref.part}, ring ${ref.ring}, index ${ref.index} of ` +
           `"${ref.feature}" (a ${geometry.type}). The reference is stale — rebuild the handles after ` +
           `every geometry change rather than caching them across an edit.`,
       )
@@ -143,7 +136,7 @@ export function withVertexInserted(
   const positions = ringOf(next, part, ring)
   if (positions === undefined) {
     throw new Error(
-      `[fleximap/edit] cannot insert a vertex into part ${part}, ring ${ring} of a ${geometry.type}: no such ring.`,
+      `[blaeu/edit] cannot insert a vertex into part ${part}, ring ${ring} of a ${geometry.type}: no such ring.`,
     )
   }
   positions.splice(index, 0, [at[0], at[1]])
@@ -168,7 +161,7 @@ export function withVertexRemoved(
   const positions = ringOf(next, part, ring)
   if (positions === undefined || positions[index] === undefined) {
     throw new Error(
-      `[fleximap/edit] cannot delete the vertex at part ${part}, ring ${ring}, index ${index} of a ` +
+      `[blaeu/edit] cannot delete the vertex at part ${part}, ring ${ring}, index ${index} of a ` +
         `${geometry.type}: no such vertex.`,
     )
   }
@@ -177,7 +170,7 @@ export function withVertexRemoved(
   const corners = cornerCount(positions, closed)
   if (corners <= minimum) {
     throw new Error(
-      `[fleximap/edit] refusing to delete this vertex: the ring would be left with ${corners - 1} ` +
+      `[blaeu/edit] refusing to delete this vertex: the ring would be left with ${corners - 1} ` +
         `corner(s) and needs at least ${minimum}. Delete the whole feature instead, or add a vertex first.`,
     )
   }
@@ -325,7 +318,7 @@ export function toLngLat(position: Position): LngLat {
   const lat = position[1]
   if (lng === undefined || lat === undefined) {
     throw new Error(
-      `[fleximap/edit] met a coordinate with fewer than two ordinates: ${JSON.stringify(position)}.`,
+      `[blaeu/edit] met a coordinate with fewer than two ordinates: ${JSON.stringify(position)}.`,
     )
   }
   return [lng, lat]

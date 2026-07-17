@@ -4,17 +4,17 @@ import {
   definePreset,
   normalisePluginSpec,
   overridePreset,
-  FlexiCrsService,
+  BlaeuCrsService,
   type CommitContext,
-  type FlexiFeature,
+  type BlaeuFeature,
   type Position,
   type Preset,
   type ValidationContext,
   type ValidationIssue,
   type ValidationRule,
-} from '@fleximap/core'
-import { snapPlugin } from '@fleximap/plugin-snap'
-import { RULE_IDS } from '@fleximap/plugin-topology'
+} from '@blaeu/core'
+import { snapPlugin } from '@blaeu/plugin-snap'
+import { RULE_IDS } from '@blaeu/plugin-topology'
 
 import { cadastrePreset } from './preset.js'
 import { deriveAreaMiddleware } from './derive.js'
@@ -329,7 +329,7 @@ describe('parcel attributes', () => {
 
 describe('deriveAreaMiddleware', () => {
   it('stamps the planar area, in m², from the geometry — never from what was typed', async () => {
-    const crs = new FlexiCrsService({ working: 'EPSG:5254', display: 'projected', precision: 3 })
+    const crs = new BlaeuCrsService({ working: 'EPSG:5254', display: 'projected', precision: 3 })
     // A 100 m × 100 m square built in the *projected* plane and pushed back to 4326,
     // so the expected answer is exactly 10 000 m² by construction rather than by a
     // second implementation of the same maths.
@@ -343,7 +343,7 @@ describe('deriveAreaMiddleware', () => {
       corner(0, 0),
     ]
 
-    const feature: FlexiFeature = {
+    const feature: BlaeuFeature = {
       ...polygonFeature('p1', 'parcels', { ada: '102', parsel: '7', yuzolcumu: 9000 }),
       geometry: { type: 'Polygon', coordinates: [square] },
     }
@@ -387,7 +387,7 @@ function polygonFeature(
   id: string,
   collection: string,
   properties: Record<string, string | number> = {},
-): FlexiFeature {
+): BlaeuFeature {
   return {
     id,
     geometry: {
@@ -416,7 +416,7 @@ function ctx(): ValidationContext {
   }
 }
 
-function commitContext(features: readonly FlexiFeature[]): CommitContext {
+function commitContext(features: readonly BlaeuFeature[]): CommitContext {
   return {
     operation: 'add',
     features: [...features],

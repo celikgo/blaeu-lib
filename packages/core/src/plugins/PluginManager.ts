@@ -1,17 +1,17 @@
 import type { Disposable } from '../types/common.js'
 import { DisposableStore } from '../types/common.js'
 import type {
-  FlexiPlugin,
-  FlexiPluginRegistry,
+  BlaeuPlugin,
+  BlaeuPluginRegistry,
   PluginContext,
   PluginInfo,
   PluginManager,
 } from '../types/plugin.js'
-import type { FlexiEventBus } from '../events/EventBus.js'
+import type { BlaeuEventBus } from '../events/EventBus.js'
 import { satisfies } from '../utils/semver.js'
 
 interface Installed {
-  readonly plugin: FlexiPlugin<unknown, unknown>
+  readonly plugin: BlaeuPlugin<unknown, unknown>
   readonly ctx: PluginContext<unknown>
   readonly api: unknown
   enabled: boolean
@@ -19,7 +19,7 @@ interface Installed {
 
 /** Everything the manager needs to build a `PluginContext`, minus the per-plugin bits. */
 export type ContextFactory = (
-  plugin: FlexiPlugin<unknown, unknown>,
+  plugin: BlaeuPlugin<unknown, unknown>,
   options: unknown,
   disposables: DisposableStore,
 ) => PluginContext<unknown>
@@ -38,13 +38,13 @@ export type ContextFactory = (
  * is exactly what a plugin marketplace does. Parking handles both with one
  * mechanism.
  */
-export class FlexiPluginManager implements PluginManager {
+export class BlaeuPluginManager implements PluginManager {
   #installed = new Map<string, Installed>()
   /** Capability token → plugin ids providing it. */
   #capabilities = new Map<string, Set<string>>()
   /** Plugins waiting on a dependency that hasn't arrived yet. */
   #pending: {
-    plugin: FlexiPlugin<unknown, unknown>
+    plugin: BlaeuPlugin<unknown, unknown>
     options: unknown
     resolve: (api: unknown) => void
     reject: (e: Error) => void
@@ -74,16 +74,16 @@ export class FlexiPluginManager implements PluginManager {
 
   constructor(
     private readonly makeContext: ContextFactory,
-    private readonly events: FlexiEventBus,
+    private readonly events: BlaeuEventBus,
   ) {}
 
   async use<TApi, TOptions>(
-    plugin: FlexiPlugin<TApi, TOptions>,
+    plugin: BlaeuPlugin<TApi, TOptions>,
     options?: TOptions,
   ): Promise<TApi> {
     if (this.#installed.has(plugin.id)) {
       throw new Error(
-        `[fleximap] plugin "${plugin.id}" is already installed. ` +
+        `[blaeu] plugin "${plugin.id}" is already installed. ` +
           `Two instances would each register their listeners and layers, and you would see every action happen twice.`,
       )
     }
@@ -96,7 +96,7 @@ export class FlexiPluginManager implements PluginManager {
       // Park it. It installs as soon as the dependencies show up.
       return new Promise<TApi>((resolve, reject) => {
         this.#pending.push({
-          plugin: plugin as FlexiPlugin<unknown, unknown>,
+          plugin: plugin as BlaeuPlugin<unknown, unknown>,
           options,
           resolve: resolve as (api: unknown) => void,
           reject,
@@ -104,11 +104,11 @@ export class FlexiPluginManager implements PluginManager {
       })
     }
 
-    return (await this.#install(plugin as FlexiPlugin<unknown, unknown>, options)) as TApi
+    return (await this.#install(plugin as BlaeuPlugin<unknown, unknown>, options)) as TApi
   }
 
   /** Dependencies that are neither installed nor optional. Version mismatches throw here. */
-  #missingDependencies(plugin: FlexiPlugin<unknown, unknown>): string[] {
+  #missingDependencies(plugin: BlaeuPlugin<unknown, unknown>): string[] {
     const missing: string[] = []
     for (const dep of plugin.dependencies ?? []) {
       const present = this.has(dep.id)
@@ -121,12 +121,12 @@ export class FlexiPluginManager implements PluginManager {
         const version = installedPlugin?.version
         if (!version) {
           throw new Error(
-            `[fleximap] "${plugin.id}" requires "${dep.id}@${dep.range}", but "${dep.id}" declares no version.`,
+            `[blaeu] "${plugin.id}" requires "${dep.id}@${dep.range}", but "${dep.id}" declares no version.`,
           )
         }
         if (!satisfies(version, dep.range)) {
           throw new Error(
-            `[fleximap] "${plugin.id}" requires "${dep.id}@${dep.range}", but "${dep.id}@${version}" is installed.`,
+            `[blaeu] "${plugin.id}" requires "${dep.id}@${dep.range}", but "${dep.id}@${version}" is installed.`,
           )
         }
       }
@@ -142,7 +142,7 @@ export class FlexiPluginManager implements PluginManager {
    * absent, and the plugin should install now and degrade, which is the entire point
    * of declaring it optional.
    */
-  #awaitedOptional(plugin: FlexiPlugin<unknown, unknown>): string[] {
+  #awaitedOptional(plugin: BlaeuPlugin<unknown, unknown>): string[] {
     const awaited: string[] = []
     for (const dep of plugin.dependencies ?? []) {
       if (!dep.optional) continue
@@ -168,7 +168,7 @@ export class FlexiPluginManager implements PluginManager {
     return true
   }
 
-  async #install(plugin: FlexiPlugin<unknown, unknown>, options: unknown): Promise<unknown> {
+  async #install(plugin: BlaeuPlugin<unknown, unknown>, options: unknown): Promise<unknown> {
     const disposables = new DisposableStore()
     const ctx = this.makeContext(plugin, options, disposables)
 
@@ -183,7 +183,7 @@ export class FlexiPluginManager implements PluginManager {
       // It is not coming. Anything parked on it as an optional dep must stop waiting.
       this.#announced.delete(plugin.id)
       throw new Error(
-        `[fleximap] plugin "${plugin.id}" failed during setup: ${err instanceof Error ? err.message : String(err)}`,
+        `[blaeu] plugin "${plugin.id}" failed during setup: ${err instanceof Error ? err.message : String(err)}`,
         { cause: err },
       )
     }
@@ -253,7 +253,7 @@ export class FlexiPluginManager implements PluginManager {
       .map((p) => `  - "${p.plugin.id}" needs: ${this.#missingDependencies(p.plugin).join(', ')}`)
       .join('\n')
     const error = new Error(
-      `[fleximap] ${this.#pending.length} plugin(s) could not be installed — missing dependencies:\n${report}\n` +
+      `[blaeu] ${this.#pending.length} plugin(s) could not be installed — missing dependencies:\n${report}\n` +
         `Install the missing plugins, or mark the dependency { optional: true } if the plugin can work without it.`,
     )
     for (const p of this.#pending) {
@@ -264,20 +264,20 @@ export class FlexiPluginManager implements PluginManager {
     throw error
   }
 
-  get<K extends keyof FlexiPluginRegistry & string>(id: K): FlexiPluginRegistry[K] {
+  get<K extends keyof BlaeuPluginRegistry & string>(id: K): BlaeuPluginRegistry[K] {
     const found = this.#installed.get(id)
     if (!found) {
       throw new Error(
-        `[fleximap] plugin "${id}" is not installed. ` +
+        `[blaeu] plugin "${id}" is not installed. ` +
           `Installed: [${[...this.#installed.keys()].join(', ')}]. ` +
           `If this dependency is optional, use tryPlugin("${id}") instead.`,
       )
     }
-    return found.api as FlexiPluginRegistry[K]
+    return found.api as BlaeuPluginRegistry[K]
   }
 
-  tryGet<K extends keyof FlexiPluginRegistry & string>(id: K): FlexiPluginRegistry[K] | undefined {
-    return this.#installed.get(id)?.api as FlexiPluginRegistry[K] | undefined
+  tryGet<K extends keyof BlaeuPluginRegistry & string>(id: K): BlaeuPluginRegistry[K] | undefined {
+    return this.#installed.get(id)?.api as BlaeuPluginRegistry[K] | undefined
   }
 
   /** True if a plugin with this id, **or any plugin providing this capability**, is installed. */
@@ -315,7 +315,7 @@ export class FlexiPluginManager implements PluginManager {
       .map((i) => i.plugin.id)
     if (dependents.length > 0) {
       throw new Error(
-        `[fleximap] cannot remove "${id}" — required by: ${dependents.join(', ')}. Remove those first.`,
+        `[blaeu] cannot remove "${id}" — required by: ${dependents.join(', ')}. Remove those first.`,
       )
     }
 
@@ -373,7 +373,7 @@ export class FlexiPluginManager implements PluginManager {
         this.disable(id)
         await found.plugin.destroy?.(found.ctx)
       } catch (err) {
-        console.error(`[fleximap] plugin "${id}" threw during destroy:`, err)
+        console.error(`[blaeu] plugin "${id}" threw during destroy:`, err)
       } finally {
         found.ctx.disposables.dispose()
       }

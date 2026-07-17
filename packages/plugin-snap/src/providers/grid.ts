@@ -4,7 +4,7 @@ import {
   type SnapCandidate,
   type SnapProvider,
   type SnapQueryContext,
-} from '@fleximap/core'
+} from '@blaeu/core'
 import { PRIORITY } from '../constants.js'
 import { candidateAt, createScope, hint, type SnapDeps } from '../geometry.js'
 

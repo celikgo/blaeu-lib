@@ -1,4 +1,4 @@
-import type { Disposable, FeatureId, FlexiFeature, FlexiPlugin } from '@fleximap/core'
+import type { Disposable, FeatureId, BlaeuFeature, BlaeuPlugin } from '@blaeu/core'
 import { resolveSelectOptions } from './options.js'
 import { SelectionController } from './SelectionController.js'
 import { BOX_TOOL, boxTool, LASSO_TOOL, lassoTool, SINGLE_TOOL, singleTool } from './tools.js'
@@ -31,21 +31,21 @@ export interface SelectApi {
   readonly selected: ReadonlySet<FeatureId>
 
   /** The selected features, resolved live from the store. */
-  readonly features: readonly FlexiFeature[]
+  readonly features: readonly BlaeuFeature[]
 
   /** Select everything matching a predicate. Handy for "select all parcels in this ada". */
-  selectByFilter(fn: (feature: FlexiFeature) => boolean): void
+  selectByFilter(fn: (feature: BlaeuFeature) => boolean): void
 
   /** Fires on every change. **Dispose it** — see core invariant 5. */
   onChange(handler: (ids: ReadonlySet<FeatureId>) => void): Disposable
 }
 
-declare module '@fleximap/core' {
-  interface FlexiPluginRegistry {
+declare module '@blaeu/core' {
+  interface BlaeuPluginRegistry {
     select: SelectApi
   }
 
-  interface FlexiEventMap {
+  interface BlaeuEventMap {
     /**
      * The deltas, not just the set.
      *
@@ -69,7 +69,7 @@ declare module '@fleximap/core' {
  * no dependencies: selection is the one thing every other plugin wants to build on,
  * so it must work on a bare kernel.
  */
-export function selectPlugin(options: SelectOptions = {}): FlexiPlugin<SelectApi, SelectOptions> {
+export function selectPlugin(options: SelectOptions = {}): BlaeuPlugin<SelectApi, SelectOptions> {
   /*
    * Keyed by context, not held in a plain variable, because one plugin object may
    * legitimately be installed on two maps (`const p = selectPlugin(); mapA.use(p);
@@ -122,7 +122,7 @@ export function selectPlugin(options: SelectOptions = {}): FlexiPlugin<SelectApi
     },
 
     /**
-     * Dormant, not gone (see the `FlexiPlugin` contract): the selection set survives a
+     * Dormant, not gone (see the `BlaeuPlugin` contract): the selection set survives a
      * disable, so a user who toggles the selection tool off and back on again finds the
      * twelve parcels they had picked still picked.
      */

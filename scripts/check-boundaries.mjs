@@ -2,7 +2,7 @@
 /**
  * Enforces the dependency rules that the whole architecture rests on.
  *
- * These are stated in the README and in .claude/skills/fleximap-core-invariants,
+ * These are stated in the README and in .claude/skills/blaeu-core-invariants,
  * but a rule that lives only in prose is a rule that erodes. This script is what
  * makes them real: it runs in CI, and it fails the build.
  *
@@ -18,7 +18,7 @@
  *      snapping reaches it as middleware that rewrote the pointer position before
  *      the draw tool ever read it. That indirection *is* the architecture.
  *
- *   3. Every plugin and preset declares @fleximap/core as a peerDependency, never
+ *   3. Every plugin and preset declares @blaeu/core as a peerDependency, never
  *      a dependency. Two copies of core in a user's node_modules means two event
  *      buses, two command buses, two stores. Nothing throws. The plugin's
  *      listener simply never fires, and the user loses a day to it.
@@ -71,7 +71,7 @@ const packageNames = readdirSync(packagesDir).filter((d) =>
 /* ---- Rule 1: core imports nothing from this repo ---- */
 for (const file of sourceFiles(join(packagesDir, 'core', 'src'))) {
   for (const spec of importsOf(file)) {
-    if (/^@fleximap\/(plugin|preset)-/.test(spec)) {
+    if (/^@blaeu\/(plugin|preset)-/.test(spec)) {
       violations.push({
         rule: 'core-imports-plugin',
         file: relative(root, file),
@@ -84,10 +84,10 @@ for (const file of sourceFiles(join(packagesDir, 'core', 'src'))) {
 
 /* ---- Rule 2: plugins do not import each other ---- */
 for (const pkg of packageNames.filter((p) => p.startsWith('plugin-'))) {
-  const self = `@fleximap/${pkg}`
+  const self = `@blaeu/${pkg}`
   for (const file of sourceFiles(join(packagesDir, pkg, 'src'))) {
     for (const spec of importsOf(file)) {
-      if (/^@fleximap\/plugin-/.test(spec) && !spec.startsWith(self)) {
+      if (/^@blaeu\/plugin-/.test(spec) && !spec.startsWith(self)) {
         violations.push({
           rule: 'plugin-imports-plugin',
           file: relative(root, file),
@@ -108,19 +108,19 @@ for (const pkg of packageNames.filter((p) => p.startsWith('plugin-') || p.starts
   } catch {
     continue
   }
-  if (manifest.dependencies?.['@fleximap/core']) {
+  if (manifest.dependencies?.['@blaeu/core']) {
     violations.push({
       rule: 'core-as-dependency',
       file: relative(root, manifestPath),
-      detail: '"@fleximap/core" is listed under "dependencies"',
+      detail: '"@blaeu/core" is listed under "dependencies"',
       why: 'It must be a peerDependency. Two copies of the core means two event buses and two stores — nothing throws, the listener just silently never fires, and that is a genuinely miserable afternoon for whoever hits it.',
     })
   }
-  if (!manifest.peerDependencies?.['@fleximap/core']) {
+  if (!manifest.peerDependencies?.['@blaeu/core']) {
     violations.push({
       rule: 'missing-core-peer',
       file: relative(root, manifestPath),
-      detail: 'no "@fleximap/core" under "peerDependencies"',
+      detail: 'no "@blaeu/core" under "peerDependencies"',
       why: 'Every plugin and preset must declare the core as a peer, so npm can warn on a version mismatch instead of silently installing a second copy.',
     })
   }

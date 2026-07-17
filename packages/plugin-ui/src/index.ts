@@ -1,8 +1,8 @@
 /**
- * `@fleximap/plugin-ui` — framework-free map chrome.
+ * `@blaeu/plugin-ui` — framework-free map chrome.
  *
  * ```ts
- * const map = await createFlexiMap({
+ * const map = await createBlaeuMap({
  *   container: '#map',
  *   plugins: [drawPlugin(), uiPlugin({ attributions: ['© OpenStreetMap'] })],
  * })
@@ -53,12 +53,12 @@ import type { UiApi } from './types.js'
  * generic parameter and no import of an internal type — and what makes a typo in
  * the id a compile error rather than a runtime `undefined`.
  *
- * Note what is *not* here: an augmentation of `FlexiEventMap`. This plugin emits
+ * Note what is *not* here: an augmentation of `BlaeuEventMap`. This plugin emits
  * no events. It is a consumer of them, and a plugin that invents an event it never
  * fires has widened the global event map for nobody's benefit.
  */
-declare module '@fleximap/core' {
-  interface FlexiPluginRegistry {
+declare module '@blaeu/core' {
+  interface BlaeuPluginRegistry {
     ui: UiApi
   }
 }

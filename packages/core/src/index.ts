@@ -1,14 +1,14 @@
 /**
- * The public API of `@fleximap/core` (core invariant 6).
+ * The public API of `@blaeu/core` (core invariant 6).
  *
  * If it is not re-exported here, it is not public, and a plugin that reaches past
  * this barrel into a deep path is depending on an internal that will move. The
- * testing harness is deliberately absent — it lives behind `@fleximap/core/testing`
+ * testing harness is deliberately absent — it lives behind `@blaeu/core/testing`
  * so that a production bundle never pulls in the fake renderer or the fixtures.
  */
 
 /* ---- the kernel ---- */
-export { FlexiMap, createFlexiMap } from './FlexiMap.js'
+export { BlaeuMap, createBlaeuMap } from './BlaeuMap.js'
 
 /* ---- every interface and type in the contract ---- */
 export * from './types/index.js'
@@ -18,20 +18,20 @@ export * from './types/index.js'
  * Exported as values, not just types, because a host app that wants a bare event
  * bus in a worker, or a preset that wants to construct a command bus in a test,
  * has no other honest way to get one. */
-export { FlexiEventBus } from './events/EventBus.js'
+export { BlaeuEventBus } from './events/EventBus.js'
 export { SyncInteractionPipeline, AsyncCommitPipeline } from './pipeline/Pipeline.js'
-export { FlexiCommandBus, CompositeCommand } from './commands/CommandBus.js'
-export { FlexiPluginManager } from './plugins/PluginManager.js'
+export { BlaeuCommandBus, CompositeCommand } from './commands/CommandBus.js'
+export { BlaeuPluginManager } from './plugins/PluginManager.js'
 export type { ContextFactory } from './plugins/PluginManager.js'
-export { FlexiFeatureStore, FlexiCollection } from './store/FeatureStore.js'
-export { FlexiTopologyIndex } from './store/TopologyIndex.js'
+export { BlaeuFeatureStore, BlaeuCollection } from './store/FeatureStore.js'
+export { BlaeuTopologyIndex } from './store/TopologyIndex.js'
 export { SpatialIndex } from './store/SpatialIndex.js'
-export { FlexiToolManager } from './tools/ToolManager.js'
-export { FlexiLayerManager } from './layers/LayerManager.js'
-export { FlexiCrsService } from './crs/CrsService.js'
-export { FlexiThemeManager } from './theme/ThemeManager.js'
-export { FlexiI18n } from './i18n/I18n.js'
-export { FlexiValidationRegistry } from './validation/ValidationRegistry.js'
+export { BlaeuToolManager } from './tools/ToolManager.js'
+export { BlaeuLayerManager } from './layers/LayerManager.js'
+export { BlaeuCrsService } from './crs/CrsService.js'
+export { BlaeuThemeManager } from './theme/ThemeManager.js'
+export { BlaeuI18n } from './i18n/I18n.js'
+export { BlaeuValidationRegistry } from './validation/ValidationRegistry.js'
 
 /* ---- renderers ---- */
 export {

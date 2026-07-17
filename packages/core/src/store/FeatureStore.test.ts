@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Polygon, Position } from 'geojson'
 
-import { FlexiEventBus } from '../events/EventBus.js'
-import { FlexiFeatureStore } from './FeatureStore.js'
+import { BlaeuEventBus } from '../events/EventBus.js'
+import { BlaeuFeatureStore } from './FeatureStore.js'
 import { createTestCrs, offsetMetres } from './test-crs.js'
 import { ringSignedArea2 } from '../utils/geometry.js'
 import type { CrsService } from '../types/crs.js'
 import type { LngLat } from '../types/common.js'
-import type { FlexiFeature } from '../types/feature.js'
+import type { BlaeuFeature } from '../types/feature.js'
 import type { StoreChange } from '../types/store.js'
 
 /** Ankara. Far enough from TM30's central meridian to catch a projection that isn't really projecting. */
@@ -15,8 +15,8 @@ const ANKARA: LngLat = [32.85, 39.93]
 
 function setup(strict = true) {
   const crs = createTestCrs()
-  const events = new FlexiEventBus()
-  const store = new FlexiFeatureStore(crs, events, { strict })
+  const events = new BlaeuEventBus()
+  const store = new BlaeuFeatureStore(crs, events, { strict })
   return { crs, events, store }
 }
 
@@ -34,7 +34,7 @@ function rect(crs: CrsService, origin: LngLat, width: number, height: number): P
   }
 }
 
-describe('FlexiFeatureStore — collections', () => {
+describe('BlaeuFeatureStore — collections', () => {
   it('auto-creates a collection on first access, so plugins need no defensive dance', () => {
     const { store } = setup()
     expect(store.collection('parcels').size).toBe(0)
@@ -64,7 +64,7 @@ describe('FlexiFeatureStore — collections', () => {
   })
 })
 
-describe('FlexiFeatureStore — ingest', () => {
+describe('BlaeuFeatureStore — ingest', () => {
   it('mints an id and stamps the meta', () => {
     const { crs, store } = setup()
     const before = Date.now()
@@ -183,7 +183,7 @@ describe('FlexiFeatureStore — ingest', () => {
   })
 })
 
-describe('FlexiFeatureStore — strict mode', () => {
+describe('BlaeuFeatureStore — strict mode', () => {
   it('freezes what it hands out, so a mutating read fails loudly at the line that did it', () => {
     const { crs, store } = setup(true)
     const [added] = store._add('parcels', [{ geometry: rect(crs, ANKARA, 10, 10) }])
@@ -204,7 +204,7 @@ describe('FlexiFeatureStore — strict mode', () => {
   })
 })
 
-describe('FlexiFeatureStore — spatial queries', () => {
+describe('BlaeuFeatureStore — spatial queries', () => {
   it('query(bbox) returns only what the box touches', () => {
     const { crs, store } = setup()
     const [here] = store._add('parcels', [{ geometry: rect(crs, ANKARA, 10, 10) }])
@@ -263,7 +263,7 @@ describe('FlexiFeatureStore — spatial queries', () => {
   })
 })
 
-describe('FlexiFeatureStore — the write path', () => {
+describe('BlaeuFeatureStore — the write path', () => {
   it('emits onChange before the bus event, so the renderer is in sync when plugins look', () => {
     const { crs, store, events } = setup()
     const order: string[] = []
@@ -286,8 +286,8 @@ describe('FlexiFeatureStore — the write path', () => {
     expect(next!.properties['ada']).toBe('42')
     expect(updated).toHaveBeenCalledOnce()
     const payload = updated.mock.calls[0]![0].payload as {
-      features: FlexiFeature[]
-      previous: FlexiFeature[]
+      features: BlaeuFeature[]
+      previous: BlaeuFeature[]
     }
     expect(payload.previous[0]!.meta.version).toBe(1)
   })
@@ -331,7 +331,7 @@ describe('FlexiFeatureStore — the write path', () => {
   })
 })
 
-describe('FlexiFeatureStore — snapshot and restore', () => {
+describe('BlaeuFeatureStore — snapshot and restore', () => {
   it('round-trips to deep equality, which is the whole basis of undo', () => {
     const { crs, store } = setup()
     store._add('parcels', [{ geometry: rect(crs, ANKARA, 10, 10) }])
@@ -397,7 +397,7 @@ describe('FlexiFeatureStore — snapshot and restore', () => {
   })
 })
 
-describe('FlexiCollection — GeoJSON', () => {
+describe('BlaeuCollection — GeoJSON', () => {
   it('exports a detached FeatureCollection and keeps our bookkeeping out of it', () => {
     const { crs, store } = setup()
     store._add('parcels', [{ geometry: rect(crs, ANKARA, 10, 10), properties: { ada: '42' } }])

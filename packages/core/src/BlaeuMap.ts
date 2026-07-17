@@ -1,28 +1,28 @@
 import { DisposableStore, type Disposable, type Logger } from './types/common.js'
-import type { FlexiMapOptions, ResolvedConfig } from './types/config.js'
-import type { FlexiPlugin, FlexiPluginRegistry, PluginContext } from './types/plugin.js'
+import type { BlaeuMapOptions, ResolvedConfig } from './types/config.js'
+import type { BlaeuPlugin, BlaeuPluginRegistry, PluginContext } from './types/plugin.js'
 import type { Preset } from './types/preset.js'
 import type { Renderer, RendererPointerEvent } from './types/renderer.js'
 import type { InteractionContext } from './types/pipeline.js'
 import type { Tool } from './types/extensions.js'
 
-import { FlexiEventBus } from './events/EventBus.js'
+import { BlaeuEventBus } from './events/EventBus.js'
 import { SyncInteractionPipeline, AsyncCommitPipeline } from './pipeline/Pipeline.js'
-import { FlexiCommandBus } from './commands/CommandBus.js'
-import { FlexiPluginManager } from './plugins/PluginManager.js'
-import { FlexiFeatureStore } from './store/FeatureStore.js'
-import { FlexiToolManager } from './tools/ToolManager.js'
-import { FlexiLayerManager } from './layers/LayerManager.js'
-import { FlexiCrsService } from './crs/CrsService.js'
-import { FlexiThemeManager } from './theme/ThemeManager.js'
-import { FlexiI18n } from './i18n/I18n.js'
-import { FlexiValidationRegistry } from './validation/ValidationRegistry.js'
+import { BlaeuCommandBus } from './commands/CommandBus.js'
+import { BlaeuPluginManager } from './plugins/PluginManager.js'
+import { BlaeuFeatureStore } from './store/FeatureStore.js'
+import { BlaeuToolManager } from './tools/ToolManager.js'
+import { BlaeuLayerManager } from './layers/LayerManager.js'
+import { BlaeuCrsService } from './crs/CrsService.js'
+import { BlaeuThemeManager } from './theme/ThemeManager.js'
+import { BlaeuI18n } from './i18n/I18n.js'
+import { BlaeuValidationRegistry } from './validation/ValidationRegistry.js'
 import { MapLibreRenderer } from './renderers/MapLibreRenderer.js'
 import { resolveConfig } from './config.js'
 import { normalisePluginSpec } from './presets/compose.js'
 
 /**
- * The FlexiMap kernel.
+ * The BlaeuMap kernel.
  *
  * Read the field list below and notice what is **absent**: there is no `draw()`,
  * no `measure()`, no `snapTo()`. The kernel owns exactly five things — an event
@@ -38,12 +38,12 @@ import { normalisePluginSpec } from './presets/compose.js'
  *
  * @example Minimal
  * ```ts
- * const map = await createFlexiMap({ container: '#map' })
+ * const map = await createBlaeuMap({ container: '#map' })
  * ```
  *
  * @example A cadastre product
  * ```ts
- * const map = await createFlexiMap({
+ * const map = await createBlaeuMap({
  *   container: '#map',
  *   preset: cadastrePreset({ crs: 'EPSG:5254', locale: 'tr' }),
  * })
@@ -51,19 +51,19 @@ import { normalisePluginSpec } from './presets/compose.js'
  * map.events.on('draw:complete', (e) => console.log(map.crs.area(e.payload.feature.geometry)))
  * ```
  */
-export class FlexiMap {
-  readonly events: FlexiEventBus
-  readonly store: FlexiFeatureStore
-  readonly commands: FlexiCommandBus
-  readonly plugins: FlexiPluginManager
+export class BlaeuMap {
+  readonly events: BlaeuEventBus
+  readonly store: BlaeuFeatureStore
+  readonly commands: BlaeuCommandBus
+  readonly plugins: BlaeuPluginManager
   readonly interaction: SyncInteractionPipeline
   readonly commit: AsyncCommitPipeline
-  readonly tools: FlexiToolManager
-  readonly layers: FlexiLayerManager
-  readonly crs: FlexiCrsService
-  readonly theme: FlexiThemeManager
-  readonly i18n: FlexiI18n
-  readonly validation: FlexiValidationRegistry
+  readonly tools: BlaeuToolManager
+  readonly layers: BlaeuLayerManager
+  readonly crs: BlaeuCrsService
+  readonly theme: BlaeuThemeManager
+  readonly i18n: BlaeuI18n
+  readonly validation: BlaeuValidationRegistry
   readonly renderer: Renderer
   readonly config: ResolvedConfig
   readonly log: Logger
@@ -73,32 +73,32 @@ export class FlexiMap {
   #ready: Promise<void>
   #destroyed = false
 
-  constructor(options: FlexiMapOptions) {
+  constructor(options: BlaeuMapOptions) {
     const preset = options.preset
     this.config = resolveConfig(options, preset)
     this.log = this.config.logger
     this.#container = resolveContainer(options.container)
 
     // ---- kernel, in dependency order ----
-    this.events = new FlexiEventBus()
-    this.crs = new FlexiCrsService(this.config.crs)
-    this.i18n = new FlexiI18n(this.config.locale)
-    this.store = new FlexiFeatureStore(this.crs, this.events, { strict: this.config.strict })
+    this.events = new BlaeuEventBus()
+    this.crs = new BlaeuCrsService(this.config.crs)
+    this.i18n = new BlaeuI18n(this.config.locale)
+    this.store = new BlaeuFeatureStore(this.crs, this.events, { strict: this.config.strict })
     this.interaction = new SyncInteractionPipeline()
     // Before the command bus, which holds it: `commands.commit()` runs every write
     // through this chain, and that is the only reason a validation rule can veto
     // anything. A bus constructed without it would still compile and still write —
     // it would just quietly write things no rule had ever looked at.
     this.commit = new AsyncCommitPipeline()
-    this.commands = new FlexiCommandBus(this.store, this.events, this.commit)
-    this.validation = new FlexiValidationRegistry(this.store, this.crs, this.i18n)
-    this.theme = new FlexiThemeManager(this.#container)
+    this.commands = new BlaeuCommandBus(this.store, this.events, this.commit)
+    this.validation = new BlaeuValidationRegistry(this.store, this.crs, this.i18n)
+    this.theme = new BlaeuThemeManager(this.#container)
 
     this.renderer = options.renderer ?? new MapLibreRenderer()
-    this.tools = new FlexiToolManager(this.events)
-    this.layers = new FlexiLayerManager(this.renderer, this.store, this.events)
+    this.tools = new BlaeuToolManager(this.events)
+    this.layers = new BlaeuLayerManager(this.renderer, this.store, this.events)
 
-    this.plugins = new FlexiPluginManager(
+    this.plugins = new BlaeuPluginManager(
       (plugin, pluginOptions, disposables) => this.#makeContext(plugin, pluginOptions, disposables),
       this.events,
     )
@@ -111,7 +111,7 @@ export class FlexiMap {
     return this.#ready
   }
 
-  async #init(options: FlexiMapOptions, preset: Preset | undefined): Promise<void> {
+  async #init(options: BlaeuMapOptions, preset: Preset | undefined): Promise<void> {
     await this.renderer.mount(this.#container)
 
     // The store must reach the renderer before any plugin can draw. Wiring it here
@@ -251,7 +251,7 @@ export class FlexiMap {
   }
 
   #makeContext(
-    plugin: FlexiPlugin<unknown, unknown>,
+    plugin: BlaeuPlugin<unknown, unknown>,
     options: unknown,
     disposables: DisposableStore,
   ): PluginContext<unknown> {
@@ -281,19 +281,19 @@ export class FlexiMap {
   }
 
   /** Install a plugin at runtime. Same path a preset takes. */
-  use<TApi, TOptions>(plugin: FlexiPlugin<TApi, TOptions>, options?: TOptions): Promise<TApi> {
+  use<TApi, TOptions>(plugin: BlaeuPlugin<TApi, TOptions>, options?: TOptions): Promise<TApi> {
     return this.plugins.use(plugin, options)
   }
 
   /** Typed handle to a plugin's API. `map.plugin('draw')` → `DrawApi`, no cast. */
-  plugin<K extends keyof FlexiPluginRegistry & string>(id: K): FlexiPluginRegistry[K] {
+  plugin<K extends keyof BlaeuPluginRegistry & string>(id: K): BlaeuPluginRegistry[K] {
     return this.plugins.get(id)
   }
 
   /** As above, but `undefined` rather than throwing when absent. */
-  tryPlugin<K extends keyof FlexiPluginRegistry & string>(
+  tryPlugin<K extends keyof BlaeuPluginRegistry & string>(
     id: K,
-  ): FlexiPluginRegistry[K] | undefined {
+  ): BlaeuPluginRegistry[K] | undefined {
     return this.plugins.tryGet(id)
   }
 
@@ -301,7 +301,7 @@ export class FlexiMap {
     return this.plugins.remove(id)
   }
 
-  /** Introspection. Backs devtools, and the teardown test in `fleximap-testing`. */
+  /** Introspection. Backs devtools, and the teardown test in `blaeu-testing`. */
   readonly debug = {
     snapshot: (): Record<string, number> => ({
       listeners: this.events.listenerCount(),
@@ -339,8 +339,8 @@ export class FlexiMap {
  * map from a synchronous constructor and hoping the user awaits the right thing
  * is how you get bug reports that say "sometimes the first click does nothing."
  */
-export async function createFlexiMap(options: FlexiMapOptions): Promise<FlexiMap> {
-  const map = new FlexiMap(options)
+export async function createBlaeuMap(options: BlaeuMapOptions): Promise<BlaeuMap> {
+  const map = new BlaeuMap(options)
   await map.whenReady()
   return map
 }
@@ -348,7 +348,7 @@ export async function createFlexiMap(options: FlexiMapOptions): Promise<FlexiMap
 function resolveContainer(container: HTMLElement | string): HTMLElement {
   if (typeof container !== 'string') return container
   const el = document.querySelector<HTMLElement>(container)
-  if (!el) throw new Error(`[fleximap] container "${container}" not found in the document.`)
+  if (!el) throw new Error(`[blaeu] container "${container}" not found in the document.`)
   return el
 }
 

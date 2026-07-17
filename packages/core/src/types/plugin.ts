@@ -10,7 +10,7 @@ import type { ThemeManager } from './theme.js'
 import type { I18n } from './i18n.js'
 import type { ValidationRegistry } from './validation.js'
 import type { ResolvedConfig } from './config.js'
-import type { FlexiMap } from '../FlexiMap.js'
+import type { BlaeuMap } from '../BlaeuMap.js'
 
 /**
  * The typed plugin registry.
@@ -20,14 +20,14 @@ import type { FlexiMap } from '../FlexiMap.js'
  * type. Autocomplete lists every installed plugin by id.
  *
  * ```ts
- * declare module '@fleximap/core' {
- *   interface FlexiPluginRegistry { draw: DrawApi }
+ * declare module '@blaeu/core' {
+ *   interface BlaeuPluginRegistry { draw: DrawApi }
  * }
  * ```
  *
  * The interface ships empty on purpose; that is not an oversight, it's the seam.
  */
-export interface FlexiPluginRegistry {}
+export interface BlaeuPluginRegistry {}
 
 /** A dependency on another plugin. */
 export interface PluginDependency {
@@ -40,7 +40,7 @@ export interface PluginDependency {
   /**
    * An optional dependency **enhances** the plugin; it must not be required for
    * it to work. If you mark a dependency optional, you owe the degradation test
-   * (see the `fleximap-testing` skill) — an "optional" dependency with no test
+   * (see the `blaeu-testing` skill) — an "optional" dependency with no test
    * proving the plugin works without it is a required dependency with a bug.
    */
   readonly optional?: boolean
@@ -56,7 +56,7 @@ export interface PluginContext<TOptions = unknown> {
   readonly options: TOptions
 
   /** Escape hatch to the whole map. Prefer the narrow handles below. */
-  readonly map: FlexiMap
+  readonly map: BlaeuMap
 
   readonly events: EventBus
   readonly store: FeatureStore
@@ -98,7 +98,7 @@ export interface PluginContext<TOptions = unknown> {
   readonly disposables: DisposableStore
 
   /** Typed handle to another plugin's API. Throws if absent — use for hard dependencies. */
-  plugin<K extends keyof FlexiPluginRegistry & string>(id: K): FlexiPluginRegistry[K]
+  plugin<K extends keyof BlaeuPluginRegistry & string>(id: K): BlaeuPluginRegistry[K]
 
   /**
    * Typed handle to an *optional* dependency. Returns `undefined` if not installed.
@@ -107,11 +107,11 @@ export interface PluginContext<TOptions = unknown> {
    * ctx.tryPlugin('snap')?.addProvider(parcelCornerProvider)
    * ```
    */
-  tryPlugin<K extends keyof FlexiPluginRegistry & string>(id: K): FlexiPluginRegistry[K] | undefined
+  tryPlugin<K extends keyof BlaeuPluginRegistry & string>(id: K): BlaeuPluginRegistry[K] | undefined
 }
 
 /**
- * A FlexiMap plugin.
+ * A BlaeuMap plugin.
  *
  * @typeParam TApi     - the public API returned from `setup`, surfaced by `map.plugin(id)`
  * @typeParam TOptions - the options the plugin accepts
@@ -123,8 +123,8 @@ export interface PluginContext<TOptions = unknown> {
  * toggling the measurement tool off and on again expects their measurements to
  * still be there. `destroy` means "you are gone, release everything."
  */
-export interface FlexiPlugin<TApi = unknown, TOptions = unknown> {
-  /** Unique, stable, kebab-case. This is the key in {@link FlexiPluginRegistry}. */
+export interface BlaeuPlugin<TApi = unknown, TOptions = unknown> {
+  /** Unique, stable, kebab-case. This is the key in {@link BlaeuPluginRegistry}. */
   readonly id: string
 
   /** Semver. Checked against dependents' declared ranges. */
@@ -169,8 +169,8 @@ export interface FlexiPlugin<TApi = unknown, TOptions = unknown> {
  * later preset override an earlier one's options for the same plugin id.
  */
 export type PluginSpec =
-  | FlexiPlugin<unknown, never>
-  | readonly [factory: (options?: never) => FlexiPlugin<unknown, never>, options?: unknown]
+  | BlaeuPlugin<unknown, never>
+  | readonly [factory: (options?: never) => BlaeuPlugin<unknown, never>, options?: unknown]
 
 /** Introspection. Powers devtools and the `map.debug` surface. */
 export interface PluginInfo {
@@ -183,10 +183,10 @@ export interface PluginInfo {
 
 export interface PluginManager {
   /** Install a plugin. Resolves dependencies, then runs `setup`, then `enable`. */
-  use<TApi, TOptions>(plugin: FlexiPlugin<TApi, TOptions>, options?: TOptions): Promise<TApi>
+  use<TApi, TOptions>(plugin: BlaeuPlugin<TApi, TOptions>, options?: TOptions): Promise<TApi>
 
-  get<K extends keyof FlexiPluginRegistry & string>(id: K): FlexiPluginRegistry[K]
-  tryGet<K extends keyof FlexiPluginRegistry & string>(id: K): FlexiPluginRegistry[K] | undefined
+  get<K extends keyof BlaeuPluginRegistry & string>(id: K): BlaeuPluginRegistry[K]
+  tryGet<K extends keyof BlaeuPluginRegistry & string>(id: K): BlaeuPluginRegistry[K] | undefined
 
   has(idOrCapability: string): boolean
   enable(id: string): void

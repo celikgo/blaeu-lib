@@ -1,5 +1,5 @@
-import type { CollectionId, CrsCode, Locale, Severity } from '@fleximap/core'
-import type { AreaUnit, LengthUnit } from '@fleximap/plugin-measure'
+import type { CollectionId, CrsCode, Locale, Severity } from '@blaeu/core'
+import type { AreaUnit, LengthUnit } from '@blaeu/plugin-measure'
 
 /**
  * One entry in the plan legend.

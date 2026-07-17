@@ -29,19 +29,19 @@
     "skipLibCheck": true,
 
     "paths": {
-      "@fleximap/core": ["./packages/core/src/index.ts"],
-      "@fleximap/core/testing": ["./packages/core/src/testing/index.ts"],
-      "@fleximap/plugin-draw": ["./packages/plugin-draw/src/index.ts"],
-      "@fleximap/plugin-edit": ["./packages/plugin-edit/src/index.ts"],
-      "@fleximap/plugin-snap": ["./packages/plugin-snap/src/index.ts"],
-      "@fleximap/plugin-select": ["./packages/plugin-select/src/index.ts"],
-      "@fleximap/plugin-measure": ["./packages/plugin-measure/src/index.ts"],
-      "@fleximap/plugin-history": ["./packages/plugin-history/src/index.ts"],
-      "@fleximap/plugin-topology": ["./packages/plugin-topology/src/index.ts"],
-      "@fleximap/plugin-ui": ["./packages/plugin-ui/src/index.ts"],
-      "@fleximap/preset-cadastre": ["./packages/preset-cadastre/src/index.ts"],
-      "@fleximap/preset-urban": ["./packages/preset-urban/src/index.ts"],
-      "@fleximap/preset-game": ["./packages/preset-game/src/index.ts"]
+      "@blaeu/core": ["./packages/core/src/index.ts"],
+      "@blaeu/core/testing": ["./packages/core/src/testing/index.ts"],
+      "@blaeu/plugin-draw": ["./packages/plugin-draw/src/index.ts"],
+      "@blaeu/plugin-edit": ["./packages/plugin-edit/src/index.ts"],
+      "@blaeu/plugin-snap": ["./packages/plugin-snap/src/index.ts"],
+      "@blaeu/plugin-select": ["./packages/plugin-select/src/index.ts"],
+      "@blaeu/plugin-measure": ["./packages/plugin-measure/src/index.ts"],
+      "@blaeu/plugin-history": ["./packages/plugin-history/src/index.ts"],
+      "@blaeu/plugin-topology": ["./packages/plugin-topology/src/index.ts"],
+      "@blaeu/plugin-ui": ["./packages/plugin-ui/src/index.ts"],
+      "@blaeu/preset-cadastre": ["./packages/preset-cadastre/src/index.ts"],
+      "@blaeu/preset-urban": ["./packages/preset-urban/src/index.ts"],
+      "@blaeu/preset-game": ["./packages/preset-game/src/index.ts"]
     }
   }
 }

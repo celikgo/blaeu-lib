@@ -3,10 +3,10 @@ import type {
   Command,
   CommandContext,
   Disposable,
-  FlexiPlugin,
+  BlaeuPlugin,
   PluginContext,
   StoreSnapshot,
-} from '@fleximap/core'
+} from '@blaeu/core'
 
 import { DEFAULT_ZONING_CATEGORIES, FIELD } from './zoning.js'
 import type { ZoningCategory } from './types.js'
@@ -107,12 +107,12 @@ export interface ScenarioOptions {
   readonly categories?: readonly ZoningCategory[]
 }
 
-declare module '@fleximap/core' {
-  interface FlexiPluginRegistry {
+declare module '@blaeu/core' {
+  interface BlaeuPluginRegistry {
     scenario: ScenarioApi
   }
 
-  interface FlexiEventMap {
+  interface BlaeuEventMap {
     /** Active scenario changed — including to `null`, when the active one was removed. */
     'scenario:changed': {
       readonly active: string | null
@@ -180,7 +180,7 @@ class SwitchScenarioCommand implements Command {
  */
 export function scenarioPlugin(
   options: ScenarioOptions = {},
-): FlexiPlugin<ScenarioApi, ScenarioOptions> {
+): BlaeuPlugin<ScenarioApi, ScenarioOptions> {
   return {
     id: 'scenario',
     version: '1.0.0',
@@ -219,7 +219,7 @@ export function scenarioPlugin(
         if (scenario === undefined) {
           const known = scenarios.size === 0 ? 'none yet' : [...scenarios.keys()].join(', ')
           throw new Error(
-            `[fleximap] cannot ${verb} scenario "${name}": there is no such scenario. ` +
+            `[blaeu] cannot ${verb} scenario "${name}": there is no such scenario. ` +
               `Known scenarios: ${known}. Create it first with map.plugin('scenario').create(name).`,
           )
         }
@@ -235,11 +235,11 @@ export function scenarioPlugin(
 
       const create = (name: string): Scenario => {
         if (name.length === 0) {
-          throw new Error('[fleximap] a scenario needs a non-empty name, e.g. create("Yoğun").')
+          throw new Error('[blaeu] a scenario needs a non-empty name, e.g. create("Yoğun").')
         }
         if (scenarios.has(name)) {
           throw new Error(
-            `[fleximap] scenario "${name}" already exists. ` +
+            `[blaeu] scenario "${name}" already exists. ` +
               `Pick another name, or call save() to overwrite the active one deliberately.`,
           )
         }
@@ -255,7 +255,7 @@ export function scenarioPlugin(
       const save = (): Scenario => {
         if (active === null) {
           throw new Error(
-            '[fleximap] save() has no active scenario to save into. Call create(name) first.',
+            '[blaeu] save() has no active scenario to save into. Call create(name) first.',
           )
         }
         const existing = require_(active, 'save')
@@ -278,7 +278,7 @@ export function scenarioPlugin(
         )
         if (!result.ok) {
           throw new Error(
-            `[fleximap] switching to scenario "${name}" was rejected: ` +
+            `[blaeu] switching to scenario "${name}" was rejected: ` +
               `${result.rejectedReason ?? 'a commit-pipeline middleware vetoed it'}. ` +
               `A validation rule with severity "error" blocks the restore — the scenario is unchanged.`,
           )

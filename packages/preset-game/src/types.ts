@@ -5,11 +5,11 @@ import type {
   Disposable,
   FeatureInput,
   FeatureStore,
-  FlexiFeature,
+  BlaeuFeature,
   Locale,
   LngLat,
   Severity,
-} from '@fleximap/core'
+} from '@blaeu/core'
 
 /**
  * A rectangle in **world units**: `[minX, minY, maxX, maxY]`.
@@ -86,12 +86,12 @@ export interface WorldApi extends WorldTransform {
  */
 export interface GenerateContext {
   /** The entities being placed, already materialised (ids minted, properties stamped). */
-  readonly placed: readonly FlexiFeature[]
+  readonly placed: readonly BlaeuFeature[]
   readonly store: FeatureStore
   readonly crs: CrsService
   readonly world: WorldApi
   /** Look up the {@link EntityType} an entity feature was placed from. */
-  entityType(feature: FlexiFeature): EntityType | undefined
+  entityType(feature: BlaeuFeature): EntityType | undefined
 }
 
 /**
@@ -126,7 +126,7 @@ export interface EntityApi {
    * to the features actually written, or an empty array if a validation rule vetoed
    * the placement.
    */
-  place(xy: WorldXY, typeId?: string): Promise<readonly FlexiFeature[]>
+  place(xy: WorldXY, typeId?: string): Promise<readonly BlaeuFeature[]>
 
   /**
    * Register a procedural generator. **Dispose it** — core invariant 5.

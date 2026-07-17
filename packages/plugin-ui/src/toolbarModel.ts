@@ -1,4 +1,4 @@
-import { DisposableStore, type Disposable, type PluginContext } from '@fleximap/core'
+import { DisposableStore, type Disposable, type PluginContext } from '@blaeu/core'
 import type { ResolvedUiOptions, ToolbarButton, ToolbarModel } from './types.js'
 
 /**

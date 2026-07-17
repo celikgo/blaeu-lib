@@ -5,7 +5,7 @@ import type {
   FeatureInput,
   FeatureMeta,
   FeatureProperties,
-  FlexiFeature,
+  BlaeuFeature,
 } from '../types/feature.js'
 import type { Collection, FeatureStore, StoreChange, StoreSnapshot } from '../types/store.js'
 import type {
@@ -14,7 +14,7 @@ import type {
 } from 'geojson'
 
 import { SpatialIndex } from './SpatialIndex.js'
-import { FlexiTopologyIndex } from './TopologyIndex.js'
+import { BlaeuTopologyIndex } from './TopologyIndex.js'
 import { bboxAround, distanceToGeometryMetres, normaliseGeometry } from '../utils/geometry.js'
 import { createId } from '../utils/ids.js'
 
@@ -31,7 +31,7 @@ const NEAREST_MAX_RADIUS_METRES = 20_000_000
  * mode freezes them: the invariant "you do not mutate what the store gives you"
  * (core invariant 2) has to be *enforced* somewhere, or it is merely a wish.
  */
-export class FlexiCollection<
+export class BlaeuCollection<
   P extends FeatureProperties = FeatureProperties,
 > implements Collection<P> {
   readonly id: CollectionId
@@ -39,7 +39,7 @@ export class FlexiCollection<
   readonly #crs: CrsService
   readonly #strict: boolean
   /** Insertion-ordered, which is also the order the renderer draws in. */
-  readonly #features = new Map<FeatureId, FlexiFeature<P>>()
+  readonly #features = new Map<FeatureId, BlaeuFeature<P>>()
   readonly #spatial = new SpatialIndex()
 
   constructor(id: CollectionId, crs: CrsService, strict: boolean) {
@@ -52,7 +52,7 @@ export class FlexiCollection<
     return this.#features.size
   }
 
-  get(id: FeatureId): FlexiFeature<P> | undefined {
+  get(id: FeatureId): BlaeuFeature<P> | undefined {
     const feature = this.#features.get(id)
     return feature === undefined ? undefined : this.#harden(feature)
   }
@@ -61,7 +61,7 @@ export class FlexiCollection<
     return this.#features.has(id)
   }
 
-  all(): readonly FlexiFeature<P>[] {
+  all(): readonly BlaeuFeature<P>[] {
     return [...this.#features.values()].map((f) => this.#harden(f))
   }
 
@@ -73,8 +73,8 @@ export class FlexiCollection<
    * the handful that come back; callers that need candidates (snapping) do not
    * care.
    */
-  query(bbox: Bbox): readonly FlexiFeature<P>[] {
-    const out: FlexiFeature<P>[] = []
+  query(bbox: Bbox): readonly BlaeuFeature<P>[] {
+    const out: BlaeuFeature<P>[] = []
     for (const id of this.#spatial.search(bbox)) {
       const feature = this.#features.get(id)
       if (feature !== undefined) out.push(this.#harden(feature))
@@ -92,14 +92,14 @@ export class FlexiCollection<
    * nearest. That keeps the pointer path logarithmic in a 50 000-parcel
    * collection.
    */
-  nearest(point: LngLat, maxDistanceMetres?: number): FlexiFeature<P> | undefined {
+  nearest(point: LngLat, maxDistanceMetres?: number): BlaeuFeature<P> | undefined {
     if (this.#features.size === 0) return undefined
 
     const limit = maxDistanceMetres ?? Infinity
     let radius = Math.min(limit, NEAREST_SEED_RADIUS_METRES)
 
     for (;;) {
-      let best: FlexiFeature<P> | undefined
+      let best: BlaeuFeature<P> | undefined
       let bestDistance = Infinity
 
       for (const id of this.#spatial.search(bboxAround(this.#crs, point, radius))) {
@@ -142,12 +142,12 @@ export class FlexiCollection<
     return { type: 'FeatureCollection', features }
   }
 
-  [Symbol.iterator](): Iterator<FlexiFeature<P>> {
+  [Symbol.iterator](): Iterator<BlaeuFeature<P>> {
     return this.all()[Symbol.iterator]()
   }
 
   /** @internal Insert or replace. The store owns the meta; the collection owns the indexes. */
-  _put(feature: FlexiFeature<P>): void {
+  _put(feature: BlaeuFeature<P>): void {
     const existing = this.#features.has(feature.id)
     this.#features.set(feature.id, feature)
     if (existing) this.#spatial.update(feature)
@@ -161,7 +161,7 @@ export class FlexiCollection<
   }
 
   /** @internal Bulk replace — used by `restore()`. Bulk-loads the R-tree, which is ~10× faster. */
-  _reset(features: readonly FlexiFeature<P>[]): void {
+  _reset(features: readonly BlaeuFeature<P>[]): void {
     this.#features.clear()
     for (const feature of features) this.#features.set(feature.id, feature)
     this.#spatial.load(features)
@@ -174,7 +174,7 @@ export class FlexiCollection<
    * loudly, at the line that did it — instead of silently desyncing the renderer
    * and breaking undo three actions later, which is a genuinely horrible afternoon.
    */
-  #harden(feature: FlexiFeature<P>): FlexiFeature<P> {
+  #harden(feature: BlaeuFeature<P>): BlaeuFeature<P> {
     if (!this.#strict) return feature
     return freezeFeature(feature)
   }
@@ -187,13 +187,13 @@ export class FlexiCollection<
  * and called only by commands. That is the whole of invariant 2, and everything
  * good downstream — undo, validation, a repainting renderer — follows from it.
  */
-export class FlexiFeatureStore implements FeatureStore {
-  readonly topology: FlexiTopologyIndex
+export class BlaeuFeatureStore implements FeatureStore {
+  readonly topology: BlaeuTopologyIndex
 
   readonly #crs: CrsService
   readonly #events: EventBus
   readonly #strict: boolean
-  readonly #collections = new Map<CollectionId, FlexiCollection>()
+  readonly #collections = new Map<CollectionId, BlaeuCollection>()
   /** feature → collection. Lets `find()` and `_remove()` work without a collection id. */
   readonly #owner = new Map<FeatureId, CollectionId>()
   #changeHandlers: ((change: StoreChange) => void)[] = []
@@ -202,7 +202,7 @@ export class FlexiFeatureStore implements FeatureStore {
     this.#crs = crs
     this.#events = events
     this.#strict = opts.strict
-    this.topology = new FlexiTopologyIndex(crs, () => this.#everyFeature())
+    this.topology = new BlaeuTopologyIndex(crs, () => this.#everyFeature())
   }
 
   /**
@@ -253,7 +253,7 @@ export class FlexiFeatureStore implements FeatureStore {
     }
   }
 
-  find(id: FeatureId): FlexiFeature | undefined {
+  find(id: FeatureId): BlaeuFeature | undefined {
     const owner = this.#owner.get(id)
     if (owner === undefined) return undefined
     return this.#collections.get(owner)?.get(id)
@@ -279,7 +279,7 @@ export class FlexiFeatureStore implements FeatureStore {
    * version features.
    */
   snapshot(): StoreSnapshot {
-    const collections: Record<CollectionId, readonly FlexiFeature[]> = {}
+    const collections: Record<CollectionId, readonly BlaeuFeature[]> = {}
     for (const id of [...this.#collections.keys()].sort()) {
       const collection = this.#collections.get(id)!
       if (collection.size === 0) continue
@@ -300,7 +300,7 @@ export class FlexiFeatureStore implements FeatureStore {
    * parcel that the transaction just abandoned.
    */
   restore(snapshot: StoreSnapshot): void {
-    const before = new Map<FeatureId, { feature: FlexiFeature; collection: CollectionId }>()
+    const before = new Map<FeatureId, { feature: BlaeuFeature; collection: CollectionId }>()
     for (const [id, collection] of this.#collections) {
       for (const feature of collection.all()) before.set(feature.id, { feature, collection: id })
     }
@@ -309,17 +309,17 @@ export class FlexiFeatureStore implements FeatureStore {
     this.#owner.clear()
 
     const changes: StoreChange[] = []
-    const added: FlexiFeature[] = []
-    const updated: FlexiFeature[] = []
-    const updatedPrevious: FlexiFeature[] = []
+    const added: BlaeuFeature[] = []
+    const updated: BlaeuFeature[] = []
+    const updatedPrevious: BlaeuFeature[] = []
 
     for (const [id, features] of Object.entries(snapshot.collections)) {
       const collection = this.#ensure(id)
       collection._reset(features)
 
-      const collectionAdded: FlexiFeature[] = []
-      const collectionUpdated: FlexiFeature[] = []
-      const collectionPrevious: FlexiFeature[] = []
+      const collectionAdded: BlaeuFeature[] = []
+      const collectionUpdated: BlaeuFeature[] = []
+      const collectionPrevious: BlaeuFeature[] = []
 
       for (const feature of features) {
         this.#owner.set(feature.id, id)
@@ -354,13 +354,13 @@ export class FlexiFeatureStore implements FeatureStore {
     }
 
     // Whatever the snapshot didn't mention is gone.
-    const removedByCollection = new Map<CollectionId, FlexiFeature[]>()
+    const removedByCollection = new Map<CollectionId, BlaeuFeature[]>()
     for (const { feature, collection } of before.values()) {
       const list = removedByCollection.get(collection) ?? []
       list.push(feature)
       removedByCollection.set(collection, list)
     }
-    const removed: FlexiFeature[] = []
+    const removed: BlaeuFeature[] = []
     for (const [collection, features] of removedByCollection) {
       changes.push({ kind: 'remove', collection, features, previous: features })
       removed.push(...features)
@@ -403,9 +403,9 @@ export class FlexiFeatureStore implements FeatureStore {
    * than "the same parcel, but its version is one higher and it was updated at a
    * different time".
    */
-  _add(collection: CollectionId, features: readonly FeatureInput[]): readonly FlexiFeature[] {
+  _add(collection: CollectionId, features: readonly FeatureInput[]): readonly BlaeuFeature[] {
     const target = this.#ensure(collection)
-    const added: FlexiFeature[] = []
+    const added: BlaeuFeature[] = []
 
     for (const feature of this.materialise(collection, features)) {
       target._put(feature)
@@ -438,7 +438,7 @@ export class FlexiFeatureStore implements FeatureStore {
   materialise(
     collection: CollectionId,
     features: readonly FeatureInput[],
-  ): readonly FlexiFeature[] {
+  ): readonly BlaeuFeature[] {
     const now = Date.now()
     // Ids claimed earlier *in this same batch*. The pre-materialise `_add` caught
     // duplicates for free, because it registered each feature before looking at the
@@ -452,13 +452,13 @@ export class FlexiFeatureStore implements FeatureStore {
       const owner = this.#owner.get(id)
       if (owner !== undefined) {
         throw new Error(
-          `[fleximap] cannot add feature "${id}" to "${collection}": that id is already in "${owner}". ` +
+          `[blaeu] cannot add feature "${id}" to "${collection}": that id is already in "${owner}". ` +
             `Use an UpdateFeaturesCommand to change it, or omit the id and let the store mint one.`,
         )
       }
       if (claimed.has(id)) {
         throw new Error(
-          `[fleximap] cannot add feature "${id}" to "${collection}": the same id appears twice in one write.`,
+          `[blaeu] cannot add feature "${id}" to "${collection}": the same id appears twice in one write.`,
         )
       }
       claimed.add(id)
@@ -500,17 +500,17 @@ export class FlexiFeatureStore implements FeatureStore {
    * it found it, and `expect(store.snapshot()).toEqual(before)` — the one test that
    * catches real command bugs — could never pass for any command at all.
    */
-  _update(features: readonly FlexiFeature[]): readonly FlexiFeature[] {
+  _update(features: readonly BlaeuFeature[]): readonly BlaeuFeature[] {
     const now = Date.now()
-    const written: FlexiFeature[] = []
-    const previous: FlexiFeature[] = []
-    const grouped = new Map<CollectionId, { features: FlexiFeature[]; previous: FlexiFeature[] }>()
+    const written: BlaeuFeature[] = []
+    const previous: BlaeuFeature[] = []
+    const grouped = new Map<CollectionId, { features: BlaeuFeature[]; previous: BlaeuFeature[] }>()
 
     for (const incoming of features) {
       const owner = this.#owner.get(incoming.id)
       if (owner === undefined) {
         throw new Error(
-          `[fleximap] cannot update feature "${incoming.id}": it is not in the store. ` +
+          `[blaeu] cannot update feature "${incoming.id}": it is not in the store. ` +
             `Add it with an AddFeaturesCommand first, or check that the id survived a round-trip through your API.`,
         )
       }
@@ -528,7 +528,7 @@ export class FlexiFeatureStore implements FeatureStore {
             updatedAt: now,
           }
 
-      const next: FlexiFeature = this.#seal({
+      const next: BlaeuFeature = this.#seal({
         id: incoming.id,
         geometry: normaliseGeometry(incoming.geometry, this.#crs, `feature "${incoming.id}"`),
         properties: incoming.properties,
@@ -568,9 +568,9 @@ export class FlexiFeatureStore implements FeatureStore {
    * authority on what actually went — which is precisely what
    * `RemoveFeaturesCommand.undo()` puts back.
    */
-  _remove(ids: readonly FeatureId[]): readonly FlexiFeature[] {
-    const removed: FlexiFeature[] = []
-    const grouped = new Map<CollectionId, FlexiFeature[]>()
+  _remove(ids: readonly FeatureId[]): readonly BlaeuFeature[] {
+    const removed: BlaeuFeature[] = []
+    const grouped = new Map<CollectionId, BlaeuFeature[]>()
 
     for (const id of ids) {
       const owner = this.#owner.get(id)
@@ -605,20 +605,20 @@ export class FlexiFeatureStore implements FeatureStore {
    * the store and none of which may mutate it. Freezing once at the boundary makes
    * every one of those paths safe, and makes the read-path freeze a no-op.
    */
-  #seal(feature: FlexiFeature): FlexiFeature {
+  #seal(feature: BlaeuFeature): BlaeuFeature {
     return this.#strict ? freezeFeature(feature) : feature
   }
 
-  #ensure(id: CollectionId): FlexiCollection {
+  #ensure(id: CollectionId): BlaeuCollection {
     let collection = this.#collections.get(id)
     if (collection === undefined) {
-      collection = new FlexiCollection(id, this.#crs, this.#strict)
+      collection = new BlaeuCollection(id, this.#crs, this.#strict)
       this.#collections.set(id, collection)
     }
     return collection
   }
 
-  *#everyFeature(): Iterable<FlexiFeature> {
+  *#everyFeature(): Iterable<BlaeuFeature> {
     for (const collection of this.#collections.values()) yield* collection.all()
   }
 
@@ -644,7 +644,7 @@ export class FlexiFeatureStore implements FeatureStore {
   }
 }
 
-function byId(a: FlexiFeature, b: FlexiFeature): number {
+function byId(a: BlaeuFeature, b: BlaeuFeature): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
 }
 
@@ -658,7 +658,7 @@ function byId(a: FlexiFeature, b: FlexiFeature): number {
  * same revision — which is also what a collaboration plugin wants when it asks
  * "did anything actually change?".
  */
-function revisionOf(collections: Record<CollectionId, readonly FlexiFeature[]>): number {
+function revisionOf(collections: Record<CollectionId, readonly BlaeuFeature[]>): number {
   let hash = 0x811c9dc5
   for (const [id, features] of Object.entries(collections)) {
     hash = fnv1a(id, hash)
@@ -678,7 +678,7 @@ function fnv1a(text: string, seed: number): number {
   return hash >>> 0
 }
 
-function freezeFeature<P extends FeatureProperties>(feature: FlexiFeature<P>): FlexiFeature<P> {
+function freezeFeature<P extends FeatureProperties>(feature: BlaeuFeature<P>): BlaeuFeature<P> {
   if (Object.isFrozen(feature)) return feature
   freezeDeep(feature.geometry)
   freezeDeep(feature.properties)

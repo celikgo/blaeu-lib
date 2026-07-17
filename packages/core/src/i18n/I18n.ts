@@ -23,7 +23,7 @@ const PLACEHOLDER = /\{(\w+)\}/g
  *   remember what it overwrote and put it back, and it gets that wrong the first
  *   time three bundles overlap on one key.
  */
-export class FlexiI18n implements I18n {
+export class BlaeuI18n implements I18n {
   #locale: Locale
   /** locale → registration stack, oldest first. The top of the stack wins. */
   readonly #stacks = new Map<Locale, Messages[]>()
@@ -58,7 +58,7 @@ export class FlexiI18n implements I18n {
       } catch (err) {
         // A plugin failing to relabel its toolbar must not leave the rest of the UI
         // stuck in the old language.
-        console.error('[fleximap] locale change handler threw:', err)
+        console.error('[blaeu] locale change handler threw:', err)
       }
     }
   }
@@ -158,7 +158,7 @@ export class FlexiI18n implements I18n {
       // because of a punctuation mark in someone's config is not a defensible
       // failure mode; fall back and keep rendering.
       console.warn(
-        `[fleximap] locale "${this.#locale}" is not a valid BCP-47 tag ` +
+        `[blaeu] locale "${this.#locale}" is not a valid BCP-47 tag ` +
           `(did you mean "${this.#locale.replace(/_/g, '-')}"?). Formatting numbers as "${FALLBACK}".`,
       )
       formatter = new Intl.NumberFormat(FALLBACK, options)

@@ -26,7 +26,7 @@ import RelateOp from 'jsts/org/locationtech/jts/operation/relate/RelateOp.js'
 import Polygonizer from 'jsts/org/locationtech/jts/operation/polygonize/Polygonizer.js'
 import InteriorPointArea from 'jsts/org/locationtech/jts/algorithm/InteriorPointArea.js'
 
-import type { Geometry, LineString, ProjectedCrs } from '@fleximap/core'
+import type { Geometry, LineString, ProjectedCrs } from '@blaeu/core'
 import { mapPositions } from './geometry.js'
 
 const reader = new GeoJSONReader()
@@ -68,13 +68,13 @@ export function splitPolygon(
 ): Geometry[] {
   if (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon') {
     throw new Error(
-      `[fleximap/edit] split expects a Polygon or MultiPolygon, got a ${geometry.type}. ` +
+      `[blaeu/edit] split expects a Polygon or MultiPolygon, got a ${geometry.type}. ` +
         `Cutting a line into pieces is a different operation — remove it and draw the pieces.`,
     )
   }
   if (line.coordinates.length < 2) {
     throw new Error(
-      `[fleximap/edit] the split line needs at least two points. Click at least twice before finishing the cut.`,
+      `[blaeu/edit] the split line needs at least two points. Click at least twice before finishing the cut.`,
     )
   }
 
@@ -93,7 +93,7 @@ export function splitPolygon(
 
   if (inside.length < 2) {
     throw new Error(
-      `[fleximap/edit] the split line does not cut this feature in two: it produced ${inside.length} ` +
+      `[blaeu/edit] the split line does not cut this feature in two: it produced ${inside.length} ` +
         `part(s). The line must cross the boundary at least twice — start it outside the parcel and ` +
         `end it outside. Nothing has been changed.`,
     )
@@ -114,12 +114,12 @@ export function splitPolygon(
  */
 export function mergePolygons(geometries: readonly Geometry[], plane: ProjectedCrs): Geometry {
   if (geometries.length < 2) {
-    throw new Error(`[fleximap/edit] merge needs at least two features, got ${geometries.length}.`)
+    throw new Error(`[blaeu/edit] merge needs at least two features, got ${geometries.length}.`)
   }
   for (const geometry of geometries) {
     if (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon') {
       throw new Error(
-        `[fleximap/edit] merge expects polygons, got a ${geometry.type}. Merging a line into a parcel is not defined.`,
+        `[blaeu/edit] merge expects polygons, got a ${geometry.type}. Merging a line into a parcel is not defined.`,
       )
     }
   }
@@ -135,7 +135,7 @@ export function mergePolygons(geometries: readonly Geometry[], plane: ProjectedC
     // still hands back a MultiPolygon, the inputs touch in a way that leaves a hole
     // or a pinch, and the surveyor needs to know rather than to inherit it.
     throw new Error(
-      `[fleximap/edit] merging these features produces a ${union.getGeometryType()}, not a single parcel. ` +
+      `[blaeu/edit] merging these features produces a ${union.getGeometryType()}, not a single parcel. ` +
         `They touch, but not along a shared edge — check for a sliver or a gap between them first.`,
     )
   }
@@ -179,7 +179,7 @@ function assertContiguous(parts: readonly JstsGeometry[]): void {
 
   if (seen.size !== parts.length) {
     throw new Error(
-      `[fleximap/edit] refusing to merge: ${parts.length - seen.size} of the ${parts.length} selected ` +
+      `[blaeu/edit] refusing to merge: ${parts.length - seen.size} of the ${parts.length} selected ` +
         `features do not share an edge with the rest. Merging disjoint parcels would produce one parcel ` +
         `made of two pieces of land, which is almost never what was meant. Nothing has been changed.`,
     )

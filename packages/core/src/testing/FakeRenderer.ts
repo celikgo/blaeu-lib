@@ -1,6 +1,6 @@
 // `FeatureId` lives in common.js — feature.ts imports it but does not re-export it.
 import type { Bbox, Disposable, FeatureId, LngLat, ScreenPoint } from '../types/common.js'
-import type { FlexiFeature, Geometry, Position } from '../types/feature.js'
+import type { BlaeuFeature, Geometry, Position } from '../types/feature.js'
 import type {
   Camera,
   CameraOptions,
@@ -28,7 +28,7 @@ export interface FakeLayerRecord {
 }
 
 /**
- * Resolves a feature id back to the live `FlexiFeature`.
+ * Resolves a feature id back to the live `BlaeuFeature`.
  *
  * `LayerManager` wires this (`renderer.setFeatureResolver(id => store.find(id))`)
  * because a real renderer only holds a *rendered* copy of the data — MapLibre hands
@@ -37,7 +37,7 @@ export interface FakeLayerRecord {
  * test hit-tests against the store's current geometry rather than against whatever
  * the last `setData` happened to snapshot.
  */
-export type FeatureResolver = (id: FeatureId) => FlexiFeature | undefined
+export type FeatureResolver = (id: FeatureId) => BlaeuFeature | undefined
 
 export interface FakeRendererOptions {
   readonly width?: number
@@ -83,7 +83,7 @@ export class FakeRenderer implements Renderer {
   readonly kind = 'fake'
 
   /* --- inspectable state: tests assert on these directly --- */
-  readonly sources = new Map<string, FlexiFeature[]>()
+  readonly sources = new Map<string, BlaeuFeature[]>()
   readonly layers = new Map<string, FakeLayerRecord>()
 
   /* --- call counters: "did the LayerManager coalesce 500 changes into 1 setData?" --- */
@@ -139,7 +139,7 @@ export class FakeRenderer implements Renderer {
     const [lng, lat] = lngLat
     if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
       throw new Error(
-        `[fleximap] FakeRenderer.project() got a non-finite coordinate [${lng}, ${lat}]. ` +
+        `[blaeu] FakeRenderer.project() got a non-finite coordinate [${lng}, ${lat}]. ` +
           `A NaN coordinate renders as "nothing there" rather than as an error — which is why this throws instead.`,
       )
     }
@@ -172,13 +172,13 @@ export class FakeRenderer implements Renderer {
   /* Data                                                                  */
   /* ===================================================================== */
 
-  setData(sourceId: string, features: readonly FlexiFeature[]): void {
+  setData(sourceId: string, features: readonly BlaeuFeature[]): void {
     this.setDataCalls++
     this.setDataCallsBySource.set(sourceId, (this.setDataCallsBySource.get(sourceId) ?? 0) + 1)
     this.sources.set(sourceId, [...features])
   }
 
-  addSource(sourceId: string, features: readonly FlexiFeature[] = []): Disposable {
+  addSource(sourceId: string, features: readonly BlaeuFeature[] = []): Disposable {
     this.addSourceCalls++
     this.sources.set(sourceId, [...features])
     return { dispose: () => this.removeSource(sourceId) }
@@ -275,7 +275,7 @@ export class FakeRenderer implements Renderer {
   /* Hit testing                                                           */
   /* ===================================================================== */
 
-  queryAt(point: ScreenPoint, layerIds?: readonly string[]): readonly FlexiFeature[] {
+  queryAt(point: ScreenPoint, layerIds?: readonly string[]): readonly BlaeuFeature[] {
     return this.#query(layerIds, (geometry) => this.#hitsPoint(geometry, point))
   }
 
@@ -283,7 +283,7 @@ export class FakeRenderer implements Renderer {
     a: ScreenPoint,
     b: ScreenPoint,
     layerIds?: readonly string[],
-  ): readonly FlexiFeature[] {
+  ): readonly BlaeuFeature[] {
     const box = {
       minX: Math.min(a.x, b.x),
       minY: Math.min(a.y, b.y),
@@ -303,8 +303,8 @@ export class FakeRenderer implements Renderer {
   #query(
     layerIds: readonly string[] | undefined,
     test: (geometry: Geometry) => boolean,
-  ): readonly FlexiFeature[] {
-    const out: FlexiFeature[] = []
+  ): readonly BlaeuFeature[] {
+    const out: BlaeuFeature[] = []
     const seen = new Set<FeatureId>()
 
     for (const sourceId of this.#sourcesToQuery(layerIds)) {
@@ -346,7 +346,7 @@ export class FakeRenderer implements Renderer {
    * currently is*. Reading both is what stops a test hit-testing a vertex the user
    * has already dragged away.
    */
-  #featuresOf(sourceId: string): readonly FlexiFeature[] {
+  #featuresOf(sourceId: string): readonly BlaeuFeature[] {
     const rendered = this.sources.get(sourceId) ?? []
     if (!this.#resolve) return rendered
     return rendered.map((feature) => this.#resolve?.(feature.id) ?? feature)
@@ -381,7 +381,7 @@ export class FakeRenderer implements Renderer {
     const lngLat = init.lngLat ?? (init.screen ? this.unproject(init.screen) : undefined)
     if (!lngLat) {
       throw new Error(
-        '[fleximap] FakeRenderer.emitPointer() needs either a lngLat or a screen point — it cannot invent a position.',
+        '[blaeu] FakeRenderer.emitPointer() needs either a lngLat or a screen point — it cannot invent a position.',
       )
     }
 
@@ -528,7 +528,7 @@ export class FakeRenderer implements Renderer {
     const lat = position[1]
     if (lng === undefined || lat === undefined) {
       throw new Error(
-        `[fleximap] FakeRenderer met a geometry coordinate with fewer than two numbers: ${JSON.stringify(position)}.`,
+        `[blaeu] FakeRenderer met a geometry coordinate with fewer than two numbers: ${JSON.stringify(position)}.`,
       )
     }
     return this.project([lng, lat])

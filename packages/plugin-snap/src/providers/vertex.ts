@@ -6,7 +6,7 @@ import {
   type SnapProvider,
   type SnapQueryContext,
   type LngLat,
-} from '@fleximap/core'
+} from '@blaeu/core'
 import { PRIORITY } from '../constants.js'
 import { candidateAtLngLat, createScope, hint, pointKey, type SnapDeps } from '../geometry.js'
 

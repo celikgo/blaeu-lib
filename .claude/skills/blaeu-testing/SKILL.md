@@ -1,9 +1,9 @@
 ---
-name: fleximap-testing
-description: Testing patterns for FlexiMap — the headless map harness, the fake renderer, geometry fixtures, and the three tests every plugin owes (degradation, teardown, undo round-trip). Use when writing or fixing tests anywhere in the repo, or when a test needs a map instance without a browser.
+name: blaeu-testing
+description: Testing patterns for BlaeuMap — the headless map harness, the fake renderer, geometry fixtures, and the three tests every plugin owes (degradation, teardown, undo round-trip). Use when writing or fixing tests anywhere in the repo, or when a test needs a map instance without a browser.
 ---
 
-# Testing FlexiMap
+# Testing BlaeuMap
 
 MapLibre needs a real WebGL context, which Vitest's jsdom does not have. So the
 core is tested against a **fake renderer**, and only the renderer package itself
@@ -15,7 +15,7 @@ preset, the store, the pipelines, undo/redo — tests in milliseconds with no GP
 ## The harness
 
 ```ts
-import { createTestMap } from '@fleximap/core/testing'
+import { createTestMap } from '@blaeu/core/testing'
 
 const map = await createTestMap({
   plugins: [drawPlugin(), snapPlugin({ tolerance: 10 })],

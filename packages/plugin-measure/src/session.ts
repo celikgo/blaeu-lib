@@ -3,11 +3,11 @@ import {
   RemoveFeaturesCommand,
   createId,
   type FeatureInput,
-  type FlexiFeature,
+  type BlaeuFeature,
   type LngLat,
   type PluginContext,
   type Tool,
-} from '@fleximap/core'
+} from '@blaeu/core'
 
 import { ReplaceCollectionsCommand } from './commands.js'
 import { geometryFeature, labelFeatures } from './labels.js'
@@ -292,7 +292,7 @@ export class MeasureSession {
     return qa[0] === qb[0] && qa[1] === qb[1]
   }
 
-  #fromFeature(feature: FlexiFeature): Measurement {
+  #fromFeature(feature: BlaeuFeature): Measurement {
     const stored = feature.properties['mode']
     // A stored bearing is a two-point LineString. Re-reading it without its mode would
     // quietly demote it to a distance, and the plan would lose an angle.

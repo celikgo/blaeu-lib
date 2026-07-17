@@ -8,8 +8,8 @@ import {
   parcelFixture,
   sharedEdgeParcels,
   type TestMap,
-} from '@fleximap/core/testing'
-import type { Command, FeatureId, FlexiFeature, LngLat, Polygon } from '@fleximap/core'
+} from '@blaeu/core/testing'
+import type { Command, FeatureId, BlaeuFeature, LngLat, Polygon } from '@blaeu/core'
 
 import { editPlugin } from './index.js'
 import { MoveVerticesCommand } from './commands.js'
@@ -537,7 +537,7 @@ describe('editPlugin — split', () => {
     const map = await mapWithParcel()
     const area = map.crs.area(map.store.find('p')!.geometry)
 
-    const parts: FlexiFeature[] = []
+    const parts: BlaeuFeature[] = []
     map.events.on('edit:split', (event) => parts.push(...event.payload.parts))
 
     // A cut that starts outside the parcel and ends outside it — the only kind that
@@ -601,7 +601,7 @@ describe('editPlugin — merge', () => {
       .all()
       .reduce((sum, feature) => sum + map.crs.area(feature.geometry), 0)
 
-    let merged: FlexiFeature | undefined
+    let merged: BlaeuFeature | undefined
     map.events.on('edit:merge', (event) => {
       merged = event.payload.feature
     })

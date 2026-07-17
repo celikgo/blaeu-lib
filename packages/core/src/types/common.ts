@@ -1,5 +1,5 @@
 /**
- * Primitive types shared by every layer of FlexiMap.
+ * Primitive types shared by every layer of BlaeuMap.
  *
  * These are deliberately structural (tuples and plain objects, not classes) so
  * that geometry can cross the plugin boundary — and the network — without
@@ -45,7 +45,7 @@ export type CollectionId = string
 /**
  * Anything holding a resource that must be released.
  *
- * Every `on()`, `use()`, and `register()` in FlexiMap returns one of these, and
+ * Every `on()`, `use()`, and `register()` in BlaeuMap returns one of these, and
  * plugins are required to hand them to `ctx.disposables` (core invariant 5). The
  * shape matches the TC39 explicit-resource-management proposal deliberately, so
  * `using sub = events.on(...)` will Just Work once that lands.
@@ -96,7 +96,7 @@ export class DisposableStore implements Disposable {
       } catch (err) {
         // One misbehaving disposable must not strand the rest. Report and continue —
         // a half-torn-down map leaks listeners and is worse than a logged error.
-        console.error('[fleximap] disposable threw during dispose:', err)
+        console.error('[blaeu] disposable threw during dispose:', err)
       }
     }
     this.#items = []
@@ -122,7 +122,7 @@ export type DeepReadonly<T> = T extends (...a: never[]) => unknown
 /** An arbitrary JSON-serialisable value. Feature properties are made of these. */
 export type Json = string | number | boolean | null | Json[] | { [key: string]: Json }
 
-/** A logger. Swappable via config so host apps can route FlexiMap into their own telemetry. */
+/** A logger. Swappable via config so host apps can route BlaeuMap into their own telemetry. */
 export interface Logger {
   debug(msg: string, ...args: unknown[]): void
   info(msg: string, ...args: unknown[]): void

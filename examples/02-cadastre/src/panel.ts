@@ -9,7 +9,7 @@
  *
  * - the coordinate readout (`Y=… X=…`), the scale bar, the snap indicator, the
  *   toolbar, the undo/redo buttons and the validation issue list are all mounted
- *   *inside the map* by `@fleximap/plugin-ui`, which the cadastre preset installs.
+ *   *inside the map* by `@blaeu/plugin-ui`, which the cadastre preset installs.
  *   Re-implementing them here would be a worse version of something the library
  *   already ships.
  * - the yüzölçümü. It is **derived**: computed from the geometry, in the projected
@@ -20,13 +20,13 @@
 import {
   SetPropertiesCommand,
   type FeatureId,
-  type FlexiFeature,
-  type FlexiMap,
+  type BlaeuFeature,
+  type BlaeuMap,
   type Geometry,
   type Json,
   type ValidationIssue,
-} from '@fleximap/core'
-import { PARCELS_COLLECTION, parcelSchema } from '@fleximap/preset-cadastre'
+} from '@blaeu/core'
+import { PARCELS_COLLECTION, parcelSchema } from '@blaeu/preset-cadastre'
 
 /* ========================================================================= */
 /* Tiny DOM helper. Not a framework; forty lines of `document.createElement`. */
@@ -63,7 +63,7 @@ function slot(id: string): HTMLElement {
  * out loud in; m² is the unit it is written down in. A surveyor wants both, and
  * `i18n.number` puts the separators the Turkish way round: `2.184,00`.
  */
-export function formatArea(map: FlexiMap, geometry: Geometry): string {
+export function formatArea(map: BlaeuMap, geometry: Geometry): string {
   const m2 = map.crs.area(geometry)
   const donum = map.i18n.number(m2 / 1000, {
     minimumFractionDigits: 3,
@@ -73,7 +73,7 @@ export function formatArea(map: FlexiMap, geometry: Geometry): string {
   return `${donum} dönüm · ${metres} m²`
 }
 
-function parcelName(feature: FlexiFeature): string {
+function parcelName(feature: BlaeuFeature): string {
   const ada = asText(feature.properties['ada']) || '—'
   const parsel = asText(feature.properties['parsel']) || '—'
   return `${ada}/${parsel}`
@@ -91,14 +91,14 @@ function asText(value: Json | undefined): string {
 export interface LivePanel {
   setSnap(text: string | null): void
   /** The topology index's answer for the point under the cursor. */
-  setSharedCorner(features: readonly FlexiFeature[] | null): void
+  setSharedCorner(features: readonly BlaeuFeature[] | null): void
   /** A transient "that just happened" line — a topological move, an accepted parcel. */
   flash(text: string): void
   /** A rejected (or newly invalid) write. `at` drives the "hataya git" button. */
   setIssues(issues: readonly ValidationIssue[], headline: string | null): void
 }
 
-export function createLivePanel(map: FlexiMap): LivePanel {
+export function createLivePanel(map: BlaeuMap): LivePanel {
   const host = slot('live')
   host.append(el('h2', undefined, 'Canlı durum'))
 
@@ -192,7 +192,7 @@ export interface ParcelTable {
  * parcels, one command, one Ctrl+Z. If the areas moved one at a time you would be
  * looking at a bug — and a strip of land with no owner.
  */
-export function createParcelTable(map: FlexiMap, onSelect: (id: FeatureId) => void): ParcelTable {
+export function createParcelTable(map: BlaeuMap, onSelect: (id: FeatureId) => void): ParcelTable {
   const host = slot('parcels')
   host.append(el('h2', undefined, 'Parseller (yüzölçümü geometriden türetilir)'))
 
@@ -257,7 +257,7 @@ export function createParcelTable(map: FlexiMap, onSelect: (id: FeatureId) => vo
 /* ========================================================================= */
 
 export interface AttributePanel {
-  show(feature: FlexiFeature | undefined): void
+  show(feature: BlaeuFeature | undefined): void
 }
 
 /**
@@ -271,7 +271,7 @@ export interface AttributePanel {
  * `derived: true` fields (there is one: `yuzolcumu`) are rendered as text, not as an
  * input. You cannot type an area here, because you cannot type an area at all.
  */
-export function createAttributePanel(map: FlexiMap): AttributePanel {
+export function createAttributePanel(map: BlaeuMap): AttributePanel {
   const host = slot('attributes')
   host.append(el('h2', undefined, 'Öznitelikler'))
 
@@ -280,7 +280,7 @@ export function createAttributePanel(map: FlexiMap): AttributePanel {
   form.hidden = true
   host.append(empty, form)
 
-  const show = (feature: FlexiFeature | undefined): void => {
+  const show = (feature: BlaeuFeature | undefined): void => {
     form.replaceChildren()
     form.hidden = feature === undefined
     empty.hidden = feature !== undefined

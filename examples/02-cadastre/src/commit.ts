@@ -1,7 +1,7 @@
 /**
  * The **commit gate**: how a write reaches the store in a validated product.
  *
- * FlexiMap has two pipelines, and they are different on purpose (core invariant 4):
+ * BlaeuMap has two pipelines, and they are different on purpose (core invariant 4):
  *
  * - The **interaction** pipeline is synchronous. It runs at pointer frequency and
  *   rewrites `ctx.lngLat` — that is where snapping lives, and it is why the draw tool
@@ -22,7 +22,7 @@
  *
  * ────────────────────────────────────────────────────────────────────────────────
  * ⚠ **DX friction, stated plainly** — the kernel does not itself route
- * `commands.dispatch()` through the commit pipeline. `FlexiCommandBus.dispatch` is
+ * `commands.dispatch()` through the commit pipeline. `BlaeuCommandBus.dispatch` is
  * synchronous and the pipeline is async, so nothing in `packages/core` calls
  * `commit.run()`. That means a preset's commit middleware — including its validation
  * rules and its derived area — only runs if the *application* runs it. So this file
@@ -43,10 +43,10 @@ import {
   type CommandContext,
   type CommitContext,
   type FeatureProperties,
-  type FlexiFeature,
-  type FlexiMap,
+  type BlaeuFeature,
+  type BlaeuMap,
   type Geometry,
-} from '@fleximap/core'
+} from '@blaeu/core'
 
 /* ========================================================================= */
 /* Running the pipeline                                                      */
@@ -55,8 +55,8 @@ import {
 /** Build the context the commit middleware expects. */
 function createCommitContext(
   operation: CommitContext['operation'],
-  features: readonly FlexiFeature[],
-  previous: readonly FlexiFeature[],
+  features: readonly BlaeuFeature[],
+  previous: readonly BlaeuFeature[],
 ): CommitContext {
   let rejected = false
   let reason: string | undefined
@@ -87,7 +87,7 @@ function createCommitContext(
 /**
  * Give the store the shape it will eventually hold, *before* the pipeline sees it.
  *
- * The pipeline works on `FlexiFeature`s (it has to: a validation rule reports on
+ * The pipeline works on `BlaeuFeature`s (it has to: a validation rule reports on
  * `feature.id`, and a rule that cannot name the parcel it rejected is useless in an
  * issue list). So the id and the meta are minted here rather than by the store. The
  * store honours both — `_add` takes a supplied id and meta verbatim — so the feature
@@ -98,7 +98,7 @@ export function draft(
   geometry: Geometry,
   properties: FeatureProperties,
   id: string = createId(),
-): FlexiFeature {
+): BlaeuFeature {
   const now = Date.now()
   return {
     id,
@@ -112,7 +112,7 @@ export interface CommitResult {
   readonly ok: boolean
   /** Already localised — the validation registry hands back the rule's own Turkish message. */
   readonly reason: string | undefined
-  readonly features: readonly FlexiFeature[]
+  readonly features: readonly BlaeuFeature[]
 }
 
 /**
@@ -124,9 +124,9 @@ export interface CommitResult {
  * telling it anything.
  */
 export async function commitAdd(
-  map: FlexiMap,
+  map: BlaeuMap,
   collection: CollectionId,
-  features: readonly FlexiFeature[],
+  features: readonly BlaeuFeature[],
   label: string,
 ): Promise<CommitResult> {
   const ctx = createCommitContext('add', features, [])
@@ -136,7 +136,7 @@ export async function commitAdd(
     return { ok: false, reason: ctx.rejectReason, features: [] }
   }
 
-  const written: FlexiFeature[] = []
+  const written: BlaeuFeature[] = []
   // One transaction: however many parcels this was, the surveyor did one thing, so
   // Ctrl+Z undoes one thing.
   const result = map.commands.transaction(label, () => {
@@ -176,8 +176,8 @@ export async function commitAdd(
  *          is say so loudly and let the surveyor press Ctrl+Z.
  */
 export async function reconcile(
-  map: FlexiMap,
-  features: readonly FlexiFeature[],
+  map: BlaeuMap,
+  features: readonly BlaeuFeature[],
 ): Promise<string | undefined> {
   if (features.length === 0) return undefined
 
@@ -216,17 +216,17 @@ class StampDerivedCommand implements Command<void> {
   /** Ephemeral by the letter of the contract: it would be maddening to Ctrl+Z past this. */
   readonly transient = true
 
-  readonly #next: readonly FlexiFeature[]
-  #previous: readonly FlexiFeature[] | undefined
+  readonly #next: readonly BlaeuFeature[]
+  #previous: readonly BlaeuFeature[] | undefined
 
-  constructor(features: readonly FlexiFeature[]) {
+  constructor(features: readonly BlaeuFeature[]) {
     this.#next = features
   }
 
   execute(ctx: CommandContext): void {
     this.#previous ??= this.#next
       .map((feature) => ctx.store.find(feature.id))
-      .filter((feature): feature is FlexiFeature => feature !== undefined)
+      .filter((feature): feature is BlaeuFeature => feature !== undefined)
     ctx.store._update(this.#next)
   }
 

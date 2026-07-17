@@ -1,7 +1,7 @@
 import type { Disposable } from '../types/common.js'
 import type { CrsService } from '../types/crs.js'
 import type { EventBus } from '../types/events.js'
-import type { FlexiFeature } from '../types/feature.js'
+import type { BlaeuFeature } from '../types/feature.js'
 import type { I18n } from '../types/i18n.js'
 import type { CommitMiddleware, CommitPipeline } from '../types/pipeline.js'
 import type { FeatureStore } from '../types/store.js'
@@ -31,7 +31,7 @@ const COMMIT_PRIORITY = -100
  * can block an edit made by a plugin written years later, and why a read-only
  * viewer that never registers a rule pays nothing for the machinery.
  */
-export class FlexiValidationRegistry implements ValidationRegistry {
+export class BlaeuValidationRegistry implements ValidationRegistry {
   readonly #rules = new Map<string, ValidationRule>()
   readonly #ctx: ValidationContext
 
@@ -71,7 +71,7 @@ export class FlexiValidationRegistry implements ValidationRegistry {
     return [...this.#rules.values()]
   }
 
-  async run(features: readonly FlexiFeature[]): Promise<readonly ValidationIssue[]> {
+  async run(features: readonly BlaeuFeature[]): Promise<readonly ValidationIssue[]> {
     if (this.#rules.size === 0 || features.length === 0) return []
 
     const issues: ValidationIssue[] = []
@@ -144,7 +144,7 @@ export class FlexiValidationRegistry implements ValidationRegistry {
     return commit.use(middleware, { id: 'core:validation', priority: COMMIT_PRIORITY })
   }
 
-  async #check(rule: ValidationRule, feature: FlexiFeature): Promise<readonly ValidationIssue[]> {
+  async #check(rule: ValidationRule, feature: BlaeuFeature): Promise<readonly ValidationIssue[]> {
     try {
       return await rule.check(feature, this.#ctx)
     } catch (err) {
@@ -159,7 +159,7 @@ export class FlexiValidationRegistry implements ValidationRegistry {
    * and keep going with the other rules — a crashed check that silently passes is
    * how an invalid parcel reaches a title deed.
    */
-  #threw(rule: ValidationRule, feature: FlexiFeature, err: unknown): ValidationIssue {
+  #threw(rule: ValidationRule, feature: BlaeuFeature, err: unknown): ValidationIssue {
     const error = err instanceof Error ? err.message : String(err)
     return {
       rule: rule.id,

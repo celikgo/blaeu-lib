@@ -1,6 +1,6 @@
 ---
-name: fleximap-monorepo
-description: How the FlexiMap monorepo is wired — npm workspaces, tsup builds, package boundaries, the dependency rules CI enforces, and how to add a new package. Use when adding a package, fixing a build/type-resolution error, or when an import "works in dev but fails on build".
+name: blaeu-monorepo
+description: How the BlaeuMap monorepo is wired — npm workspaces, tsup builds, package boundaries, the dependency rules CI enforces, and how to add a new package. Use when adding a package, fixing a build/type-resolution error, or when an import "works in dev but fails on build".
 ---
 
 # The monorepo
@@ -10,9 +10,9 @@ tool is one less thing to explain to a contributor).
 
 ```
 packages/
-  core/                 @fleximap/core        ← depends on NOTHING in this repo
-  plugin-*/             @fleximap/plugin-*    ← peer-depends on core only
-  preset-*/             @fleximap/preset-*    ← depends on core + plugins
+  core/                 @blaeu/core        ← depends on NOTHING in this repo
+  plugin-*/             @blaeu/plugin-*    ← peer-depends on core only
+  preset-*/             @blaeu/preset-*    ← depends on core + plugins
 examples/               ← depends on presets; never published
 ```
 
@@ -23,18 +23,18 @@ npm run lint:boundaries
 ```
 
 which fails on a core→plugin import, a plugin→plugin import, or a plugin that
-lists `@fleximap/core` as a `dependency` instead of a `peerDependency`.
+lists `@blaeu/core` as a `dependency` instead of a `peerDependency`.
 
 ## Why core must be a peerDependency of every plugin
 
-Two copies of `@fleximap/core` in a user's `node_modules` means **two event
+Two copies of `@blaeu/core` in a user's `node_modules` means **two event
 buses, two command buses, two stores**. Nothing throws. The plugin just silently
 never receives an event, and the user spends a day on it.
 
 ```jsonc
 // packages/plugin-draw/package.json
-"peerDependencies": { "@fleximap/core": "workspace:^" },
-"devDependencies":  { "@fleximap/core": "workspace:*" }   // for building/testing
+"peerDependencies": { "@blaeu/core": "workspace:^" },
+"devDependencies":  { "@blaeu/core": "workspace:*" }   // for building/testing
 ```
 
 If you see "my listener never fires" in an issue, check for a duplicate core
@@ -56,7 +56,7 @@ npm run dev            # tsup --watch across packages + example dev server
 edit `core/src` and see it in an example without rebuilding. It also means a type
 error in core surfaces in the example immediately — which you want.
 
-If you get _"Cannot find module '@fleximap/core' or its corresponding type
+If you get _"Cannot find module '@blaeu/core' or its corresponding type
 declarations"_, the cause is almost always one of three things, in this order:
 
 1. You never ran `npm install` at the **root** (workspaces link on install).
@@ -70,7 +70,7 @@ node scripts/new-package.mjs plugin-elevation
 ```
 
 It scaffolds `package.json`, `tsconfig.json`, `tsup.config.ts`, `src/index.ts`, a
-README skeleton, and — importantly — the three tests from `fleximap-testing`,
+README skeleton, and — importantly — the three tests from `blaeu-testing`,
 already wired and failing. A new package that starts with three failing tests
 gets them passing; one that starts with zero tests ships with zero tests.
 

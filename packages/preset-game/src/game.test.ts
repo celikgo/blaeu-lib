@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createTestMap, type TestMap } from '@fleximap/core/testing'
-import type { FlexiFeature, LngLat, StoreSnapshot, Tool } from '@fleximap/core'
-import { snapPlugin } from '@fleximap/plugin-snap'
+import { createTestMap, type TestMap } from '@blaeu/core/testing'
+import type { BlaeuFeature, LngLat, StoreSnapshot, Tool } from '@blaeu/core'
+import { snapPlugin } from '@blaeu/plugin-snap'
 
 import { gameMapPreset } from './preset.js'
 import { entityPlugin, PLACE_TOOL } from './plugins/entity.js'
@@ -45,7 +45,7 @@ function at(world: WorldApi, xy: WorldXY): LngLat {
 }
 
 /** Where a stored feature actually is, back in the units the designer thinks in. */
-function worldPositionOf(world: WorldApi, feature: FlexiFeature): WorldXY {
+function worldPositionOf(world: WorldApi, feature: BlaeuFeature): WorldXY {
   if (feature.geometry.type !== 'Point') throw new Error('not a point')
   const [lng, lat] = feature.geometry.coordinates
   return world.toWorld([lng!, lat!])
@@ -68,7 +68,7 @@ function expectOnGrid(xy: WorldXY, gridSize = GRID): void {
   }
 }
 
-function entitiesIn(map: TestMap, collection = 'entities'): readonly FlexiFeature[] {
+function entitiesIn(map: TestMap, collection = 'entities'): readonly BlaeuFeature[] {
   return map.store.collection(collection).all()
 }
 
@@ -393,7 +393,7 @@ describe('degradation', () => {
    * The minimum viable game map: a world plane and an entity plugin. No snap, no
    * history, no UI, no grid layer, no draw, no select.
    *
-   * A game embedding FlexiMap in its own React chrome installs exactly this and drives
+   * A game embedding BlaeuMap in its own React chrome installs exactly this and drives
    * placement through the API. If an "optional" dependency is quietly load-bearing,
    * this is where it shows.
    */
@@ -629,7 +629,7 @@ describe('procedural generation', () => {
   })
 })
 
-function pointOf(feature: FlexiFeature): LngLat {
+function pointOf(feature: BlaeuFeature): LngLat {
   if (feature.geometry.type !== 'Point') throw new Error('not a point')
   const [lng, lat] = feature.geometry.coordinates
   return [lng!, lat!]

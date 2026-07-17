@@ -1,5 +1,5 @@
 /**
- * `@fleximap/plugin-history` — undo/redo for every plugin, including the ones that
+ * `@blaeu/plugin-history` — undo/redo for every plugin, including the ones that
  * do not exist yet.
  *
  * This plugin is the proof that the command-bus design works. It knows nothing
@@ -10,7 +10,7 @@
  * either direction.
  */
 
-import type { FlexiPlugin, PluginContext } from '@fleximap/core'
+import type { BlaeuPlugin, PluginContext } from '@blaeu/core'
 import { HistoryStack, type HistoryApi } from './HistoryStack.js'
 import { bindKeyboard, type KeyboardTarget } from './keyboard.js'
 import { resolveHistoryOptions, type HistoryOptions } from './options.js'
@@ -23,12 +23,12 @@ export { DEFAULT_LIMIT, DEFAULT_COALESCE_WINDOW_MS } from './options.js'
  * The typed seam. `map.plugin('history')` now resolves to {@link HistoryApi} with
  * no cast, and `map.events.on('history:changed', …)` type-checks its payload.
  */
-declare module '@fleximap/core' {
-  interface FlexiPluginRegistry {
+declare module '@blaeu/core' {
+  interface BlaeuPluginRegistry {
     history: HistoryApi
   }
 
-  interface FlexiEventMap {
+  interface BlaeuEventMap {
     'history:changed': {
       readonly canUndo: boolean
       readonly canRedo: boolean
@@ -39,7 +39,7 @@ declare module '@fleximap/core' {
 
 export function historyPlugin(
   options: HistoryOptions = {},
-): FlexiPlugin<HistoryApi, HistoryOptions> {
+): BlaeuPlugin<HistoryApi, HistoryOptions> {
   let stack: HistoryStack | undefined
 
   return {
@@ -56,7 +56,7 @@ export function historyPlugin(
       const resolved = resolveHistoryOptions({ ...options, ...(ctx.options ?? {}) })
 
       // `ctx.commands` is the `CommandBus` *interface*, and the replay hook
-      // `_apply` is declared only on the concrete `FlexiCommandBus`. Reaching it
+      // `_apply` is declared only on the concrete `BlaeuCommandBus`. Reaching it
       // through `ctx.map` is the sanctioned escape hatch and needs no cast.
       const history = new HistoryStack(ctx.map.commands, ctx.events, resolved, ctx.log)
       stack = history
@@ -86,7 +86,7 @@ export function historyPlugin(
       return history
     },
 
-    // Dormant, not amnesiac (see the lifecycle contract on FlexiPlugin): a user who
+    // Dormant, not amnesiac (see the lifecycle contract on BlaeuPlugin): a user who
     // toggles history off and on again has not asked us to forget what they did.
     enable() {
       stack?.setRecording(true)

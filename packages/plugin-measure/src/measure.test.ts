@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { Command, CommandContext, LngLat } from '@fleximap/core'
-import { createTestMap, ANKARA, offsetMetres, parcelFixture } from '@fleximap/core/testing'
-import type { TestMap } from '@fleximap/core/testing'
+import type { Command, CommandContext, LngLat } from '@blaeu/core'
+import { createTestMap, ANKARA, offsetMetres, parcelFixture } from '@blaeu/core/testing'
+import type { TestMap } from '@blaeu/core/testing'
 
 import { measurePlugin } from './plugin.js'
 import { toDms } from './format.js'
@@ -69,7 +69,7 @@ async function drawArea(map: TestMap, corners: readonly LngLat[]): Promise<void>
 describe('planar vs spherical — the whole reason this plugin uses ctx.crs', () => {
   /**
    * If this test ever starts failing, somebody has replaced `ctx.crs.area()` with
-   * `@turf/area`, the two numbers have collapsed into one, and every area FlexiMap
+   * `@turf/area`, the two numbers have collapsed into one, and every area BlaeuMap
    * reports is now a spherical approximation. That is the bug this plugin was written
    * to prevent, so the test is named after it rather than after what it asserts.
    */

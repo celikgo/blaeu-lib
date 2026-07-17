@@ -1,4 +1,4 @@
-import type { FeatureId, LngLat, PluginContext } from '@fleximap/core'
+import type { FeatureId, LngLat, PluginContext } from '@blaeu/core'
 
 /**
  * The only thing the draw plugin ever says to the snap engine.
@@ -29,8 +29,8 @@ type UntypedLookup = (id: string) => unknown
  * Resolves the snap plugin's API structurally, or `undefined` when it is not installed.
  *
  * Two constraints meet here. A plugin may not import another plugin (boundary rule 2 —
- * `scripts/check-boundaries.mjs` fails the build for it), so `@fleximap/plugin-snap`'s
- * augmentation of `FlexiPluginRegistry` is not in scope and `'snap'` is not a key
+ * `scripts/check-boundaries.mjs` fails the build for it), so `@blaeu/plugin-snap`'s
+ * augmentation of `BlaeuPluginRegistry` is not in scope and `'snap'` is not a key
  * `ctx.tryPlugin` will accept. Hence the cast to an untyped lookup and the duck-typing
  * on the way out: we ask the *kernel* for the id, and treat whatever comes back as a
  * bag of optional methods.
@@ -40,7 +40,7 @@ type UntypedLookup = (id: string) => unknown
  * what `{ id: 'snap', optional: true }` promises.
  *
  * Resolved per gesture rather than once in `setup`: plugins are installed concurrently
- * (`Promise.all` in `FlexiMap#init`), so snap may not exist yet when draw's setup runs.
+ * (`Promise.all` in `BlaeuMap#init`), so snap may not exist yet when draw's setup runs.
  */
 export function resolveSnapHandle(ctx: PluginContext<unknown>): DrawSnapHandle | undefined {
   const api = (ctx.tryPlugin as unknown as UntypedLookup)('snap')

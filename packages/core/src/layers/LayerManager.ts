@@ -8,7 +8,7 @@ import {
   type FeatureId,
 } from '../types/common.js'
 import type { EventBus } from '../types/events.js'
-import type { FlexiFeature } from '../types/feature.js'
+import type { BlaeuFeature } from '../types/feature.js'
 import type { LayerInstance, LayerManager, LayerSpec, LayerTypeDef } from '../types/extensions.js'
 import type { LayerStyle, Renderer } from '../types/renderer.js'
 import type { FeatureStore } from '../types/store.js'
@@ -16,14 +16,14 @@ import { createVectorLayerType } from './vectorLayerType.js'
 import { createRasterLayerType } from './rasterLayerType.js'
 
 /**
- * A renderer that can turn a hit-test result back into a real {@link FlexiFeature}.
+ * A renderer that can turn a hit-test result back into a real {@link BlaeuFeature}.
  *
  * Optional on purpose. `Renderer` does not require it, because a renderer for a
  * game map may have no notion of a store-backed feature at all — so we probe for
  * the method rather than demanding it.
  */
 interface FeatureResolvingRenderer {
-  setFeatureResolver(resolve: (id: FeatureId) => FlexiFeature | undefined): void
+  setFeatureResolver(resolve: (id: FeatureId) => BlaeuFeature | undefined): void
 }
 
 function canResolveFeatures(renderer: Renderer): renderer is Renderer & FeatureResolvingRenderer {
@@ -48,7 +48,7 @@ interface LayerRecord {
  * Owns the layer stack, the renderer sources behind it, and the one wire that
  * carries store data to the screen.
  */
-export class FlexiLayerManager implements LayerManager {
+export class BlaeuLayerManager implements LayerManager {
   readonly #renderer: Renderer
   readonly #store: FeatureStore
   readonly #events: EventBus
@@ -86,7 +86,7 @@ export class FlexiLayerManager implements LayerManager {
   registerType<T>(def: LayerTypeDef<T>): Disposable {
     if (this.#types.has(def.type)) {
       throw new Error(
-        `[fleximap] layer type "${def.type}" is already registered. ` +
+        `[blaeu] layer type "${def.type}" is already registered. ` +
           `Core ships "vector" and "raster"; pick a different, namespaced type name (e.g. "acme:${def.type}") ` +
           `rather than shadowing an existing one — layers already on the map were built by the first definition.`,
       )
@@ -117,7 +117,7 @@ export class FlexiLayerManager implements LayerManager {
   add(spec: LayerSpec): LayerInstance {
     if (this.#layers.has(spec.id)) {
       throw new Error(
-        `[fleximap] layer "${spec.id}" already exists. ` +
+        `[blaeu] layer "${spec.id}" already exists. ` +
           `Remove it first, or use a distinct id — two layers under one id would leave one of them unreachable and unremovable.`,
       )
     }
@@ -125,7 +125,7 @@ export class FlexiLayerManager implements LayerManager {
     const def = this.#types.get(spec.type)
     if (!def) {
       throw new Error(
-        `[fleximap] unknown layer type "${spec.type}" for layer "${spec.id}". ` +
+        `[blaeu] unknown layer type "${spec.type}" for layer "${spec.id}". ` +
           `Registered types: [${[...this.#types.keys()].join(', ')}]. ` +
           `Layer types are registered by plugins — check the plugin providing "${spec.type}" is installed, ` +
           `or register it with map.layers.registerType({ type: "${spec.type}", create }).`,
@@ -211,17 +211,17 @@ export class FlexiLayerManager implements LayerManager {
     const record = this.#layers.get(id)
     if (!record) {
       throw new Error(
-        `[fleximap] cannot move layer "${id}": no such layer. Layers: [${this.#order.join(', ')}].`,
+        `[blaeu] cannot move layer "${id}": no such layer. Layers: [${this.#order.join(', ')}].`,
       )
     }
     if (beforeId === id) {
-      throw new Error(`[fleximap] cannot move layer "${id}" before itself.`)
+      throw new Error(`[blaeu] cannot move layer "${id}" before itself.`)
     }
 
     const def = this.#types.get(record.spec.type)
     if (!def) {
       throw new Error(
-        `[fleximap] cannot move layer "${id}": its type "${record.spec.type}" is no longer registered.`,
+        `[blaeu] cannot move layer "${id}": its type "${record.spec.type}" is no longer registered.`,
       )
     }
 
@@ -301,7 +301,7 @@ export class FlexiLayerManager implements LayerManager {
    * presentation fact: the feature is still selectable by a query, still snappable
    * if a plugin wants it to be, still undoable. It simply isn't drawn.
    */
-  #renderable(collection: CollectionId): readonly FlexiFeature[] {
+  #renderable(collection: CollectionId): readonly BlaeuFeature[] {
     if (!this.#store.collections().includes(collection)) return []
     return this.#store
       .collection(collection)
@@ -339,7 +339,7 @@ export class FlexiLayerManager implements LayerManager {
     // Hit-testing returns whatever the renderer's own tiles carry — in MapLibre,
     // a plain GeoJSON copy of `properties`, with none of our `meta` and no
     // guarantee of identity. Handing the renderer the store's lookup is what lets
-    // `ctx.hits()` return the real FlexiFeature a command can act on.
+    // `ctx.hits()` return the real BlaeuFeature a command can act on.
     if (canResolveFeatures(this.#renderer)) {
       this.#renderer.setFeatureResolver((id) => this.#store.find(id))
     }

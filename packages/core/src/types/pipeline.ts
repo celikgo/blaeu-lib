@@ -1,5 +1,5 @@
 import type { Disposable, FeatureId, LngLat, ProjectedXY, ScreenPoint } from './common.js'
-import type { FlexiFeature } from './feature.js'
+import type { BlaeuFeature } from './feature.js'
 import type { Command } from './command.js'
 import type { SnapResult } from './extensions.js'
 
@@ -71,7 +71,7 @@ export interface InteractionContext {
   readonly key?: string
 
   /** Features under the cursor, lazily hit-tested — the getter is the cheap part. */
-  hits(): readonly FlexiFeature[]
+  hits(): readonly BlaeuFeature[]
 
   /** Prevents the active tool from receiving this event at all. */
   consume(): void
@@ -117,10 +117,10 @@ export interface CommitContext {
    * order. Whatever survives to the end of the pipeline is what lands in the
    * store.
    */
-  features: FlexiFeature[]
+  features: BlaeuFeature[]
 
   /** The previous state, for `update`/`remove`. Empty for `add`. */
-  readonly previous: readonly FlexiFeature[]
+  readonly previous: readonly BlaeuFeature[]
 
   /** The command that triggered this, if any. Absent for direct loads/imports. */
   readonly command: Command | undefined

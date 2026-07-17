@@ -13,7 +13,7 @@ import {
   createId,
   distanceToGeometryMetres,
   type FeatureId,
-  type FlexiFeature,
+  type BlaeuFeature,
   type Geometry,
   type LineString,
   type LngLat,
@@ -21,7 +21,7 @@ import {
   type ProjectedCrs,
   type ProjectedXY,
   type VertexRef,
-} from '@fleximap/core'
+} from '@blaeu/core'
 
 import { MoveVerticesCommand, SetGeometriesCommand } from './commands.js'
 import { EditHandles, HANDLE_COLLECTIONS, handlesFor, type Handle } from './handles.js'
@@ -110,7 +110,7 @@ export class EditController {
     const feature = this.#require(id)
     if (feature.meta.locked === true) {
       throw new Error(
-        `[fleximap/edit] feature "${id}" is locked and cannot be edited. ` +
+        `[blaeu/edit] feature "${id}" is locked and cannot be edited. ` +
           `Unlock it first (meta.locked = false) if the user is allowed to change it.`,
       )
     }
@@ -414,7 +414,7 @@ export class EditController {
   ): void {
     if (!(factor > 0) || !Number.isFinite(factor)) {
       throw new Error(
-        `[fleximap/edit] scale factor must be a positive, finite number; got ${factor}. ` +
+        `[blaeu/edit] scale factor must be a positive, finite number; got ${factor}. ` +
           `A factor of 0 collapses the parcel to a point, and a negative one mirrors it — ` +
           `if you meant to mirror, say so explicitly.`,
       )
@@ -446,7 +446,7 @@ export class EditController {
     // a cut is refused.
     const parts = splitPolygon(feature.geometry, line, this.plane)
 
-    let created: readonly FlexiFeature[] = []
+    let created: readonly BlaeuFeature[] = []
     // One undo step, two validated writes. The halves are committed — so a preset
     // rule that forbids a parcel below the minimum legal area (`ifraz` limits) can
     // refuse the cut — and if it does, `commitTransaction` rolls back the removal
@@ -473,7 +473,7 @@ export class EditController {
 
     if (!result.ok) {
       throw new Error(
-        `[fleximap/edit] the split was rejected: ${result.rejectedReason ?? 'unknown reason'}. ` +
+        `[blaeu/edit] the split was rejected: ${result.rejectedReason ?? 'unknown reason'}. ` +
           `Nothing has been changed.`,
       )
     }
@@ -489,7 +489,7 @@ export class EditController {
     const features = ids.map((id) => this.#require(id))
     const first = features[0]
     if (first === undefined || features.length < 2) {
-      throw new Error(`[fleximap/edit] merge needs at least two features; got ${features.length}.`)
+      throw new Error(`[blaeu/edit] merge needs at least two features; got ${features.length}.`)
     }
 
     // Throws (with a message about contiguity) before anything is touched.
@@ -498,7 +498,7 @@ export class EditController {
       this.plane,
     )
 
-    let created: FlexiFeature | undefined
+    let created: BlaeuFeature | undefined
     const result = await this.#ctx.commands.commitTransaction(this.#t('edit.merge'), async () => {
       await this.#ctx.commands.commit(new RemoveFeaturesCommand(ids))
       const added = await this.#ctx.commands.commit(
@@ -522,7 +522,7 @@ export class EditController {
 
     if (!result.ok || created === undefined) {
       throw new Error(
-        `[fleximap/edit] the merge was rejected: ${result.rejectedReason ?? 'unknown reason'}. ` +
+        `[blaeu/edit] the merge was rejected: ${result.rejectedReason ?? 'unknown reason'}. ` +
           `Nothing has been changed.`,
       )
     }
@@ -562,10 +562,10 @@ export class EditController {
    * tolerance is converted from pixels to metres at the current zoom, so "close" still
    * means what it means to a user.
    */
-  featureAt(point: LngLat, screenTolerancePx: number): FlexiFeature | undefined {
+  featureAt(point: LngLat, screenTolerancePx: number): BlaeuFeature | undefined {
     const tolerance = this.#metresPerPixel(point) * screenTolerancePx
 
-    let best: FlexiFeature | undefined
+    let best: BlaeuFeature | undefined
     let bestDistance = Infinity
     for (const id of this.#ctx.store.collections()) {
       if (HANDLE_COLLECTIONS.has(id)) continue
@@ -674,11 +674,11 @@ export class EditController {
     return out
   }
 
-  #require(id: FeatureId): FlexiFeature {
+  #require(id: FeatureId): BlaeuFeature {
     const feature = this.#ctx.store.find(id)
     if (feature === undefined) {
       throw new Error(
-        `[fleximap/edit] no feature "${id}" in the store. It may have been deleted, or split into ` +
+        `[blaeu/edit] no feature "${id}" in the store. It may have been deleted, or split into ` +
           `new features with new ids — re-read the id from the store before editing.`,
       )
     }

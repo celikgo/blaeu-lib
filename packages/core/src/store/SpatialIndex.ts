@@ -1,7 +1,7 @@
 import RBush from 'rbush'
 
 import type { Bbox, FeatureId } from '../types/common.js'
-import type { FlexiFeature } from '../types/feature.js'
+import type { BlaeuFeature } from '../types/feature.js'
 import { geometryBbox } from '../utils/geometry.js'
 
 interface Entry {
@@ -34,7 +34,7 @@ export class SpatialIndex {
     return this.#entries.size
   }
 
-  insert(feature: FlexiFeature): void {
+  insert(feature: BlaeuFeature): void {
     const entry = toEntry(feature)
     this.#tree.insert(entry)
     this.#entries.set(feature.id, entry)
@@ -48,7 +48,7 @@ export class SpatialIndex {
    * restoring a snapshot goes through here rather than through `insert()` in a
    * loop.
    */
-  load(features: Iterable<FlexiFeature>): void {
+  load(features: Iterable<BlaeuFeature>): void {
     const entries = [...features].map(toEntry)
     this.#tree = new RBush<Entry>()
     this.#entries = new Map(entries.map((e) => [e.id, e]))
@@ -63,7 +63,7 @@ export class SpatialIndex {
   }
 
   /** Remove-then-insert. An in-place bbox edit would corrupt the tree's internal bounds. */
-  update(feature: FlexiFeature): void {
+  update(feature: BlaeuFeature): void {
     this.remove(feature.id)
     this.insert(feature)
   }
@@ -85,7 +85,7 @@ export class SpatialIndex {
   }
 }
 
-function toEntry(feature: FlexiFeature): Entry {
+function toEntry(feature: BlaeuFeature): Entry {
   const [west, south, east, north] = geometryBbox(feature.geometry)
   return { minX: west, minY: south, maxX: east, maxY: north, id: feature.id }
 }

@@ -1,4 +1,4 @@
-import type { Geometry, InteractionContext, Position } from '@fleximap/core'
+import type { Geometry, InteractionContext, Position } from '@blaeu/core'
 
 import type { DrawSession } from '../session.js'
 import { simplifyTrace } from '../simplify.js'

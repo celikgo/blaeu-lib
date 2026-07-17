@@ -22,7 +22,7 @@ import { describe, expect, it } from 'vitest'
 import { createTestMap } from '../testing/createTestMap.js'
 import { AddFeaturesCommand, RemoveFeaturesCommand, UpdateFeaturesCommand } from './builtins.js'
 import type { CommitMiddleware } from '../types/pipeline.js'
-import type { FlexiFeature } from '../types/feature.js'
+import type { BlaeuFeature } from '../types/feature.js'
 
 const SQUARE = {
   type: 'Polygon' as const,
@@ -64,7 +64,7 @@ describe('the commit pipeline runs on the write path', () => {
 
   it('a rejected write leaves no trace at all — no id, no event, no topology entry', async () => {
     const map = await createTestMap()
-    const added: FlexiFeature[] = []
+    const added: BlaeuFeature[] = []
     map.events.on('feature:added', (e) => added.push(...e.payload.features))
 
     map.validation.add({

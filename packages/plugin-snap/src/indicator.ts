@@ -1,11 +1,11 @@
 import type {
   Disposable,
-  FlexiFeature,
+  BlaeuFeature,
   LayerStyle,
   Renderer,
   SnapResult,
   ThemeManager,
-} from '@fleximap/core'
+} from '@blaeu/core'
 import { INDICATOR_LAYER, INDICATOR_SOURCE } from './constants.js'
 
 /**
@@ -117,7 +117,7 @@ export class SnapIndicator {
  * snap kind (a square for a grid, a triangle for an intersection) or show the hint
  * as a tooltip — without the snap plugin knowing that any UI exists.
  */
-function toFeature(result: SnapResult): FlexiFeature {
+function toFeature(result: SnapResult): BlaeuFeature {
   const { candidate } = result
   const now = Date.now()
 

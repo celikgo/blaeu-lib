@@ -15,7 +15,7 @@ import {
   type PluginContext,
   type Tool,
   type VertexRef,
-} from '@fleximap/core'
+} from '@blaeu/core'
 import type { EditController } from '../controller.js'
 import { refOf, type Handle } from '../handles.js'
 

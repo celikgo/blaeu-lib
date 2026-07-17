@@ -1,4 +1,4 @@
-import type { CollectionId, FeatureId, LineString, LngLat, Polygon } from '@fleximap/core'
+import type { CollectionId, FeatureId, LineString, LngLat, Polygon } from '@blaeu/core'
 
 /** The three things a surveyor asks a map: how far, how big, which way. */
 export type MeasureMode = 'distance' | 'area' | 'bearing'

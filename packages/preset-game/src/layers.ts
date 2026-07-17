@@ -1,4 +1,4 @@
-import type { LayerSpec } from '@fleximap/core'
+import type { LayerSpec } from '@blaeu/core'
 
 import type { ResolvedGameOptions } from './types.js'
 import { TILE_GRID_TYPE } from './plugins/tileGrid.js'

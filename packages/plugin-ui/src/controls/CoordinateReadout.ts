@@ -22,7 +22,7 @@ export function coordinateReadoutControl(): Control {
       const empty = (): string => ctx.i18n.t('ui.coordinates.empty')
 
       const element = el('div', {
-        class: 'fx-ui-control fx-ui-readout fx-ui-coordinates fx-ui-readout-empty',
+        class: 'bl-ui-control bl-ui-readout bl-ui-coordinates bl-ui-readout-empty',
         text: empty(),
         attrs: {
           'aria-label': ctx.i18n.t('ui.coordinates'),
@@ -38,10 +38,10 @@ export function coordinateReadoutControl(): Control {
         const sample = ctx.pointer.current
         if (!sample) {
           element.textContent = empty()
-          element.classList.add('fx-ui-readout-empty')
+          element.classList.add('bl-ui-readout-empty')
           return
         }
-        element.classList.remove('fx-ui-readout-empty')
+        element.classList.remove('bl-ui-readout-empty')
         element.textContent = ctx.crs.format(sample.lngLat)
       }
 

@@ -22,7 +22,7 @@ import {
   type Geometry,
   type Position,
   type ProjectedCrs,
-} from '@fleximap/core'
+} from '@blaeu/core'
 
 import { bufferZero, projectGeometry, read, toLngLat, unprojectGeometry, write } from './jsts.js'
 import { RULE_IDS } from './rules.js'

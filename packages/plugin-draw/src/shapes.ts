@@ -1,5 +1,5 @@
-import { distanceXY, toLngLat } from '@fleximap/core'
-import type { CrsService, LngLat, Polygon, Position, ProjectedXY } from '@fleximap/core'
+import { distanceXY, toLngLat } from '@blaeu/core'
+import type { CrsService, LngLat, Polygon, Position, ProjectedXY } from '@blaeu/core'
 
 /**
  * Marks a polygon that is really a circle, so an editor can recognise one.

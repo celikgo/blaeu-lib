@@ -6,8 +6,8 @@
  * local harbour grid, with a max-depth rule that must block a bad write.
  *
  * The rules I hold myself to, and the whole point of the file:
- *   1. I import ONLY from package barrels: '@fleximap/core', '@fleximap/core/testing',
- *      '@fleximap/plugin-snap', '@fleximap/plugin-history'. No relative path into core,
+ *   1. I import ONLY from package barrels: '@blaeu/core', '@blaeu/core/testing',
+ *      '@blaeu/plugin-snap', '@blaeu/plugin-history'. No relative path into core,
  *      no deep subpath import, no `as any` reaching for an internal.
  *   2. I use NOTHING from preset-game (the authors' own existence proof). This file
  *      merely lives here because this package already has snap + history on its
@@ -23,8 +23,8 @@ import {
   createId,
   type CollectionId,
   type Disposable,
-  type FlexiFeature,
-  type FlexiPlugin,
+  type BlaeuFeature,
+  type BlaeuPlugin,
   type InteractionContext,
   type LayerInstance,
   type LayerSpec,
@@ -38,10 +38,10 @@ import {
   type Tool,
   type ValidationIssue,
   type ValidationRule,
-} from '@fleximap/core'
-import { createTestMap, expectWithinMetres, type TestMap } from '@fleximap/core/testing'
-import { snapPlugin } from '@fleximap/plugin-snap'
-import { historyPlugin } from '@fleximap/plugin-history'
+} from '@blaeu/core'
+import { createTestMap, expectWithinMetres, type TestMap } from '@blaeu/core/testing'
+import { snapPlugin } from '@blaeu/plugin-snap'
+import { historyPlugin } from '@blaeu/plugin-history'
 
 /* ========================================================================= */
 /* The stranger's product                                                    */
@@ -71,7 +71,7 @@ interface HydroApi {
  * Extension point 1 of 5 — a NEW LAYER TYPE.
  *
  * Note what this does NOT have: `acquireSource`. That ref-counted helper is
- * private to FlexiLayerManager and only the built-in `vector` type receives it.
+ * private to BlaeuLayerManager and only the built-in `vector` type receives it.
  * A third-party layer type gets only `spec` and whatever it closed over. So the
  * real question this answers is: can a stranger's layer type still get live store
  * data, using nothing but the public `Renderer`? If it can't, the layer-type seam
@@ -169,7 +169,7 @@ function maxDepthRule(): ValidationRule {
     id: 'hydro:max-depth',
     severity: 'error',
     appliesTo: (f) => typeof f.properties.depth === 'number',
-    check(feature: FlexiFeature): readonly ValidationIssue[] {
+    check(feature: BlaeuFeature): readonly ValidationIssue[] {
       const depth = feature.properties.depth as number
       if (depth <= MAX_DEPTH_M) return []
       return [
@@ -193,7 +193,7 @@ function maxDepthRule(): ValidationRule {
  * architecture's central claim, tested from the outside by someone who did not
  * write it.
  */
-function hydroPlugin(): FlexiPlugin<HydroApi, unknown> {
+function hydroPlugin(): BlaeuPlugin<HydroApi, unknown> {
   return {
     id: 'hydro',
     version: '1.0.0',
@@ -276,8 +276,8 @@ function hydroPlugin(): FlexiPlugin<HydroApi, unknown> {
 }
 
 /** The typed-registry seam: after this, `map.plugin('hydro')` needs no cast. */
-declare module '@fleximap/core' {
-  interface FlexiPluginRegistry {
+declare module '@blaeu/core' {
+  interface BlaeuPluginRegistry {
     hydro: HydroApi
   }
 }
@@ -425,7 +425,7 @@ describe('a stranger builds HydroChart without touching packages/core', () => {
         geometry: { type: 'Point', coordinates: [...HARBOUR] },
         properties: { depth: 500 },
         meta: {},
-      } as unknown as FlexiFeature,
+      } as unknown as BlaeuFeature,
     ])
     expect(probe.map((i) => `${i.rule}/${i.severity}`)).toContain('hydro:max-depth/error')
 
@@ -447,19 +447,19 @@ describe('a stranger builds HydroChart without touching packages/core', () => {
   /*                                                                       */
   /* core/src/types/plugin.ts:107 prescribes exactly:                      */
   /*     ctx.tryPlugin('snap')?.addProvider(parcelCornerProvider)          */
-  /* But FlexiMap.ts:145 installs plugins CONCURRENTLY (Promise.all), and  */
+  /* But BlaeuMap.ts:145 installs plugins CONCURRENTLY (Promise.all), and  */
   /* PluginManager#missingDependencies does NOT park on an optional dep.   */
   /* So tryPlugin(optional) returns undefined or the API depending on      */
   /* install timing the plugin author cannot control — and it fails SILENT.*/
   /* ===================================================================== */
   it('REFUTES: ctx.tryPlugin(optionalDep) is decided by a race, not by declaration', async () => {
     type Saw = { sawSnap: boolean }
-    const optionalOnly: FlexiPlugin<Saw, unknown> = {
+    const optionalOnly: BlaeuPlugin<Saw, unknown> = {
       id: 'opt-only',
       dependencies: [{ id: 'snap', optional: true }],
       setup: (ctx: PluginContext) => ({ sawSnap: ctx.tryPlugin('snap') !== undefined }),
     }
-    const optionalPlusUnrelatedHardDep: FlexiPlugin<Saw, unknown> = {
+    const optionalPlusUnrelatedHardDep: BlaeuPlugin<Saw, unknown> = {
       id: 'opt-plus-hard',
       dependencies: [{ id: 'history' }, { id: 'snap', optional: true }],
       setup: (ctx: PluginContext) => ({ sawSnap: ctx.tryPlugin('snap') !== undefined }),

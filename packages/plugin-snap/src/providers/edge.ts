@@ -1,4 +1,4 @@
-import type { LngLat, SnapCandidate, SnapProvider, SnapQueryContext } from '@fleximap/core'
+import type { LngLat, SnapCandidate, SnapProvider, SnapQueryContext } from '@blaeu/core'
 import { PRIORITY } from '../constants.js'
 import {
   candidateAt,

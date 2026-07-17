@@ -1,4 +1,4 @@
-import type { FlexiPlugin, PluginSpec } from '../types/plugin.js'
+import type { BlaeuPlugin, PluginSpec } from '../types/plugin.js'
 import type { Preset } from '../types/preset.js'
 
 /* ========================================================================= */
@@ -7,12 +7,12 @@ import type { Preset } from '../types/preset.js'
 
 /** The tuple half of {@link PluginSpec}, named so it can be type-guarded. */
 type PluginTuple = readonly [
-  factory: (options?: never) => FlexiPlugin<unknown, never>,
+  factory: (options?: never) => BlaeuPlugin<unknown, never>,
   options?: unknown,
 ]
 
 /** A plugin factory, with the `never` options erased so we can actually call it. */
-type PluginFactory = (options?: unknown) => FlexiPlugin<unknown, unknown>
+type PluginFactory = (options?: unknown) => BlaeuPlugin<unknown, unknown>
 
 function isTuple(spec: PluginSpec): spec is PluginTuple {
   // `Array.isArray` narrows to `any[]`, which does not discriminate a *readonly*
@@ -25,7 +25,7 @@ function isTuple(spec: PluginSpec): spec is PluginTuple {
  * Resolve a {@link PluginSpec} into the plugin instance and the options it was
  * declared with. The one place in the codebase that invokes a plugin factory.
  *
- * `FlexiMap` calls this for every spec a preset or a user hands it, and passes
+ * `BlaeuMap` calls this for every spec a preset or a user hands it, and passes
  * `options` straight to `PluginManager.use()`. Note that the options go to *both*
  * places: into the factory (so a plugin that closes over its options keeps
  * working) and into `ctx.options` (so a plugin that reads them from the context
@@ -33,34 +33,34 @@ function isTuple(spec: PluginSpec): spec is PluginTuple {
  * plugin written in the other style.
  */
 export function normalisePluginSpec(spec: PluginSpec): {
-  plugin: FlexiPlugin<unknown, unknown>
+  plugin: BlaeuPlugin<unknown, unknown>
   options: unknown
 } {
   if (!isTuple(spec)) {
     // The object form carries no options — `ctx.options` is whatever the plugin's
     // own defaults made it.
-    return { plugin: spec as FlexiPlugin<unknown, unknown>, options: undefined }
+    return { plugin: spec as BlaeuPlugin<unknown, unknown>, options: undefined }
   }
 
   const [factory, options] = spec
   return { plugin: invokeFactory(factory as unknown as PluginFactory, options), options }
 }
 
-function invokeFactory(factory: PluginFactory, options: unknown): FlexiPlugin<unknown, unknown> {
-  let plugin: FlexiPlugin<unknown, unknown>
+function invokeFactory(factory: PluginFactory, options: unknown): BlaeuPlugin<unknown, unknown> {
+  let plugin: BlaeuPlugin<unknown, unknown>
   try {
     plugin = factory(options)
   } catch (err) {
     throw new Error(
-      `[fleximap] a plugin factory threw while being installed: ${err instanceof Error ? err.message : String(err)}. ` +
+      `[blaeu] a plugin factory threw while being installed: ${err instanceof Error ? err.message : String(err)}. ` +
         `A plugin factory must be pure — build the plugin object and return it; do not touch a map, the DOM, or a global.`,
       { cause: err },
     )
   }
   if (typeof plugin?.id !== 'string' || plugin.id.length === 0) {
     throw new Error(
-      `[fleximap] a plugin factory returned something without a string "id". ` +
-        `Every plugin needs a unique, stable, kebab-case id — it is the key in FlexiPluginRegistry.`,
+      `[blaeu] a plugin factory returned something without a string "id". ` +
+        `Every plugin needs a unique, stable, kebab-case id — it is the key in BlaeuPluginRegistry.`,
     )
   }
   return plugin
@@ -72,7 +72,7 @@ function invokeFactory(factory: PluginFactory, options: unknown): FlexiPlugin<un
  * For the object form that is simply `.id`. For the tuple form the plugin does
  * not exist yet, so we **invoke the factory once, with no arguments, purely to
  * read its id**. That is safe because preset authoring mandates that factories are
- * pure (see the `fleximap-preset-authoring` skill): calling one must construct a
+ * pure (see the `blaeu-preset-authoring` skill): calling one must construct a
  * plain object and nothing else. The throwaway instance is discarded; the tuple
  * stays un-invoked in the composed preset so that the *final*, merged options
  * still reach the factory at install time.
@@ -84,10 +84,10 @@ const factoryIds = new WeakMap<object, string>()
 
 function pluginIdOf(spec: PluginSpec): string {
   if (!isTuple(spec)) {
-    const id = (spec as FlexiPlugin<unknown, unknown>).id
+    const id = (spec as BlaeuPlugin<unknown, unknown>).id
     if (typeof id !== 'string' || id.length === 0) {
       throw new Error(
-        `[fleximap] a preset lists a plugin with no "id". ` +
+        `[blaeu] a preset lists a plugin with no "id". ` +
           `Either the object is not a plugin, or you meant the tuple form: [myPlugin, { …options }].`,
       )
     }
@@ -103,7 +103,7 @@ function pluginIdOf(spec: PluginSpec): string {
     id = invokeFactory(factory, undefined).id
   } catch (err) {
     throw new Error(
-      `[fleximap] could not read the id of a plugin factory: ${err instanceof Error ? err.message : String(err)}. ` +
+      `[blaeu] could not read the id of a plugin factory: ${err instanceof Error ? err.message : String(err)}. ` +
         `Preset composition invokes each factory once, with no arguments, to find out which plugin it is — so a factory must ` +
         `have a default for every option (e.g. \`function snapPlugin(opts: SnapOptions = {}) { … }\`).`,
       { cause: err },
@@ -181,14 +181,14 @@ const PRESET_KEYS = new Set<keyof Preset>([
 export function definePreset(preset: Preset): Preset {
   if (typeof preset.id !== 'string' || preset.id.length === 0) {
     throw new Error(
-      '[fleximap] a preset needs a non-empty string "id". Add one, e.g. { id: "cadastre" }.',
+      '[blaeu] a preset needs a non-empty string "id". Add one, e.g. { id: "cadastre" }.',
     )
   }
 
   const unknownKeys = Object.keys(preset).filter((k) => !PRESET_KEYS.has(k as keyof Preset))
   if (unknownKeys.length > 0) {
     throw new Error(
-      `[fleximap] preset "${preset.id}" has unknown field(s): ${unknownKeys.join(', ')}. ` +
+      `[blaeu] preset "${preset.id}" has unknown field(s): ${unknownKeys.join(', ')}. ` +
         `Valid fields: ${[...PRESET_KEYS].join(', ')}. (A misspelled field is silently ignored at runtime, which is why this throws.)`,
     )
   }
@@ -196,21 +196,20 @@ export function definePreset(preset: Preset): Preset {
   assertUnique(
     preset.plugins?.map(pluginIdOf),
     (id) =>
-      `[fleximap] preset "${preset.id}" lists plugin "${id}" twice. ` +
+      `[blaeu] preset "${preset.id}" lists plugin "${id}" twice. ` +
       `Installing it twice would register its listeners and layers twice, and every action would happen twice. ` +
       `Merge the two entries into one, or drop the duplicate.`,
   )
 
   assertUnique(
     preset.layers?.map((l) => l.id),
-    (id) =>
-      `[fleximap] preset "${preset.id}" declares layer "${id}" twice. Layer ids must be unique.`,
+    (id) => `[blaeu] preset "${preset.id}" declares layer "${id}" twice. Layer ids must be unique.`,
   )
 
   assertUnique(
     preset.validation?.map((r) => r.id),
     (id) =>
-      `[fleximap] preset "${preset.id}" declares validation rule "${id}" twice. ` +
+      `[blaeu] preset "${preset.id}" declares validation rule "${id}" twice. ` +
       `Rule ids are the key the registry removes by, so a duplicate makes one of the two unremovable.`,
   )
 
@@ -234,7 +233,7 @@ function assertUnique(ids: readonly string[] | undefined, message: (id: string) 
 interface PluginEntry {
   readonly id: string
   /** Present for the object form. */
-  plugin: FlexiPlugin<unknown, never> | undefined
+  plugin: BlaeuPlugin<unknown, never> | undefined
   /** Present for the tuple form. */
   factory: PluginTuple[0] | undefined
   options: unknown
@@ -275,7 +274,7 @@ export function composePresets(...presets: readonly Preset[]): Preset {
   const first = presets[0]
   if (!first) {
     throw new Error(
-      '[fleximap] composePresets() needs at least one preset. Pass the base preset first.',
+      '[blaeu] composePresets() needs at least one preset. Pass the base preset first.',
     )
   }
   if (presets.length === 1) return first
@@ -339,7 +338,7 @@ function mergePluginSpec(plugins: Map<string, PluginEntry>, spec: PluginSpec): v
     ? { id: specId, plugin: undefined, factory: spec[0], options: spec[1] }
     : {
         id: specId,
-        plugin: spec as FlexiPlugin<unknown, never>,
+        plugin: spec as BlaeuPlugin<unknown, never>,
         factory: undefined,
         options: undefined,
       }
@@ -370,7 +369,7 @@ function toSpec(entry: PluginEntry): PluginSpec {
   /* c8 ignore next 3 -- unreachable: an entry always has a factory or a plugin */
   if (!plugin) {
     throw new Error(
-      `[fleximap] internal: plugin entry "${entry.id}" has neither a factory nor an instance.`,
+      `[blaeu] internal: plugin entry "${entry.id}" has neither a factory nor an instance.`,
     )
   }
   // An already-constructed plugin object that a later preset attached options to.

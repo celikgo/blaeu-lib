@@ -27,7 +27,7 @@ import {
   isRingClosed,
   planarDistance,
   type Bbox,
-  type FlexiFeature,
+  type BlaeuFeature,
   type Geometry,
   type LngLat,
   type Position,
@@ -37,7 +37,7 @@ import {
   type ValidationContext,
   type ValidationIssue,
   type ValidationRule,
-} from '@fleximap/core'
+} from '@blaeu/core'
 
 import {
   buffer,
@@ -543,7 +543,7 @@ export function noSlivers(options: SliverRuleOptions = {}): ValidationRule {
  * Shared machinery
  * ------------------------------------------------------------------ */
 
-export function isPolygonal(feature: FlexiFeature): boolean {
+export function isPolygonal(feature: BlaeuFeature): boolean {
   return feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon'
 }
 
@@ -574,10 +574,10 @@ function prepare(geometry: Geometry, plane: ProjectedCrs): JstsGeometry | undefi
  * boxes could possibly touch.
  */
 function candidateNeighbours(
-  feature: FlexiFeature,
+  feature: BlaeuFeature,
   ctx: ValidationContext,
   radiusMetres: number,
-): readonly FlexiFeature[] {
+): readonly BlaeuFeature[] {
   const collection = ctx.store.collection(feature.meta.collection)
   const bbox = expandBbox(geometryBbox(feature.geometry), radiusMetres, ctx.crs)
   return collection.query(bbox).filter((f) => f.id !== feature.id && isPolygonal(f))

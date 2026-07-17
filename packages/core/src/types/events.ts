@@ -1,5 +1,5 @@
 import type { Disposable, LngLat } from './common.js'
-import type { FlexiFeature } from './feature.js'
+import type { BlaeuFeature } from './feature.js'
 import type { Command } from './command.js'
 import type { ValidationIssue } from './validation.js'
 
@@ -11,10 +11,10 @@ import type { ValidationIssue } from './validation.js'
  * exist:
  *
  * ```ts
- * declare module '@fleximap/core' {
- *   interface FlexiEventMap {
- *     'draw:complete': { feature: FlexiFeature }
- *     'before:draw:complete': { feature: FlexiFeature }
+ * declare module '@blaeu/core' {
+ *   interface BlaeuEventMap {
+ *     'draw:complete': { feature: BlaeuFeature }
+ *     'before:draw:complete': { feature: BlaeuFeature }
  *   }
  * }
  * ```
@@ -32,7 +32,7 @@ import type { ValidationIssue } from './validation.js'
  * {@link EventBus.emitCancellable} only accepts keys matching
  * `` `before:${string}` ``, so the two channels cannot be confused.
  */
-export interface FlexiEventMap {
+export interface BlaeuEventMap {
   /* ---- lifecycle ---- */
   'map:ready': { readonly at: number }
   'map:destroy': Record<string, never>
@@ -43,15 +43,15 @@ export interface FlexiEventMap {
   'camera:idle': { readonly center: LngLat; readonly zoom: number }
 
   /* ---- store ---- */
-  'feature:added': { readonly features: readonly FlexiFeature[] }
+  'feature:added': { readonly features: readonly BlaeuFeature[] }
   'feature:updated': {
-    readonly features: readonly FlexiFeature[]
-    readonly previous: readonly FlexiFeature[]
+    readonly features: readonly BlaeuFeature[]
+    readonly previous: readonly BlaeuFeature[]
   }
-  'feature:removed': { readonly features: readonly FlexiFeature[] }
-  'before:feature:add': { readonly features: readonly FlexiFeature[] }
-  'before:feature:update': { readonly features: readonly FlexiFeature[] }
-  'before:feature:remove': { readonly features: readonly FlexiFeature[] }
+  'feature:removed': { readonly features: readonly BlaeuFeature[] }
+  'before:feature:add': { readonly features: readonly BlaeuFeature[] }
+  'before:feature:update': { readonly features: readonly BlaeuFeature[] }
+  'before:feature:remove': { readonly features: readonly BlaeuFeature[] }
 
   /* ---- commands / history ---- */
   'command:executed': { readonly command: Command; readonly transaction: string | null }
@@ -86,13 +86,13 @@ export interface FlexiEventMap {
 }
 
 /** Every event name currently known to the type system. */
-export type FlexiEventName = keyof FlexiEventMap & string
+export type BlaeuEventName = keyof BlaeuEventMap & string
 
 /** Only the cancellable ones. The `before:` prefix *is* the capability. */
-export type CancellableEventName = FlexiEventName & `before:${string}`
+export type CancellableEventName = BlaeuEventName & `before:${string}`
 
 /** The object handed to a listener. */
-export interface FlexiEvent<T> {
+export interface BlaeuEvent<T> {
   readonly type: string
   readonly payload: T
   /** Stops later listeners on this event from running. */
@@ -108,15 +108,15 @@ export interface FlexiEvent<T> {
  * validation plugin block an illegal parcel edit without the store, the draw
  * plugin, or the command bus knowing that validation exists.
  */
-export interface CancellableFlexiEvent<T> extends FlexiEvent<T> {
+export interface CancellableBlaeuEvent<T> extends BlaeuEvent<T> {
   preventDefault(reason?: string): void
   readonly defaultPrevented: boolean
   /** Populated by whichever listener cancelled, for user-facing error messages. */
   readonly cancelReason: string | undefined
 }
 
-export type EventHandler<T> = (event: FlexiEvent<T>) => void
-export type CancellableEventHandler<T> = (event: CancellableFlexiEvent<T>) => void
+export type EventHandler<T> = (event: BlaeuEvent<T>) => void
+export type CancellableEventHandler<T> = (event: CancellableBlaeuEvent<T>) => void
 
 export interface ListenerOptions {
   /**
@@ -142,9 +142,9 @@ export interface ListenerOptions {
  * work by kicking it off from a sync handler.
  */
 export interface EventBus {
-  on<K extends FlexiEventName>(
+  on<K extends BlaeuEventName>(
     type: K,
-    handler: EventHandler<FlexiEventMap[K]>,
+    handler: EventHandler<BlaeuEventMap[K]>,
     options?: ListenerOptions,
   ): Disposable
 
@@ -155,14 +155,14 @@ export interface EventBus {
    */
   onBefore<K extends CancellableEventName>(
     type: K,
-    handler: CancellableEventHandler<FlexiEventMap[K]>,
+    handler: CancellableEventHandler<BlaeuEventMap[K]>,
     options?: ListenerOptions,
   ): Disposable
 
   /** Subscribe to a namespace: `draw:*` catches `draw:start`, `draw:complete`, … */
   onAny(pattern: string, handler: EventHandler<unknown>, options?: ListenerOptions): Disposable
 
-  emit<K extends FlexiEventName>(type: K, payload: FlexiEventMap[K]): void
+  emit<K extends BlaeuEventName>(type: K, payload: BlaeuEventMap[K]): void
 
   /**
    * Emit a cancellable hook.
@@ -170,7 +170,7 @@ export interface EventBus {
    */
   emitCancellable<K extends CancellableEventName>(
     type: K,
-    payload: FlexiEventMap[K],
+    payload: BlaeuEventMap[K],
   ): { readonly allowed: boolean; readonly reason: string | undefined }
 
   /** Live listener count. The teardown test asserts this returns to zero. */

@@ -12,7 +12,7 @@ the product. The plugins are just the parts.
 
 So there has to be a layer that carries _judgement_ — and the question is what shape it takes.
 The instinctive answer in an object-oriented codebase is a class: `class CadastreMap extends
-FlexiMap`, overriding the defaults. That answer is wrong, and it is worth being precise about
+BlaeuMap`, overriding the defaults. That answer is wrong, and it is worth being precise about
 why, because the wrongness only shows up on the second customer.
 
 A municipality wants the national cadastre configuration, but with an 8 px snap tolerance,
@@ -32,7 +32,7 @@ interface Preset {
   readonly id: string
   readonly description?: string
   readonly plugins?: readonly PluginSpec[]
-  readonly config?: FlexiMapConfig
+  readonly config?: BlaeuMapConfig
   readonly layers?: readonly LayerSpec[]
   readonly validation?: readonly ValidationRule[]
   readonly theme?: Theme | DeepPartial<Theme>
@@ -89,7 +89,7 @@ it is looking at. The preset can.
 
 ## Alternatives rejected
 
-**Subclassing (`class CadastreMap extends FlexiMap`).** Rejected on the composition argument
+**Subclassing (`class CadastreMap extends BlaeuMap`).** Rejected on the composition argument
 above: it composes exactly once. It also puts judgement behind a `super` call, which is the
 hardest kind of configuration to discover — you cannot `console.log` an override chain.
 

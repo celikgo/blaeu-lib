@@ -30,7 +30,7 @@ export function toLngLat(position: Position): LngLat {
   const lat = position[1]
   if (lng === undefined || lat === undefined || !Number.isFinite(lng) || !Number.isFinite(lat)) {
     throw new Error(
-      `[fleximap] invalid coordinate ${JSON.stringify(position)}: expected a finite [lng, lat] pair. ` +
+      `[blaeu] invalid coordinate ${JSON.stringify(position)}: expected a finite [lng, lat] pair. ` +
         `Check the source of this geometry — a NaN or missing ordinate renders as blank map, not as an error.`,
     )
   }
@@ -103,7 +103,7 @@ export function normaliseRing(
 
   if (open.length < 3) {
     throw new Error(
-      `[fleximap] ${where}: this ${exterior ? 'exterior ring' : 'hole'} collapsed to ${open.length} ` +
+      `[blaeu] ${where}: this ${exterior ? 'exterior ring' : 'hole'} collapsed to ${open.length} ` +
         `distinct corner(s) once snapped to the working CRS's precision grid, and a ring needs at least 3. ` +
         `The source geometry is either degenerate or is in a different CRS than you think.`,
     )
@@ -112,8 +112,8 @@ export function normaliseRing(
   const area2 = ringSignedArea2(open)
   if (area2 === 0) {
     throw new Error(
-      `[fleximap] ${where}: ring has zero area — its corners are collinear. ` +
-        `Fix the source geometry; FlexiMap will not guess at what shape was intended.`,
+      `[blaeu] ${where}: ring has zero area — its corners are collinear. ` +
+        `Fix the source geometry; BlaeuMap will not guess at what shape was intended.`,
     )
   }
 
@@ -186,7 +186,7 @@ function normaliseLine(line: readonly Position[], crs: Quantiser, where: string)
   const out = dedupeConsecutive(line.map((p) => quantisePosition(p, crs)))
   if (out.length < 2) {
     throw new Error(
-      `[fleximap] ${where}: line collapsed to ${out.length} distinct vertex(es) after snapping to the ` +
+      `[blaeu] ${where}: line collapsed to ${out.length} distinct vertex(es) after snapping to the ` +
         `precision grid. A LineString needs at least 2.`,
     )
   }
@@ -199,7 +199,7 @@ function normalisePolygon(
   where: string,
 ): Position[][] {
   if (rings.length === 0) {
-    throw new Error(`[fleximap] ${where}: polygon has no rings.`)
+    throw new Error(`[blaeu] ${where}: polygon has no rings.`)
   }
   return rings.map((ring, i) => normaliseRing(ring, crs, i === 0, `${where} ring ${i}`))
 }
@@ -302,7 +302,7 @@ export function geometryBbox(geometry: Geometry): Bbox {
 
   if (west === Infinity) {
     throw new Error(
-      `[fleximap] cannot compute a bbox for an empty ${geometry.type}. ` +
+      `[blaeu] cannot compute a bbox for an empty ${geometry.type}. ` +
         `A feature with no coordinates cannot be indexed, styled, or clicked — reject it upstream.`,
     )
   }

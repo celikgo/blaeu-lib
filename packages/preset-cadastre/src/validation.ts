@@ -1,4 +1,4 @@
-import type { CollectionId, Severity, ValidationRule } from '@fleximap/core'
+import type { CollectionId, Severity, ValidationRule } from '@blaeu/core'
 import {
   closedRings,
   minParcelArea,
@@ -7,7 +7,7 @@ import {
   noOverlapWithNeighbours,
   noSelfIntersection,
   noSlivers,
-} from '@fleximap/plugin-topology'
+} from '@blaeu/plugin-topology'
 
 import type { ResolvedCadastreOptions } from './options.js'
 import { parcelAttributesRule } from './schema.js'

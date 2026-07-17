@@ -1,4 +1,4 @@
-import type { SnapKind } from '@fleximap/core'
+import type { SnapKind } from '@blaeu/core'
 
 /**
  * Candidate priorities, and the one ordering decision the whole engine rests on.

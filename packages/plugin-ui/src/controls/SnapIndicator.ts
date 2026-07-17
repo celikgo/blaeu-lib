@@ -27,7 +27,7 @@ export function snapIndicatorControl(): Control {
 
     render(ctx: ControlContext): HTMLElement {
       const element = el('div', {
-        class: 'fx-ui-snap',
+        class: 'bl-ui-snap',
         attrs: { role: 'tooltip', 'aria-live': 'polite' },
       })
       element.hidden = true
@@ -43,9 +43,9 @@ export function snapIndicatorControl(): Control {
           return
         }
         // Cursor coordinates are data, not design — the one thing this package sets
-        // inline. Everything themeable is a var(--fx-*) in the stylesheet.
-        element.style.setProperty('--fx-ui-x', `${screen.x}px`)
-        element.style.setProperty('--fx-ui-y', `${screen.y}px`)
+        // inline. Everything themeable is a var(--bl-*) in the stylesheet.
+        element.style.setProperty('--bl-ui-x', `${screen.x}px`)
+        element.style.setProperty('--bl-ui-y', `${screen.y}px`)
         element.textContent = labelFor(ctx, snap)
         element.hidden = false
       }

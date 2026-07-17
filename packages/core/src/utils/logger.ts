@@ -32,7 +32,7 @@ const noop = (): void => {}
  * impossible without patching a global.
  */
 export function createConsoleLogger(options: ConsoleLoggerOptions = {}): Logger {
-  const prefix = options.prefix ?? '[fleximap]'
+  const prefix = options.prefix ?? '[blaeu]'
   const sink = options.sink ?? console
 
   return {

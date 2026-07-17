@@ -1,4 +1,4 @@
-import type { CollectionId, CrsCode } from '@fleximap/core'
+import type { CollectionId, CrsCode } from '@blaeu/core'
 import type { EntityType, GameOptions, ResolvedGameOptions, WorldBbox } from './types.js'
 
 /** One tile. Thirty-two world units is a tile in roughly every 2D engine ever shipped. */

@@ -1,4 +1,4 @@
-import type { FeatureProperties, InteractionContext, LngLat } from '@fleximap/core'
+import type { FeatureProperties, InteractionContext, LngLat } from '@blaeu/core'
 
 import type { DrawSession } from '../session.js'
 import {

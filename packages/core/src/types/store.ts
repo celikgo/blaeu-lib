@@ -1,5 +1,5 @@
 import type { Bbox, CollectionId, Disposable, FeatureId, LngLat } from './common.js'
-import type { FeatureInput, FeatureProperties, FlexiFeature, VertexRef } from './feature.js'
+import type { FeatureInput, FeatureProperties, BlaeuFeature, VertexRef } from './feature.js'
 import type { FeatureCollection as GeoJsonFeatureCollection } from 'geojson'
 
 /** A named set of features. Maps 1:1 to a renderer source, and is the unit of styling. */
@@ -7,16 +7,16 @@ export interface Collection<P extends FeatureProperties = FeatureProperties> {
   readonly id: CollectionId
   readonly size: number
 
-  get(id: FeatureId): FlexiFeature<P> | undefined
+  get(id: FeatureId): BlaeuFeature<P> | undefined
   has(id: FeatureId): boolean
-  all(): readonly FlexiFeature<P>[]
+  all(): readonly BlaeuFeature<P>[]
 
   /** Spatially indexed. O(log n), not O(n) — this is on the `pointermove` path. */
-  query(bbox: Bbox): readonly FlexiFeature<P>[]
-  nearest(point: LngLat, maxDistanceMetres?: number): FlexiFeature<P> | undefined
+  query(bbox: Bbox): readonly BlaeuFeature<P>[]
+  nearest(point: LngLat, maxDistanceMetres?: number): BlaeuFeature<P> | undefined
 
   toGeoJSON(): GeoJsonFeatureCollection
-  [Symbol.iterator](): Iterator<FlexiFeature<P>>
+  [Symbol.iterator](): Iterator<BlaeuFeature<P>>
 }
 
 /**
@@ -57,14 +57,14 @@ export interface FeatureStore {
   removeCollection(id: CollectionId): void
 
   /** Look a feature up without knowing its collection. */
-  find(id: FeatureId): FlexiFeature | undefined
+  find(id: FeatureId): BlaeuFeature | undefined
 
   readonly topology: TopologyIndex
 
   /**
    * A deep, structurally-shared snapshot of everything.
    *
-   * This is what the undo round-trip test compares (`fleximap-testing`, test 3),
+   * This is what the undo round-trip test compares (`blaeu-testing`, test 3),
    * and what a collaboration plugin would diff to produce a patch.
    */
   snapshot(): StoreSnapshot
@@ -81,25 +81,25 @@ export interface FeatureStore {
    * so that middleware judges and rewrites the real thing rather than the raw input.
    * Pure: safe to call for a write that the pipeline then rejects.
    */
-  materialise(collection: CollectionId, features: readonly FeatureInput[]): readonly FlexiFeature[]
+  materialise(collection: CollectionId, features: readonly FeatureInput[]): readonly BlaeuFeature[]
 
   /* --- Internal write path. Commands call these; application code does not. --- */
   /** @internal */
-  _add(collection: CollectionId, features: readonly FeatureInput[]): readonly FlexiFeature[]
+  _add(collection: CollectionId, features: readonly FeatureInput[]): readonly BlaeuFeature[]
   /** @internal */
-  _update(features: readonly FlexiFeature[]): readonly FlexiFeature[]
+  _update(features: readonly BlaeuFeature[]): readonly BlaeuFeature[]
   /** @internal */
-  _remove(ids: readonly FeatureId[]): readonly FlexiFeature[]
+  _remove(ids: readonly FeatureId[]): readonly BlaeuFeature[]
 }
 
 export interface StoreSnapshot {
-  readonly collections: Readonly<Record<CollectionId, readonly FlexiFeature[]>>
+  readonly collections: Readonly<Record<CollectionId, readonly BlaeuFeature[]>>
   readonly revision: number
 }
 
 export interface StoreChange {
   readonly kind: 'add' | 'update' | 'remove'
   readonly collection: CollectionId
-  readonly features: readonly FlexiFeature[]
-  readonly previous: readonly FlexiFeature[]
+  readonly features: readonly BlaeuFeature[]
+  readonly previous: readonly BlaeuFeature[]
 }

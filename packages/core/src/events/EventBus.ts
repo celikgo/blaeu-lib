@@ -1,24 +1,24 @@
 import type {
   CancellableEventHandler,
   CancellableEventName,
-  CancellableFlexiEvent,
+  CancellableBlaeuEvent,
   EventBus,
   EventHandler,
-  FlexiEvent,
-  FlexiEventMap,
-  FlexiEventName,
+  BlaeuEvent,
+  BlaeuEventMap,
+  BlaeuEventName,
   ListenerOptions,
 } from '../types/events.js'
 import type { Disposable } from '../types/common.js'
 
 interface Listener {
-  readonly handler: (event: FlexiEvent<unknown>) => void
+  readonly handler: (event: BlaeuEvent<unknown>) => void
   readonly priority: number
   readonly once: boolean
   disposed: boolean
 }
 
-class FlexiEventImpl<T> implements CancellableFlexiEvent<T> {
+class BlaeuEventImpl<T> implements CancellableBlaeuEvent<T> {
   propagationStopped = false
   defaultPrevented = false
   cancelReason: string | undefined = undefined
@@ -38,7 +38,7 @@ class FlexiEventImpl<T> implements CancellableFlexiEvent<T> {
       // Loud, because a silently-ignored preventDefault is a validation rule that
       // *thinks* it blocked an illegal edit and didn't. Better to shout.
       console.warn(
-        `[fleximap] preventDefault() on non-cancellable event "${this.type}". ` +
+        `[blaeu] preventDefault() on non-cancellable event "${this.type}". ` +
           `Only "before:*" events can be cancelled.`,
       )
       return
@@ -63,24 +63,24 @@ class FlexiEventImpl<T> implements CancellableFlexiEvent<T> {
  * per emit and buys immunity to an entire family of "sometimes a listener is
  * skipped" bugs. Worth it.
  */
-export class FlexiEventBus implements EventBus {
+export class BlaeuEventBus implements EventBus {
   #listeners = new Map<string, Listener[]>()
   #wildcards: { pattern: string; prefix: string; listener: Listener }[] = []
 
-  on<K extends FlexiEventName>(
+  on<K extends BlaeuEventName>(
     type: K,
-    handler: EventHandler<FlexiEventMap[K]>,
+    handler: EventHandler<BlaeuEventMap[K]>,
     options: ListenerOptions = {},
   ): Disposable {
-    return this.#add(type, handler as (e: FlexiEvent<unknown>) => void, options)
+    return this.#add(type, handler as (e: BlaeuEvent<unknown>) => void, options)
   }
 
   onBefore<K extends CancellableEventName>(
     type: K,
-    handler: CancellableEventHandler<FlexiEventMap[K]>,
+    handler: CancellableEventHandler<BlaeuEventMap[K]>,
     options: ListenerOptions = {},
   ): Disposable {
-    return this.#add(type, handler as (e: FlexiEvent<unknown>) => void, options)
+    return this.#add(type, handler as (e: BlaeuEvent<unknown>) => void, options)
   }
 
   onAny(
@@ -89,10 +89,10 @@ export class FlexiEventBus implements EventBus {
     options: ListenerOptions = {},
   ): Disposable {
     if (!pattern.endsWith('*')) {
-      throw new Error(`[fleximap] onAny pattern must end with "*", got "${pattern}"`)
+      throw new Error(`[blaeu] onAny pattern must end with "*", got "${pattern}"`)
     }
     const listener: Listener = {
-      handler: handler as (e: FlexiEvent<unknown>) => void,
+      handler: handler as (e: BlaeuEvent<unknown>) => void,
       priority: options.priority ?? 0,
       once: options.once ?? false,
       disposed: false,
@@ -114,7 +114,7 @@ export class FlexiEventBus implements EventBus {
 
   #add(
     type: string,
-    handler: (event: FlexiEvent<unknown>) => void,
+    handler: (event: BlaeuEvent<unknown>) => void,
     options: ListenerOptions,
   ): Disposable {
     const listener: Listener = {
@@ -150,21 +150,21 @@ export class FlexiEventBus implements EventBus {
     return disposable
   }
 
-  emit<K extends FlexiEventName>(type: K, payload: FlexiEventMap[K]): void {
-    const event = new FlexiEventImpl(type, payload, false)
+  emit<K extends BlaeuEventName>(type: K, payload: BlaeuEventMap[K]): void {
+    const event = new BlaeuEventImpl(type, payload, false)
     this.#dispatch(type, event)
   }
 
   emitCancellable<K extends CancellableEventName>(
     type: K,
-    payload: FlexiEventMap[K],
+    payload: BlaeuEventMap[K],
   ): { allowed: boolean; reason: string | undefined } {
-    const event = new FlexiEventImpl(type, payload, true)
+    const event = new BlaeuEventImpl(type, payload, true)
     this.#dispatch(type, event)
     return { allowed: !event.defaultPrevented, reason: event.cancelReason }
   }
 
-  #dispatch(type: string, event: FlexiEventImpl<unknown>): void {
+  #dispatch(type: string, event: BlaeuEventImpl<unknown>): void {
     const list = this.#listeners.get(type)
     if (list && list.length > 0) {
       // Snapshot — see the class doc. A `once` listener disposing itself mid-loop
@@ -195,14 +195,14 @@ export class FlexiEventBus implements EventBus {
     }
   }
 
-  #invoke(listener: Listener, event: FlexiEventImpl<unknown>, type: string): void {
+  #invoke(listener: Listener, event: BlaeuEventImpl<unknown>, type: string): void {
     try {
       listener.handler(event)
     } catch (err) {
       // One broken listener must not stop the others, and must not take down the
       // map. A plugin throwing in a `feature:added` handler should not prevent the
       // renderer's handler from repainting.
-      console.error(`[fleximap] listener for "${type}" threw:`, err)
+      console.error(`[blaeu] listener for "${type}" threw:`, err)
     }
   }
 

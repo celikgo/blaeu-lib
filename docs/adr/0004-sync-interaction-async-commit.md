@@ -4,7 +4,7 @@ Status: accepted
 
 ## Context
 
-FlexiMap has two places where third-party code needs to intercept and modify what the kernel
+BlaeuMap has two places where third-party code needs to intercept and modify what the kernel
 is doing:
 
 1. **Interaction** — a pointer event on its way to a tool. Snapping rewrites its position;

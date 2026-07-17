@@ -1,4 +1,4 @@
-import type { Disposable } from '@fleximap/core'
+import type { Disposable } from '@blaeu/core'
 import type { HistoryApi } from './HistoryStack.js'
 
 /**

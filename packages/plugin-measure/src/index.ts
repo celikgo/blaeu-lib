@@ -1,5 +1,5 @@
 /**
- * `@fleximap/plugin-measure` — distance, area and grid bearing.
+ * `@blaeu/plugin-measure` — distance, area and grid bearing.
  *
  * Everything it reports is **planar, in the working CRS, in metres**, via
  * `ctx.crs.area()/length()/distance()/bearing()`. Sphere maths is not survey maths:
@@ -47,12 +47,12 @@ import type { MeasureApi, MeasureMode, Measurement } from './types.js'
  * host app could reasonably want to veto. A measurement that a validation rule
  * refuses is a measurement the user is not allowed to *read*, which is not a thing.
  */
-declare module '@fleximap/core' {
-  interface FlexiPluginRegistry {
+declare module '@blaeu/core' {
+  interface BlaeuPluginRegistry {
     measure: MeasureApi
   }
 
-  interface FlexiEventMap {
+  interface BlaeuEventMap {
     'measure:start': { readonly mode: MeasureMode }
     /** Fired on every pointer move while a shape is open. `measurement.draft` is true. */
     'measure:update': { readonly mode: MeasureMode; readonly measurement: Measurement }

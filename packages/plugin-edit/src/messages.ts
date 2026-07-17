@@ -1,4 +1,4 @@
-import type { Messages } from '@fleximap/core'
+import type { Messages } from '@blaeu/core'
 
 /**
  * Undo-menu labels. A command's `label` is shown to the user ("Undo Move vertex"),

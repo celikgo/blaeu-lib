@@ -1,4 +1,4 @@
-import type { LngLat, Severity, ValidationIssue } from '@fleximap/core'
+import type { LngLat, Severity, ValidationIssue } from '@blaeu/core'
 import { button, el } from '../dom.js'
 import type { Control, ControlContext } from '../types.js'
 
@@ -25,19 +25,19 @@ export function issuePanelControl(): Control {
       let issues: readonly ValidationIssue[] = []
 
       const element = el('div', {
-        class: 'fx-ui-control fx-ui-issues',
+        class: 'bl-ui-control bl-ui-issues',
         attrs: { role: 'region', 'aria-label': ctx.i18n.t('ui.issues') },
       })
       element.hidden = true
 
       const title = el('span', { text: ctx.i18n.t('ui.issues') })
-      const dismiss = button('fx-ui-button', ctx.i18n.t('ui.issues.dismiss'))
+      const dismiss = button('bl-ui-button', ctx.i18n.t('ui.issues.dismiss'))
       dismiss.appendChild(
-        el('span', { class: 'fx-ui-button-icon', text: '×', attrs: { 'aria-hidden': 'true' } }),
+        el('span', { class: 'bl-ui-button-icon', text: '×', attrs: { 'aria-hidden': 'true' } }),
       )
 
-      const head = el('div', { class: 'fx-ui-issues-head', children: [title, dismiss] })
-      const list = el('ul', { class: 'fx-ui-issues-list', attrs: { 'aria-live': 'polite' } })
+      const head = el('div', { class: 'bl-ui-issues-head', children: [title, dismiss] })
+      const list = el('ul', { class: 'bl-ui-issues-list', attrs: { 'aria-live': 'polite' } })
       element.append(head, list)
 
       const render = (): void => {
@@ -85,7 +85,7 @@ export function issuePanelControl(): Control {
 
 function renderIssue(ctx: ControlContext, issue: ValidationIssue): HTMLElement {
   const severity: Severity = issue.severity
-  const node = button(`fx-ui-issue fx-ui-issue-${severity}`, issue.message)
+  const node = button(`bl-ui-issue bl-ui-issue-${severity}`, issue.message)
   node.appendChild(el('span', { text: issue.message }))
 
   const at = issue.at

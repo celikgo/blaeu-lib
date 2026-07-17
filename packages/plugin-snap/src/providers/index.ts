@@ -1,4 +1,4 @@
-import type { SnapKind, SnapProvider } from '@fleximap/core'
+import type { SnapKind, SnapProvider } from '@blaeu/core'
 import type { SnapDeps } from '../geometry.js'
 import { createVertexProvider } from './vertex.js'
 import { createIntersectionProvider } from './intersection.js'

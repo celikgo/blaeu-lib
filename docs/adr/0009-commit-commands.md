@@ -5,15 +5,15 @@ Supersedes the open question left by [ADR 0004](./0004-sync-interaction-async-co
 
 ## Context
 
-FlexiMap had two pipelines by design: a synchronous one for pointer events, and an
+BlaeuMap had two pipelines by design: a synchronous one for pointer events, and an
 asynchronous one for writes, where a validation rule may veto and a preset's middleware may
 rewrite what lands. [ADR 0004](./0004-sync-interaction-async-commit.md) argued for that
 split and still does.
 
 The asynchronous half was never connected.
 
-`FlexiMap` constructed an `AsyncCommitPipeline`. It registered the preset's commit middleware
-into it. `ValidationRegistry.asCommitMiddleware()` installed itself into it. `FlexiMap.debug`
+`BlaeuMap` constructed an `AsyncCommitPipeline`. It registered the preset's commit middleware
+into it. `ValidationRegistry.asCommitMiddleware()` installed itself into it. `BlaeuMap.debug`
 exposed it. And no code path in the kernel ever called `pipeline.run()`. The only production
 caller in the entire repository was `preset-game`'s `EntitySession.place()`, which built its
 own `CommitContext` by hand — a local workaround for a kernel gap, which is precisely why the
@@ -46,7 +46,7 @@ interface CommitCommand<R = void> extends Command<R> {
   /** What is about to be written — real ids, geometry already normalised. */
   intent(ctx: CommandContext): CommitIntent
   /** Take what the middleware chain produced, and write *that*. */
-  adopt(features: readonly FlexiFeature[]): void
+  adopt(features: readonly BlaeuFeature[]): void
 }
 ```
 

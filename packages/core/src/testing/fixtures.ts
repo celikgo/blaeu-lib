@@ -261,7 +261,7 @@ export function duplicateVertexRing(id = 'duplicate-vertex'): FeatureInput {
  */
 export function gridOfParcels(n: number, options: ParcelOptions = {}): readonly FeatureInput[] {
   if (!Number.isInteger(n) || n < 0) {
-    throw new Error(`[fleximap] gridOfParcels(n) needs a non-negative integer, got ${n}.`)
+    throw new Error(`[blaeu] gridOfParcels(n) needs a non-negative integer, got ${n}.`)
   }
 
   const origin = options.origin ?? ANKARA

@@ -2,12 +2,12 @@ import {
   AddFeaturesCommand,
   type CommitMiddleware,
   type Disposable,
-  type FlexiFeature,
-  type FlexiPlugin,
+  type BlaeuFeature,
+  type BlaeuPlugin,
   type LngLat,
   type PluginContext,
   type Tool,
-} from '@fleximap/core'
+} from '@blaeu/core'
 
 import { entityCollections, resolveGameOptions } from '../options.js'
 import { en, tr } from '../messages.js'
@@ -48,7 +48,7 @@ const GENERATE_PRIORITY = 0
  * that triggered them, so one Ctrl+Z removes all of it. Nothing in the pipeline's
  * design anticipated either use, and that is the whole claim of this package.
  */
-export function entityPlugin(options: GameOptions = {}): FlexiPlugin<EntityApi, GameOptions> {
+export function entityPlugin(options: GameOptions = {}): BlaeuPlugin<EntityApi, GameOptions> {
   return {
     id: 'game-entity',
     version: '1.0.0',
@@ -98,7 +98,7 @@ export function entityPlugin(options: GameOptions = {}): FlexiPlugin<EntityApi, 
       }
 
       // The toolbar is a nicety, and its absence must be survivable: a game embedding
-      // FlexiMap in its own React chrome installs no UI plugin and drives placement
+      // BlaeuMap in its own React chrome installs no UI plugin and drives placement
       // through `api.setCurrent()`.
       const ui = ctx.tryPlugin('ui')
       if (ui) {
@@ -236,7 +236,7 @@ class EntitySession {
     })
   }
 
-  async place(xy: WorldXY, typeId?: string): Promise<readonly FlexiFeature[]> {
+  async place(xy: WorldXY, typeId?: string): Promise<readonly BlaeuFeature[]> {
     if (this.#disposed) return []
 
     const entity = typeId === undefined ? this.#current : this.#find(typeId)
@@ -369,14 +369,14 @@ class EntitySession {
   }
 }
 
-declare module '@fleximap/core' {
-  interface FlexiPluginRegistry {
+declare module '@blaeu/core' {
+  interface BlaeuPluginRegistry {
     'game-entity': EntityApi
   }
 
-  interface FlexiEventMap {
+  interface BlaeuEventMap {
     /** An entity — and everything a generator spawned alongside it — reached the store. */
-    'entity:placed': { readonly type: string; readonly features: readonly FlexiFeature[] }
+    'entity:placed': { readonly type: string; readonly features: readonly BlaeuFeature[] }
     /** A validation rule or a commit middleware vetoed the placement. Nothing was written. */
     'entity:rejected': { readonly type: string; readonly reason: string }
   }

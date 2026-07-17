@@ -1,12 +1,12 @@
-# @fleximap/preset-cadastre
+# @blaeu/preset-cadastre
 
-The FlexiMap kernel, aimed at a land registry.
+The BlaeuMap kernel, aimed at a land registry.
 
 ```ts
-import { createFlexiMap } from '@fleximap/core'
-import { cadastrePreset } from '@fleximap/preset-cadastre'
+import { createBlaeuMap } from '@blaeu/core'
+import { cadastrePreset } from '@blaeu/preset-cadastre'
 
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
   preset: cadastrePreset({ crs: 'EPSG:5254', locale: 'tr' }),
 })
@@ -113,7 +113,7 @@ otherwise have to copy this package to change a number, the number is here.
 ## The parcel schema
 
 ```ts
-import { parcelSchema } from '@fleximap/preset-cadastre'
+import { parcelSchema } from '@blaeu/preset-cadastre'
 ```
 
 | field       | type                    | notes                                                                                                       |
@@ -143,10 +143,10 @@ A municipality with a denser urban fabric wants a tighter snap and a real ifraz
 minimum. It does _not_ restate the provider list, the CRS, or anything else:
 
 ```ts
-import { composePresets, definePreset } from '@fleximap/core'
-import { snapPlugin } from '@fleximap/plugin-snap'
-import { minParcelArea } from '@fleximap/plugin-topology'
-import { cadastrePreset } from '@fleximap/preset-cadastre'
+import { composePresets, definePreset } from '@blaeu/core'
+import { snapPlugin } from '@blaeu/plugin-snap'
+import { minParcelArea } from '@blaeu/plugin-topology'
+import { cadastrePreset } from '@blaeu/preset-cadastre'
 
 export const izmirPreset = composePresets(
   cadastrePreset({ crs: 'EPSG:5255' }), // the national base, Izmir's belt
@@ -178,7 +178,7 @@ Appending cannot express "throw the base's rules away". That is what
 `overridePreset` is for — a demo environment that must not enforce minimum area:
 
 ```ts
-import { overridePreset } from '@fleximap/core'
+import { overridePreset } from '@blaeu/core'
 
 const demo = overridePreset(cadastrePreset(), { validation: [] })
 ```
@@ -191,8 +191,8 @@ knob becomes an option.
 Everything the preset assembles is exported, so you can assemble a different one:
 
 ```ts
-import { cadastreValidation, inCollection, resolveCadastreOptions } from '@fleximap/preset-cadastre'
-import { noGapsWithNeighbours } from '@fleximap/plugin-topology'
+import { cadastreValidation, inCollection, resolveCadastreOptions } from '@blaeu/preset-cadastre'
+import { noGapsWithNeighbours } from '@blaeu/plugin-topology'
 
 // A jurisdiction that adjudicates gaps rather than tolerating them.
 const rules = [
@@ -212,7 +212,7 @@ would be lost in it.
 ### Style
 
 ```ts
-import { cadastrePreset, paleRasterBasemap } from '@fleximap/preset-cadastre'
+import { cadastrePreset, paleRasterBasemap } from '@blaeu/preset-cadastre'
 
 cadastrePreset({
   basemap: paleRasterBasemap(['https://ortho.example.gov.tr/{z}/{x}/{y}.png'], {

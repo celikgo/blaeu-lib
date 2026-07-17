@@ -11,7 +11,7 @@
  * on screen — not a stack trace out of a pointer handler.
  */
 
-import type { FeatureId, LineString, LngLat, PluginContext, Tool } from '@fleximap/core'
+import type { FeatureId, LineString, LngLat, PluginContext, Tool } from '@blaeu/core'
 import type { EditController } from '../controller.js'
 
 export function splitTool(ctx: PluginContext<unknown>, controller: EditController): Tool {

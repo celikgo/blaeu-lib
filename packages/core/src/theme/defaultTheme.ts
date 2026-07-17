@@ -9,7 +9,7 @@ import type { Theme } from '../types/theme.js'
  * unfinished, and to guarantee that every token a plugin reads has a value.
  */
 export const defaultTheme: Theme = {
-  id: 'fleximap-default',
+  id: 'blaeu-default',
   tokens: {
     color: {
       accent: '#2563eb',

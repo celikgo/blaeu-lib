@@ -9,7 +9,7 @@ let scopeCounter = 0
  * Design tokens, in one place, feeding two consumers.
  *
  * Every token is written into the map container as a CSS custom property
- * (`--fx-color-accent`, `--fx-size-vertex-radius`) **and** is readable by plugins
+ * (`--bl-color-accent`, `--bl-size-vertex-radius`) **and** is readable by plugins
  * through {@link token}, which is what a MapLibre paint expression needs. That is
  * the entire point of this class: the selection halo drawn on the map and the
  * highlighted row in the attribute table are the same blue because they read the
@@ -18,9 +18,9 @@ let scopeCounter = 0
  * The moment those two live in separate places, they drift — and the drift is
  * never noticed by the person who caused it.
  */
-export class FlexiThemeManager implements ThemeManager {
+export class BlaeuThemeManager implements ThemeManager {
   readonly #container: HTMLElement
-  readonly #scope = `fx-${++scopeCounter}`
+  readonly #scope = `bl-${++scopeCounter}`
   #theme: Theme = defaultTheme
   #handlers: ((theme: Theme) => void)[] = []
   #style: HTMLStyleElement | undefined
@@ -29,7 +29,7 @@ export class FlexiThemeManager implements ThemeManager {
 
   constructor(container: HTMLElement) {
     this.#container = container
-    // Apply immediately. A plugin that reads `var(--fx-color-accent)` in its own
+    // Apply immediately. A plugin that reads `var(--bl-color-accent)` in its own
     // stylesheet must not get an empty string just because nobody called set().
     this.#apply()
   }
@@ -49,7 +49,7 @@ export class FlexiThemeManager implements ThemeManager {
       } catch (err) {
         // One plugin's restyle throwing must not leave the other plugins holding
         // the old colours — a half-themed map is worse than a logged error.
-        console.error('[fleximap] theme change handler threw:', err)
+        console.error('[blaeu] theme change handler threw:', err)
       }
     }
   }
@@ -114,7 +114,7 @@ export class FlexiThemeManager implements ThemeManager {
     this.#container.setAttribute(SCOPE_ATTRIBUTE, this.#scope)
 
     const element = document.createElement('style')
-    element.setAttribute('data-fx-style', this.#scope)
+    element.setAttribute('data-bl-style', this.#scope)
     // Native CSS nesting scopes the theme's rules to this container without us
     // shipping a CSS parser. The trade-off is real and worth knowing: top-level
     // at-rules (@font-face, @import) are not legal inside a nesting block, so a
@@ -128,7 +128,7 @@ export class FlexiThemeManager implements ThemeManager {
   }
 }
 
-const SCOPE_ATTRIBUTE = 'data-fx-scope'
+const SCOPE_ATTRIBUTE = 'data-bl-scope'
 
 /**
  * The signature says `HTMLElement`, but the test harness passes a stub and a
@@ -188,7 +188,7 @@ function cssVariables(tokens: ThemeTokens): Record<string, string> {
     for (const key of Object.keys(values)) {
       const value = values[key]
       if (value === undefined) continue
-      vars[`--fx-${kebab(group)}-${kebab(key)}`] = cssValue(group, value)
+      vars[`--bl-${kebab(group)}-${kebab(key)}`] = cssValue(group, value)
     }
   }
   return vars

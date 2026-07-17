@@ -1,15 +1,15 @@
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { polygon } from '@turf/helpers'
-import { DisposableStore } from '@fleximap/core'
+import { DisposableStore } from '@blaeu/core'
 import type {
   CollectionId,
   Disposable,
   FeatureId,
-  FlexiFeature,
+  BlaeuFeature,
   InteractionContext,
   LngLat,
   PluginContext,
-} from '@fleximap/core'
+} from '@blaeu/core'
 import { centroidOf, ringBbox } from './geometry.js'
 import type { ResolvedSelectOptions } from './options.js'
 import { SelectionOverlay } from './overlay.js'
@@ -75,8 +75,8 @@ export class SelectionController implements Disposable {
     return this.#selected
   }
 
-  get features(): readonly FlexiFeature[] {
-    const out: FlexiFeature[] = []
+  get features(): readonly BlaeuFeature[] {
+    const out: BlaeuFeature[] = []
     for (const id of this.#selected) {
       const feature = this.#ctx.store.find(id)
       if (feature !== undefined) out.push(feature)
@@ -84,7 +84,7 @@ export class SelectionController implements Disposable {
     return out
   }
 
-  isSelectable(feature: FlexiFeature): boolean {
+  isSelectable(feature: BlaeuFeature): boolean {
     // Hidden is absolute: you cannot select what is not on the map, whatever the
     // options say. Locked is a policy, and the option is the policy switch.
     if (feature.meta.hidden === true) return false
@@ -103,7 +103,7 @@ export class SelectionController implements Disposable {
    * marquee out (it is not in the store) and collapses a highlight copy back onto
    * the feature it copies.
    */
-  pick(hits: readonly FlexiFeature[]): FlexiFeature | undefined {
+  pick(hits: readonly BlaeuFeature[]): BlaeuFeature | undefined {
     for (const hit of hits) {
       const feature = this.#ctx.store.find(hit.id)
       if (feature !== undefined && this.isSelectable(feature)) return feature
@@ -112,7 +112,7 @@ export class SelectionController implements Disposable {
   }
 
   /** Store-backed, selectable ids from a renderer query. Same filtering as {@link pick}. */
-  selectableIds(hits: readonly FlexiFeature[]): FeatureId[] {
+  selectableIds(hits: readonly BlaeuFeature[]): FeatureId[] {
     const out: FeatureId[] = []
     for (const hit of hits) {
       const feature = this.#ctx.store.find(hit.id)
@@ -150,7 +150,7 @@ export class SelectionController implements Disposable {
     this.#apply(next)
   }
 
-  selectByFilter(fn: (feature: FlexiFeature) => boolean): void {
+  selectByFilter(fn: (feature: BlaeuFeature) => boolean): void {
     const next = new Set<FeatureId>()
     for (const collection of this.#collections()) {
       for (const feature of this.#ctx.store.collection(collection).all()) {

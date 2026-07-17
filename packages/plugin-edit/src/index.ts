@@ -1,5 +1,5 @@
 /**
- * `@fleximap/plugin-edit` — vertex editing, transforms, split and merge.
+ * `@blaeu/plugin-edit` — vertex editing, transforms, split and merge.
  *
  * The cadastre-critical plugin. Two decisions in here are the reason it exists at
  * all, and both are about *not* losing a millimetre:
@@ -15,7 +15,7 @@
  *   land somewhere the surveyor did not put it.
  */
 
-import type { FeatureId, FlexiFeature, FlexiPlugin, LngLat, VertexRef } from '@fleximap/core'
+import type { FeatureId, BlaeuFeature, BlaeuPlugin, LngLat, VertexRef } from '@blaeu/core'
 
 import { EditController, createApi } from './controller.js'
 import { en, tr } from './messages.js'
@@ -46,14 +46,14 @@ export {
  * Registers the `edit:*` tools and returns the editing API.
  *
  * ```ts
- * const map = await createFlexiMap({
+ * const map = await createBlaeuMap({
  *   container: '#map',
  *   plugins: [snapPlugin(), editPlugin({ topological: true })],
  * })
  * map.plugin('edit').edit('parcel-42')   // typed as EditApi — no cast
  * ```
  */
-export function editPlugin(options: EditOptions = {}): FlexiPlugin<EditApi, EditOptions> {
+export function editPlugin(options: EditOptions = {}): BlaeuPlugin<EditApi, EditOptions> {
   return {
     id: 'edit',
     version: '1.0.0',
@@ -124,13 +124,13 @@ export function editPlugin(options: EditOptions = {}): FlexiPlugin<EditApi, Edit
   }
 }
 
-declare module '@fleximap/core' {
-  interface FlexiPluginRegistry {
+declare module '@blaeu/core' {
+  interface BlaeuPluginRegistry {
     edit: EditApi
   }
 
-  interface FlexiEventMap {
-    'edit:start': { readonly id: FeatureId; readonly feature: FlexiFeature }
+  interface BlaeuEventMap {
+    'edit:start': { readonly id: FeatureId; readonly feature: BlaeuFeature }
     'edit:vertex-move': {
       readonly id: FeatureId
       /** Every vertex that moved — more than one when a shared corner moved topologically. */
@@ -149,10 +149,10 @@ declare module '@fleximap/core' {
       readonly refs: readonly VertexRef[]
     }
     /** `feature` is `undefined` when the session ended because the feature went away. */
-    'edit:complete': { readonly id: FeatureId; readonly feature: FlexiFeature | undefined }
-    'edit:split': { readonly source: FeatureId; readonly parts: readonly FlexiFeature[] }
-    'edit:merge': { readonly sources: readonly FeatureId[]; readonly feature: FlexiFeature }
+    'edit:complete': { readonly id: FeatureId; readonly feature: BlaeuFeature | undefined }
+    'edit:split': { readonly source: FeatureId; readonly parts: readonly BlaeuFeature[] }
+    'edit:merge': { readonly sources: readonly FeatureId[]; readonly feature: BlaeuFeature }
     /** Cancellable: `preventDefault()` keeps the user in the edit session. */
-    'before:edit:complete': { readonly id: FeatureId; readonly feature: FlexiFeature | undefined }
+    'before:edit:complete': { readonly id: FeatureId; readonly feature: BlaeuFeature | undefined }
   }
 }

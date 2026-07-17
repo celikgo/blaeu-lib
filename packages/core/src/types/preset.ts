@@ -1,5 +1,5 @@
 import type { DeepPartial } from './common.js'
-import type { FlexiMapConfig } from './config.js'
+import type { BlaeuMapConfig } from './config.js'
 import type { PluginSpec } from './plugin.js'
 import type { LayerSpec } from './extensions.js'
 import type { ValidationRule } from './validation.js'
@@ -35,7 +35,7 @@ export interface Preset {
   /** Installed in order. Later presets may retune an earlier one's options by id. */
   readonly plugins?: readonly PluginSpec[]
 
-  readonly config?: FlexiMapConfig
+  readonly config?: BlaeuMapConfig
   readonly layers?: readonly LayerSpec[]
   readonly validation?: readonly ValidationRule[]
   readonly theme?: Theme | DeepPartial<Theme>

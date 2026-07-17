@@ -1,6 +1,6 @@
 import type { FeatureId, LngLat } from '../types/common.js'
 import type { CrsService } from '../types/crs.js'
-import type { FlexiFeature, VertexRef } from '../types/feature.js'
+import type { BlaeuFeature, VertexRef } from '../types/feature.js'
 import type { TopologyIndex } from '../types/store.js'
 import { eachVertex, toLngLat } from '../utils/geometry.js'
 
@@ -38,15 +38,15 @@ const FALLBACK_GRID_METRES = 0.001
  * that are the same corner, by definition, and any tool that claims to
  * distinguish them is lying about its accuracy.
  */
-export class FlexiTopologyIndex implements TopologyIndex {
+export class BlaeuTopologyIndex implements TopologyIndex {
   readonly #crs: CrsService
-  readonly #source: () => Iterable<FlexiFeature>
+  readonly #source: () => Iterable<BlaeuFeature>
 
   #cells = new Map<string, Entry[]>()
   /** Cell keys touched by each feature, so de-indexing one parcel doesn't walk the whole map. */
   #byFeature = new Map<FeatureId, string[]>()
 
-  constructor(crs: CrsService, source: () => Iterable<FlexiFeature>) {
+  constructor(crs: CrsService, source: () => Iterable<BlaeuFeature>) {
     this.#crs = crs
     this.#source = source
   }
@@ -116,7 +116,7 @@ export class FlexiTopologyIndex implements TopologyIndex {
   }
 
   /** @internal Called by the store on `_add`. */
-  index(feature: FlexiFeature): void {
+  index(feature: BlaeuFeature): void {
     const grid = this.#grid
     const plane = this.#crs.working
     const keys: string[] = []
@@ -160,7 +160,7 @@ export class FlexiTopologyIndex implements TopologyIndex {
    * `pointermove`, and rebuilding a 50 000-parcel index at pointer frequency is
    * the difference between editing and watching a spinner.
    */
-  reindex(feature: FlexiFeature): void {
+  reindex(feature: BlaeuFeature): void {
     this.deindex(feature.id)
     this.index(feature)
   }

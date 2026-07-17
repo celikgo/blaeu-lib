@@ -4,7 +4,7 @@ import {
   type SnapCandidate,
   type SnapProvider,
   type SnapQueryContext,
-} from '@fleximap/core'
+} from '@blaeu/core'
 import { LINE_SEARCH_PX, PRIORITY } from '../constants.js'
 import {
   candidateAt,

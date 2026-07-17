@@ -5,8 +5,8 @@
 // `document.body` should be caught by the test suite, not shipped.
 
 import { describe, expect, it, beforeEach } from 'vitest'
-import { createTestMap, type TestMap } from '@fleximap/core/testing'
-import type { FlexiPlugin, Tool, ValidationIssue } from '@fleximap/core'
+import { createTestMap, type TestMap } from '@blaeu/core/testing'
+import type { BlaeuPlugin, Tool, ValidationIssue } from '@blaeu/core'
 import { uiPlugin, toolbarControl, type UiApi } from './index.js'
 
 /* ========================================================================= */
@@ -22,7 +22,7 @@ function inertTool(): Tool {
  * A plugin the UI has never heard of, registering a tool the UI has never heard
  * of. If its button appears in the toolbar, the extension point is real.
  */
-function strangerPlugin(toolId: string): FlexiPlugin<void, unknown> {
+function strangerPlugin(toolId: string): BlaeuPlugin<void, unknown> {
   return {
     id: 'stranger',
     version: '1.0.0',
@@ -33,7 +33,7 @@ function strangerPlugin(toolId: string): FlexiPlugin<void, unknown> {
 }
 
 /** Stands in for the history plugin, exposing just enough shape for the buttons. */
-function fakeHistoryPlugin(): FlexiPlugin<
+function fakeHistoryPlugin(): BlaeuPlugin<
   { canUndo: boolean; canRedo: boolean; undo(): void },
   unknown
 > {
@@ -61,7 +61,7 @@ function ui(map: TestMap): UiApi {
 }
 
 function buttons(map: TestMap): HTMLButtonElement[] {
-  return [...ui(map).root.querySelectorAll<HTMLButtonElement>('[role="toolbar"] .fx-ui-button')]
+  return [...ui(map).root.querySelectorAll<HTMLButtonElement>('[role="toolbar"] .bl-ui-button')]
 }
 
 describe('uiPlugin', () => {
@@ -74,7 +74,7 @@ describe('uiPlugin', () => {
     const map = await createTestMap({ plugins: [uiPlugin()] })
 
     expect(ui(map).root.parentElement).toBe(container(map))
-    expect(document.head.querySelector('style[data-fx-ui-style]')).not.toBeNull()
+    expect(document.head.querySelector('style[data-bl-ui-style]')).not.toBeNull()
 
     await map.destroy()
   })
@@ -87,17 +87,17 @@ describe('uiPlugin', () => {
 
       // The chrome that needs no help is there…
       expect(ui(map).root.querySelector('[role="toolbar"]')).not.toBeNull()
-      expect(ui(map).root.querySelector('.fx-ui-coordinates')).not.toBeNull()
-      expect(ui(map).root.querySelector('.fx-ui-scale')).not.toBeNull()
+      expect(ui(map).root.querySelector('.bl-ui-coordinates')).not.toBeNull()
+      expect(ui(map).root.querySelector('.bl-ui-scale')).not.toBeNull()
 
       // …and the chrome that needs an absent plugin is present but hidden, with
       // nothing subscribed to an event that will never fire.
-      expect(ui(map).root.querySelector<HTMLElement>('.fx-ui-snap')?.hidden).toBe(true)
-      expect(ui(map).root.querySelector<HTMLElement>('.fx-ui-measure')?.hidden).toBe(true)
+      expect(ui(map).root.querySelector<HTMLElement>('.bl-ui-snap')?.hidden).toBe(true)
+      expect(ui(map).root.querySelector<HTMLElement>('.bl-ui-measure')?.hidden).toBe(true)
 
       // And the map still works: a pointer move drives the readout.
       map.test.pointerMove([32.8501, 39.9301])
-      const readout = ui(map).root.querySelector('.fx-ui-coordinates')
+      const readout = ui(map).root.querySelector('.bl-ui-coordinates')
       expect(readout?.textContent).not.toBe('—')
       expect(readout?.textContent?.length).toBeGreaterThan(0)
 
@@ -107,15 +107,15 @@ describe('uiPlugin', () => {
     it('enables the history buttons only when a history plugin is installed', async () => {
       const without = await createTestMap({ plugins: [uiPlugin()] })
       expect(
-        ui(without).root.querySelector<HTMLElement>('.fx-ui-toolbar[role="group"]')?.hidden,
+        ui(without).root.querySelector<HTMLElement>('.bl-ui-toolbar[role="group"]')?.hidden,
       ).toBe(true)
       await without.destroy()
 
       const map = await createTestMap({ plugins: [fakeHistoryPlugin(), uiPlugin()] })
-      const group = ui(map).root.querySelector<HTMLElement>('.fx-ui-toolbar[role="group"]')
+      const group = ui(map).root.querySelector<HTMLElement>('.bl-ui-toolbar[role="group"]')
       expect(group?.hidden).toBe(false)
       // canUndo is false on the fake, so the button reports itself unavailable.
-      expect(group?.querySelector<HTMLButtonElement>('.fx-ui-button')?.disabled).toBe(true)
+      expect(group?.querySelector<HTMLButtonElement>('.bl-ui-button')?.disabled).toBe(true)
 
       await map.destroy()
     })
@@ -138,8 +138,8 @@ describe('uiPlugin', () => {
       await map.remove('ui')
 
       expect(map.debug.snapshot()).toEqual(baseline)
-      expect(container(map).querySelector('.fx-ui')).toBeNull()
-      expect(document.head.querySelector('style[data-fx-ui-style]')).toBeNull()
+      expect(container(map).querySelector('.bl-ui')).toBeNull()
+      expect(document.head.querySelector('style[data-bl-ui-style]')).toBeNull()
 
       await map.destroy()
     })
@@ -321,7 +321,7 @@ describe('uiPlugin', () => {
       })
 
       map.test.pointerMove([32.8501, 39.9301])
-      const text = ui(map).root.querySelector('.fx-ui-coordinates')?.textContent ?? ''
+      const text = ui(map).root.querySelector('.bl-ui-coordinates')?.textContent ?? ''
 
       // The exact numbers are the CRS service's business, not ours — what this
       // package owes is that it asked the CRS service rather than printing degrees.
@@ -345,12 +345,12 @@ describe('uiPlugin', () => {
       }
       map.events.emit('validation:failed', { issues: [issue] })
 
-      const panel = ui(map).root.querySelector<HTMLElement>('.fx-ui-issues')
+      const panel = ui(map).root.querySelector<HTMLElement>('.bl-ui-issues')
       expect(panel?.hidden).toBe(false)
 
-      const row = panel?.querySelector<HTMLButtonElement>('.fx-ui-issue')
+      const row = panel?.querySelector<HTMLButtonElement>('.bl-ui-issue')
       expect(row?.textContent).toContain('overlap')
-      expect(row?.className).toContain('fx-ui-issue-error')
+      expect(row?.className).toContain('bl-ui-issue-error')
 
       const before = map.test.renderer.setCameraCalls
       row?.click()
@@ -367,12 +367,12 @@ describe('uiPlugin', () => {
 
       ui(map).status.set('hint', 'Click to start')
       ui(map).status.set('measure', '124,50 m')
-      expect(ui(map).root.querySelector('.fx-ui-status')?.textContent).toBe(
+      expect(ui(map).root.querySelector('.bl-ui-status')?.textContent).toBe(
         'Click to start124,50 m',
       )
 
       ui(map).status.clear('hint')
-      expect(ui(map).root.querySelector('.fx-ui-status')?.textContent).toBe('124,50 m')
+      expect(ui(map).root.querySelector('.bl-ui-status')?.textContent).toBe('124,50 m')
 
       await map.destroy()
     })
@@ -383,12 +383,12 @@ describe('uiPlugin', () => {
       const map = await createTestMap({ plugins: [uiPlugin()] })
       const root = ui(map).root
 
-      expect(root.style.getPropertyValue('--fx-color-accent')).toBe(
+      expect(root.style.getPropertyValue('--bl-color-accent')).toBe(
         map.theme.current.tokens.color.accent,
       )
 
       map.theme.set({ tokens: { color: { accent: '#ff0000' } } })
-      expect(root.style.getPropertyValue('--fx-color-accent')).toBe('#ff0000')
+      expect(root.style.getPropertyValue('--bl-color-accent')).toBe('#ff0000')
 
       await map.destroy()
     })

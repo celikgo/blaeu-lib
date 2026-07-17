@@ -1,11 +1,11 @@
 import {
-  FlexiCrsService,
+  BlaeuCrsService,
   type CollectionId,
   type CommitMiddleware,
   type CrsCode,
-  type FlexiFeature,
+  type BlaeuFeature,
   type Geometry,
-} from '@fleximap/core'
+} from '@blaeu/core'
 
 import { AREA_PROPERTY } from './schema.js'
 
@@ -46,7 +46,7 @@ export const DERIVE_AREA_ID = 'cadastre:derive-area'
  */
 export function deriveAreaMiddleware(options: DeriveAreaOptions): CommitMiddleware {
   const property = options.property ?? AREA_PROPERTY
-  const crs = new FlexiCrsService({
+  const crs = new BlaeuCrsService({
     working: options.crs,
     display: 'projected',
     precision: options.precision,
@@ -79,7 +79,7 @@ function isPolygonal(geometry: Geometry): boolean {
   return geometry.type === 'Polygon' || geometry.type === 'MultiPolygon'
 }
 
-function withProperty(feature: FlexiFeature, property: string, value: number): FlexiFeature {
+function withProperty(feature: BlaeuFeature, property: string, value: number): BlaeuFeature {
   return {
     ...feature,
     properties: { ...feature.properties, [property]: value },

@@ -1,4 +1,4 @@
-import type { LayerSpec, LayerStyle } from '@fleximap/core'
+import type { LayerSpec, LayerStyle } from '@blaeu/core'
 import type { AttributeField, AttributeSchema, AttributeSchemas, ZoningCategory } from './types.js'
 
 /**

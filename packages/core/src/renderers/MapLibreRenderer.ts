@@ -16,7 +16,7 @@ import type {
 } from 'maplibre-gl'
 
 import type { Bbox, Disposable, FeatureId, LngLat, ScreenPoint } from '../types/common.js'
-import type { FlexiFeature } from '../types/feature.js'
+import type { BlaeuFeature } from '../types/feature.js'
 import type { InteractionConfig } from '../types/config.js'
 import type {
   Camera,
@@ -31,9 +31,9 @@ import type {
 /* ========================================================================= */
 
 /**
- * The `$`-prefixed keys FlexiMap writes into the GeoJSON it hands MapLibre.
+ * The `$`-prefixed keys BlaeuMap writes into the GeoJSON it hands MapLibre.
  *
- * A `FlexiFeature.meta` block is *ours* — collection, version, timestamps, plugin
+ * A `BlaeuFeature.meta` block is *ours* — collection, version, timestamps, plugin
  * scratch space — and shipping it into `properties` wholesale would mean a
  * round-trip through the renderer silently leaks our internals into anything that
  * reads the source back out, and collides the day a cadastral schema legitimately
@@ -103,7 +103,7 @@ export function blankStyle(): StyleSpecification {
 type NativeLayerType = 'fill' | 'line' | 'circle' | 'symbol'
 
 /**
- * Bottom to top. One FlexiMap layer with `fill` *and* `line` is two MapLibre
+ * Bottom to top. One BlaeuMap layer with `fill` *and* `line` is two MapLibre
  * layers, and the fill must sit under its own outline or the outline disappears.
  */
 const SUBLAYERS: readonly NativeLayerType[] = ['fill', 'line', 'circle', 'symbol']
@@ -158,7 +158,7 @@ const DOUBLE_TAP_PX = 30
  * - **String feature ids.** MapLibre's GeoJSON source will not keep a non-numeric
  *   feature id unless you tell it to. See {@link addSource}.
  * - **Hit testing returns ids, not features.** A `MapGeoJSONFeature` is not a
- *   `FlexiFeature` and cannot be turned into one. See {@link setFeatureResolver}.
+ *   `BlaeuFeature` and cannot be turned into one. See {@link setFeatureResolver}.
  */
 export class MapLibreRenderer implements Renderer {
   readonly kind = 'maplibre'
@@ -177,7 +177,7 @@ export class MapLibreRenderer implements Renderer {
   readonly #cameraHandlers = new Set<(camera: Camera, moving: boolean) => void>()
   #subscriptions: Subscription[] = []
 
-  #resolveFeature: ((id: FeatureId) => FlexiFeature | undefined) | undefined
+  #resolveFeature: ((id: FeatureId) => BlaeuFeature | undefined) | undefined
   #warnedMissingResolver = false
 
   /** Held so a `setCursor` issued before `mount()` is not silently lost. */
@@ -196,10 +196,10 @@ export class MapLibreRenderer implements Renderer {
   async mount(container: HTMLElement): Promise<void> {
     if (this.#destroyed) {
       throw new Error(
-        '[fleximap] MapLibreRenderer.mount() called after destroy(). A renderer is not reusable — construct a new one.',
+        '[blaeu] MapLibreRenderer.mount() called after destroy(). A renderer is not reusable — construct a new one.',
       )
     }
-    // Idempotent: FlexiMap awaits this once, but a caller who awaits `whenReady()`
+    // Idempotent: BlaeuMap awaits this once, but a caller who awaits `whenReady()`
     // twice must not get two MapLibre instances fighting over one container.
     this.#mounting ??= this.#mount(container)
     return this.#mounting
@@ -266,11 +266,11 @@ export class MapLibreRenderer implements Renderer {
    * a *property* instead, where a string survives — so we write the id to
    * `properties.$id` and point `promoteId` at it.
    */
-  addSource(sourceId: string, features: readonly FlexiFeature[] = []): Disposable {
+  addSource(sourceId: string, features: readonly BlaeuFeature[] = []): Disposable {
     const map = this.#requireMap('addSource')
     if (map.getSource(sourceId)) {
       throw new Error(
-        `[fleximap] addSource("${sourceId}") — a source with that id already exists. ` +
+        `[blaeu] addSource("${sourceId}") — a source with that id already exists. ` +
           `Call setData("${sourceId}", features) to replace its contents, or removeSource() first.`,
       )
     }
@@ -285,18 +285,18 @@ export class MapLibreRenderer implements Renderer {
     return { dispose: () => this.removeSource(sourceId) }
   }
 
-  setData(sourceId: string, features: readonly FlexiFeature[]): void {
+  setData(sourceId: string, features: readonly BlaeuFeature[]): void {
     const map = this.#requireMap('setData')
     const source = map.getSource<GeoJSONSource>(sourceId)
     if (!source) {
       throw new Error(
-        `[fleximap] setData("${sourceId}") — no such source. Call addSource("${sourceId}") before writing to it.`,
+        `[blaeu] setData("${sourceId}") — no such source. Call addSource("${sourceId}") before writing to it.`,
       )
     }
     if (source.type !== 'geojson') {
       throw new Error(
-        `[fleximap] setData("${sourceId}") — that source is a "${source.type}" source, not a GeoJSON one. ` +
-          `Only sources FlexiMap created hold FlexiFeatures.`,
+        `[blaeu] setData("${sourceId}") — that source is a "${source.type}" source, not a GeoJSON one. ` +
+          `Only sources BlaeuMap created hold BlaeuFeatures.`,
       )
     }
     source.setData(toFeatureCollection(features))
@@ -327,13 +327,13 @@ export class MapLibreRenderer implements Renderer {
     const map = this.#requireMap('addLayer')
     if (this.#layers.has(layerId)) {
       throw new Error(
-        `[fleximap] addLayer("${layerId}") — a layer with that id already exists. ` +
+        `[blaeu] addLayer("${layerId}") — a layer with that id already exists. ` +
           `Call setLayerStyle("${layerId}", style) to restyle it, or removeLayer() first.`,
       )
     }
     if (!map.getSource(sourceId)) {
       throw new Error(
-        `[fleximap] addLayer("${layerId}") references source "${sourceId}", which does not exist. ` +
+        `[blaeu] addLayer("${layerId}") references source "${sourceId}", which does not exist. ` +
           `Call addSource("${sourceId}") first.`,
       )
     }
@@ -347,7 +347,7 @@ export class MapLibreRenderer implements Renderer {
     }
     if (entry.native.length === 0) {
       throw new Error(
-        `[fleximap] addLayer("${layerId}") was given a style with none of fill/line/circle/symbol set, ` +
+        `[blaeu] addLayer("${layerId}") was given a style with none of fill/line/circle/symbol set, ` +
           `so there is nothing to draw. Set at least one, or use \`native\` with a custom layer type.`,
       )
     }
@@ -389,7 +389,7 @@ export class MapLibreRenderer implements Renderer {
     const entry = this.#layers.get(layerId)
     if (!entry) {
       throw new Error(
-        `[fleximap] setLayerStyle("${layerId}") — no such layer. Add it with addLayer() first.`,
+        `[blaeu] setLayerStyle("${layerId}") — no such layer. Add it with addLayer() first.`,
       )
     }
 
@@ -433,7 +433,7 @@ export class MapLibreRenderer implements Renderer {
     const entry = this.#layers.get(layerId)
     if (!entry) {
       throw new Error(
-        `[fleximap] setLayerVisible("${layerId}") — no such layer. Add it with addLayer() first.`,
+        `[blaeu] setLayerVisible("${layerId}") — no such layer. Add it with addLayer() first.`,
       )
     }
     entry.visible = visible
@@ -448,7 +448,7 @@ export class MapLibreRenderer implements Renderer {
   }
 
   /**
-   * The MapLibre layer ids one FlexiMap layer expanded into.
+   * The MapLibre layer ids one BlaeuMap layer expanded into.
    *
    * Public because the moment somebody reaches for `getNative()` they need these,
    * and guessing them is how a plugin ends up hard-coding a suffix we later change.
@@ -460,7 +460,7 @@ export class MapLibreRenderer implements Renderer {
   /**
    * Translate an anchor into a MapLibre layer id.
    *
-   * Accepts either a FlexiMap layer id or a raw MapLibre one — "put my parcels under
+   * Accepts either a BlaeuMap layer id or a raw MapLibre one — "put my parcels under
    * the basemap's labels" is a completely reasonable thing to want, and the label
    * layer belongs to the style, not to us.
    *
@@ -515,7 +515,7 @@ export class MapLibreRenderer implements Renderer {
   /**
    * Wire the renderer to the store.
    *
-   * This exists because **a rendered feature is not a `FlexiFeature`, and cannot be
+   * This exists because **a rendered feature is not a `BlaeuFeature`, and cannot be
    * turned back into one.** MapLibre hands back a `MapGeoJSONFeature`, which is
    * reconstructed from the vector tiles it built internally, and two things were
    * destroyed on the way in:
@@ -531,11 +531,11 @@ export class MapLibreRenderer implements Renderer {
    * supplies this hook; without it, `queryAt`/`queryInBox` return nothing, because
    * returning a plausible-but-wrong feature is strictly worse than returning none.
    */
-  setFeatureResolver(fn: (id: FeatureId) => FlexiFeature | undefined): void {
+  setFeatureResolver(fn: (id: FeatureId) => BlaeuFeature | undefined): void {
     this.#resolveFeature = fn
   }
 
-  queryAt(point: ScreenPoint, layerIds?: readonly string[]): readonly FlexiFeature[] {
+  queryAt(point: ScreenPoint, layerIds?: readonly string[]): readonly BlaeuFeature[] {
     const map = this.#requireMap('queryAt')
     const layers = this.#toNativeLayers(layerIds)
     if (layers?.length === 0) return []
@@ -547,7 +547,7 @@ export class MapLibreRenderer implements Renderer {
     a: ScreenPoint,
     b: ScreenPoint,
     layerIds?: readonly string[],
-  ): readonly FlexiFeature[] {
+  ): readonly BlaeuFeature[] {
     const map = this.#requireMap('queryInBox')
     const layers = this.#toNativeLayers(layerIds)
     if (layers?.length === 0) return []
@@ -571,13 +571,13 @@ export class MapLibreRenderer implements Renderer {
     return out
   }
 
-  #lookup(hits: readonly MapGeoJSONFeature[]): readonly FlexiFeature[] {
+  #lookup(hits: readonly MapGeoJSONFeature[]): readonly BlaeuFeature[] {
     const resolve = this.#resolveFeature
     if (!resolve) {
       if (!this.#warnedMissingResolver) {
         this.#warnedMissingResolver = true
         console.warn(
-          '[fleximap] MapLibreRenderer has no feature resolver, so hit-testing returns nothing. ' +
+          '[blaeu] MapLibreRenderer has no feature resolver, so hit-testing returns nothing. ' +
             'Call renderer.setFeatureResolver(id => store.get(id)) — LayerManager normally does this for you.',
         )
       }
@@ -587,7 +587,7 @@ export class MapLibreRenderer implements Renderer {
     // A feature crossing a tile boundary comes back once per tile. Deduplicate by
     // id, or a two-tile parcel gets selected twice and a counter reads "2 parcels".
     const seen = new Set<FeatureId>()
-    const out: FlexiFeature[] = []
+    const out: BlaeuFeature[] = []
     for (const hit of hits) {
       const id = featureIdOf(hit)
       if (id === undefined || seen.has(id)) continue
@@ -701,7 +701,7 @@ export class MapLibreRenderer implements Renderer {
       } catch (err) {
         // One broken tool must not wedge the pointer stream for every other
         // listener — and must not leave MapLibre's own handlers half-run.
-        console.error(`[fleximap] pointer handler threw on "${kind}":`, err)
+        console.error(`[blaeu] pointer handler threw on "${kind}":`, err)
       }
     }
   }
@@ -713,7 +713,7 @@ export class MapLibreRenderer implements Renderer {
       try {
         handler(camera, moving)
       } catch (err) {
-        console.error('[fleximap] camera handler threw:', err)
+        console.error('[blaeu] camera handler threw:', err)
       }
     }
   }
@@ -753,13 +753,13 @@ export class MapLibreRenderer implements Renderer {
 
   #requireMap(operation: string): MapLibreMap {
     if (this.#destroyed) {
-      throw new Error(`[fleximap] MapLibreRenderer.${operation}() called after destroy().`)
+      throw new Error(`[blaeu] MapLibreRenderer.${operation}() called after destroy().`)
     }
     const map = this.#map
     if (!map) {
       throw new Error(
-        `[fleximap] MapLibreRenderer.${operation}() called before the map was mounted. ` +
-          `Await createFlexiMap(...) — or map.whenReady() — before touching the renderer.`,
+        `[blaeu] MapLibreRenderer.${operation}() called before the map was mounted. ` +
+          `Await createBlaeuMap(...) — or map.whenReady() — before touching the renderer.`,
       )
     }
     return map
@@ -781,7 +781,7 @@ let modulePromise: Promise<MapLibreModule> | undefined
  * Load MapLibre lazily, at mount.
  *
  * A static `import 'maplibre-gl'` would put ~800 kB of WebGL into the module graph
- * of every consumer of `@fleximap/core` — including the ones that pass their own
+ * of every consumer of `@blaeu/core` — including the ones that pass their own
  * renderer, and including the entire test suite, which runs headless against the
  * `FakeRenderer` and has no business paying for a graphics library. Deferring it to
  * `mount()` costs nothing (mount is already async) and means the seam in `Renderer`
@@ -798,7 +798,7 @@ async function loadMapLibre(): Promise<MapLibreModule> {
     const ns = namespace.default ?? namespace
     if (typeof ns.Map !== 'function') {
       throw new Error(
-        '[fleximap] maplibre-gl resolved without a `Map` export. It is a peer dependency — ' +
+        '[blaeu] maplibre-gl resolved without a `Map` export. It is a peer dependency — ' +
           'check that a compatible version (>=4.7 <6) is installed and that your bundler is not aliasing it.',
       )
     }
@@ -811,7 +811,7 @@ async function loadMapLibre(): Promise<MapLibreModule> {
  * Resolve when the map is usable; reject rather than hang when it never will be.
  *
  * The failure mode this guards against: a style URL that 404s means `load` never
- * fires, `mount()` never settles, `createFlexiMap()` never resolves, and the
+ * fires, `mount()` never settles, `createBlaeuMap()` never resolves, and the
  * application shows a spinner forever with nothing in the console pointing at the
  * cause. A rejected promise carrying MapLibre's own error is strictly better.
  *
@@ -839,14 +839,14 @@ function whenLoaded(map: MapLibreMap): Promise<void> {
         cleanup()
         reject(
           new Error(
-            `[fleximap] MapLibre failed to load its style: ${event.error?.message ?? 'unknown error'}. ` +
+            `[blaeu] MapLibre failed to load its style: ${event.error?.message ?? 'unknown error'}. ` +
               `Check the \`style\` passed to MapLibreRenderer — it must be reachable from the browser.`,
           ),
         )
       }),
       map.on('remove', () => {
         cleanup()
-        reject(new Error('[fleximap] the renderer was destroyed before the map finished loading.'))
+        reject(new Error('[blaeu] the renderer was destroyed before the map finished loading.'))
       }),
     )
   })
@@ -1003,7 +1003,7 @@ function asRecord(value: unknown): Record<string, unknown> {
 /* ========================================================================= */
 
 /**
- * `FlexiFeature[]` → a GeoJSON `FeatureCollection` MapLibre will accept.
+ * `BlaeuFeature[]` → a GeoJSON `FeatureCollection` MapLibre will accept.
  *
  * Hidden features are dropped here rather than filtered in the style, because
  * `meta.hidden` means "stays in the store, is not sent to the renderer"
@@ -1016,7 +1016,7 @@ function asRecord(value: unknown): Record<string, unknown> {
  * render hidden features greyed out, the property is already there and the styles
  * that read it already work.
  */
-function toFeatureCollection(features: readonly FlexiFeature[]): FeatureCollection {
+function toFeatureCollection(features: readonly BlaeuFeature[]): FeatureCollection {
   const out: Feature[] = []
 
   for (const feature of features) {

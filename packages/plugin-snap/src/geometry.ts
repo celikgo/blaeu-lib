@@ -7,7 +7,7 @@ import {
   type EdgeRef,
   type FeatureId,
   type FeatureStore,
-  type FlexiFeature,
+  type BlaeuFeature,
   type Geometry,
   type I18n,
   type LngLat,
@@ -18,7 +18,7 @@ import {
   type SnapCandidate,
   type SnapKind,
   type SnapQueryContext,
-} from '@fleximap/core'
+} from '@blaeu/core'
 import { INDICATOR_SOURCE, PRIORITY, SEARCH_SLACK } from './constants.js'
 
 /**
@@ -70,7 +70,7 @@ export interface Segment {
  */
 export class FrameCache {
   readonly #paths = new Map<FeatureId, readonly ProjectedPath[]>()
-  readonly #features = new Map<string, readonly FlexiFeature[]>()
+  readonly #features = new Map<string, readonly BlaeuFeature[]>()
 
   reset(): void {
     this.#paths.clear()
@@ -90,12 +90,12 @@ export class FrameCache {
     store: FeatureStore,
     bbox: Bbox,
     exclude: ReadonlySet<FeatureId>,
-  ): readonly FlexiFeature[] {
+  ): readonly BlaeuFeature[] {
     const key = bbox.join(',')
     const hit = this.#features.get(key)
     if (hit !== undefined) return hit
 
-    const out: FlexiFeature[] = []
+    const out: BlaeuFeature[] = []
     for (const collection of store.collections()) {
       if (collection === INDICATOR_SOURCE) continue
       for (const feature of store.collection(collection).query(bbox)) {
@@ -115,7 +115,7 @@ export class FrameCache {
     return out
   }
 
-  paths(feature: FlexiFeature, plane: ProjectedCrs): readonly ProjectedPath[] {
+  paths(feature: BlaeuFeature, plane: ProjectedCrs): readonly ProjectedPath[] {
     const hit = this.#paths.get(feature.id)
     if (hit !== undefined) return hit
 
@@ -303,7 +303,7 @@ export function hint(deps: SnapDeps, kind: SnapKind): string {
  */
 export function segmentsNear(
   scope: SnapScope,
-  features: readonly FlexiFeature[],
+  features: readonly BlaeuFeature[],
   radiusMetres: number,
 ): Segment[] {
   const out: Segment[] = []
@@ -336,7 +336,7 @@ export function segmentsNear(
  */
 export function segmentsWhoseLineIsNear(
   scope: SnapScope,
-  features: readonly FlexiFeature[],
+  features: readonly BlaeuFeature[],
   radiusMetres: number,
   searchRadiusMetres: number,
 ): Segment[] {

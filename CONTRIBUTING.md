@@ -21,7 +21,7 @@ npm run format            # prettier --write
 npm test                  # vitest, all packages, headless
 ```
 
-Tests and typecheck resolve `@fleximap/*` to **source**, not to `dist` (see the `development`
+Tests and typecheck resolve `@blaeu/*` to **source**, not to `dist` (see the `development`
 condition in each package's `exports`, and the aliases in `vitest.config.ts`). So there is no
 build step in the inner loop, and a type error in the core surfaces in a plugin's test run
 immediately.
@@ -30,16 +30,16 @@ immediately.
 
 ```
 packages/
-  core/         @fleximap/core       ← depends on NOTHING in this repo
-  plugin-*/     @fleximap/plugin-*   ← peer-depends on core only
-  preset-*/     @fleximap/preset-*   ← depends on core + plugins
+  core/         @blaeu/core       ← depends on NOTHING in this repo
+  plugin-*/     @blaeu/plugin-*   ← peer-depends on core only
+  preset-*/     @blaeu/preset-*   ← depends on core + plugins
 ```
 
 **The arrows only ever point left.** `npm run lint:boundaries` fails the build on:
 
 - a `core → plugin` or `core → preset` import,
 - a `plugin → plugin` import,
-- a plugin listing `@fleximap/core` as a `dependency` instead of a `peerDependency`.
+- a plugin listing `@blaeu/core` as a `dependency` instead of a `peerDependency`.
 
 The first is core invariant 1: if the core needs to know something a plugin knows, the plugin
 **registers** it and the core calls it through an interface the core owns. Wanting to import
@@ -52,7 +52,7 @@ degrades if it is absent. If your plugin _cannot_ degrade, declare a hard depend
 (`{ id: 'snap' }`, no `optional`) — but think first about whether you have picked the wrong
 extension point.
 
-The third looks pedantic and is not. Two copies of `@fleximap/core` in a user's
+The third looks pedantic and is not. Two copies of `@blaeu/core` in a user's
 `node_modules` means **two event buses, two command buses, two stores**. Nothing throws. The
 plugin silently never receives an event, and someone loses a day to it. If you ever triage an
 issue that says "my listener never fires", check for a duplicate core before anything else.
@@ -66,7 +66,7 @@ Use the headless harness. It is a real kernel, a real store, real plugins, real 
 fake renderer and a stub container.
 
 ```ts
-import { createTestMap } from '@fleximap/core/testing'
+import { createTestMap } from '@blaeu/core/testing'
 ```
 
 ### 1. Degradation — an optional dependency really is optional
@@ -139,7 +139,7 @@ stamped meta) can undo exactly.
 Use a **metric** tolerance, never a decimal-places one:
 
 ```ts
-import { expectWithinMetres } from '@fleximap/core/testing'
+import { expectWithinMetres } from '@blaeu/core/testing'
 expectWithinMetres(actual, expected, 0.001) // 1 mm
 ```
 
@@ -201,7 +201,7 @@ matters, and what to do instead:
 
 ```ts
 throw new Error(
-  `[fleximap] plugin "${plugin.id}" is already installed. ` +
+  `[blaeu] plugin "${plugin.id}" is already installed. ` +
     `Two instances would each register their listeners and layers, and you would see every action happen twice.`,
 )
 ```
@@ -224,7 +224,7 @@ versions and — above all — the peer-dependency rule consistent across thirte
 
 So: add your package to the list in that script, run it, and then wire the two things it does
 not own — the root `workspaces` array (if the glob does not already cover it) and the
-`@fleximap/*` alias in `vitest.config.ts`, without which your tests will resolve `dist`
+`@blaeu/*` alias in `vitest.config.ts`, without which your tests will resolve `dist`
 instead of source. Check the diff.
 
 (The root `new-package` script currently points at a file that does not exist. Fixing it — so
@@ -234,10 +234,10 @@ that starts with zero tests ships with zero tests.)
 
 Then, before you open the PR:
 
-- `@fleximap/core` is a **peerDependency**, never a dependency.
+- `@blaeu/core` is a **peerDependency**, never a dependency.
 - `"sideEffects": false`, so it tree-shakes.
 - Named export `xPlugin()`, plus the `Api` and `Options` types.
-- The `FlexiPluginRegistry` augmentation, so `map.plugin('your-id')` needs no cast. Skipping
+- The `BlaeuPluginRegistry` augmentation, so `map.plugin('your-id')` needs no cast. Skipping
   this is the single most common way a plugin ends up feeling second-class. Do it even for
   tiny plugins.
 - A README saying what it registers, what it depends on, and what events it emits.

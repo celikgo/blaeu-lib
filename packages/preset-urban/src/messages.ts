@@ -1,4 +1,4 @@
-import type { Messages } from '@fleximap/core'
+import type { Messages } from '@blaeu/core'
 
 /**
  * Turkish first, and with the words a planner uses.

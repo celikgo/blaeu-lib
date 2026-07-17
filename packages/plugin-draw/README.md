@@ -1,21 +1,21 @@
-# @fleximap/plugin-draw
+# @blaeu/plugin-draw
 
 Point, line, polygon, rectangle, circle and freehand — the drawing half of an editing
-product, built on the FlexiMap kernel.
+product, built on the BlaeuMap kernel.
 
 ```bash
-npm install @fleximap/plugin-draw
+npm install @blaeu/plugin-draw
 ```
 
-`@fleximap/core` is a **peer** dependency.
+`@blaeu/core` is a **peer** dependency.
 
 ## Usage
 
 ```ts
-import { createFlexiMap } from '@fleximap/core'
-import { drawPlugin } from '@fleximap/plugin-draw'
+import { createBlaeuMap } from '@blaeu/core'
+import { drawPlugin } from '@blaeu/plugin-draw'
 
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
   plugins: [
     drawPlugin({
@@ -80,7 +80,7 @@ not import another plugin.
 | ---------------------- | ------------------------------- | ---------------------------------------------------------------- |
 | `draw:start`           | `{ mode }`                      | A tool was activated.                                            |
 | `draw:vertex`          | `{ mode, vertex, vertices }`    | A vertex was committed (or captured, for freehand).              |
-| `draw:complete`        | `{ mode, collection, feature }` | The shape is in the store. `feature` is the real `FlexiFeature`. |
+| `draw:complete`        | `{ mode, collection, feature }` | The shape is in the store. `feature` is the real `BlaeuFeature`. |
 | `draw:cancel`          | `{ mode, reason }`              | Escape, a veto, a degenerate shape, or the tool going away.      |
 | `before:draw:complete` | `{ mode, collection, feature }` | **Cancellable.** `feature` is a `FeatureInput` — no id yet.      |
 

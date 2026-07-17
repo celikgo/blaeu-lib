@@ -11,7 +11,7 @@ import type {
   SnapProvider,
   SnapQueryContext,
   SnapResult,
-} from '@fleximap/core'
+} from '@blaeu/core'
 import { BUILTIN_KINDS, DEFAULT_TOLERANCE_PX, MIDDLEWARE_PRIORITY } from './constants.js'
 import { FrameCache, type SnapDeps } from './geometry.js'
 import { SnapIndicator } from './indicator.js'
@@ -30,7 +30,7 @@ export function resolveOptions(options: SnapOptions): ResolvedOptions {
   const tolerance = options.tolerance ?? DEFAULT_TOLERANCE_PX
   if (!(tolerance > 0)) {
     throw new Error(
-      `[fleximap] snapPlugin({ tolerance: ${String(options.tolerance)} }) — the tolerance is a radius in screen ` +
+      `[blaeu] snapPlugin({ tolerance: ${String(options.tolerance)} }) — the tolerance is a radius in screen ` +
         `pixels and must be greater than zero. To turn snapping off, pass { enabled: false } or call ` +
         `map.plugin('snap').disable().`,
     )
@@ -39,7 +39,7 @@ export function resolveOptions(options: SnapOptions): ResolvedOptions {
   const gridSize = options.gridSize ?? 0
   if (options.gridSize !== undefined && !(gridSize > 0)) {
     throw new Error(
-      `[fleximap] snapPlugin({ gridSize: ${String(options.gridSize)} }) — the grid spacing is in metres in the ` +
+      `[blaeu] snapPlugin({ gridSize: ${String(options.gridSize)} }) — the grid spacing is in metres in the ` +
         `working CRS and must be greater than zero. Omit it entirely to install no grid provider.`,
     )
   }
@@ -273,7 +273,7 @@ export class SnapEngine {
   #addProvider(provider: SnapProvider): Disposable {
     if (this.#providers.has(provider.id)) {
       throw new Error(
-        `[fleximap] a snap provider with id "${provider.id}" is already registered. ` +
+        `[blaeu] a snap provider with id "${provider.id}" is already registered. ` +
           `Provider ids are the key the engine — and removeProvider() — works with, so they must be unique: ` +
           `namespace yours, e.g. "cadastre:parcel-corner".`,
       )
@@ -293,7 +293,7 @@ export class SnapEngine {
   #setTolerance(px: number): void {
     if (!(px > 0)) {
       throw new Error(
-        `[fleximap] setTolerance(${String(px)}) — the snap tolerance is a radius in screen pixels and must be ` +
+        `[blaeu] setTolerance(${String(px)}) — the snap tolerance is a radius in screen pixels and must be ` +
           `greater than zero. To turn snapping off, call map.plugin('snap').disable().`,
       )
     }

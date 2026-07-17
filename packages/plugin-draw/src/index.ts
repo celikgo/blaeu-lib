@@ -1,5 +1,5 @@
 /**
- * `@fleximap/plugin-draw` — point, line, polygon, rectangle, circle and freehand.
+ * `@blaeu/plugin-draw` — point, line, polygon, rectangle, circle and freehand.
  *
  * What it registers: six tools (`draw:point` … `draw:freehand`) and one collection for the
  * shape in progress (`draw:preview`).
@@ -14,7 +14,7 @@
  * to itself). Both go through a duck-typed handle — see `snap-handle.ts`.
  */
 
-import type { CollectionId, FeatureInput, FlexiFeature, FlexiPlugin, LngLat } from '@fleximap/core'
+import type { CollectionId, FeatureInput, BlaeuFeature, BlaeuPlugin, LngLat } from '@blaeu/core'
 
 import { PREVIEW_COLLECTION } from './preview.js'
 import { DrawSession } from './session.js'
@@ -59,12 +59,12 @@ export { douglasPeucker, simplifyTrace } from './simplify.js'
  * `map.events.on('draw:complete', (e) => e.payload.feature)` type-checks — a typo in the
  * event name is a compile error rather than a listener that silently never fires.
  */
-declare module '@fleximap/core' {
-  interface FlexiPluginRegistry {
+declare module '@blaeu/core' {
+  interface BlaeuPluginRegistry {
     draw: DrawApi
   }
 
-  interface FlexiEventMap {
+  interface BlaeuEventMap {
     'draw:start': { readonly mode: DrawMode }
     'draw:vertex': {
       readonly mode: DrawMode
@@ -74,14 +74,14 @@ declare module '@fleximap/core' {
     'draw:complete': {
       readonly mode: DrawMode
       readonly collection: CollectionId
-      readonly feature: FlexiFeature
+      readonly feature: BlaeuFeature
     }
     'draw:cancel': { readonly mode: DrawMode; readonly reason: string | undefined }
     /**
      * Fires **before** the shape is dispatched, so a listener that calls `preventDefault()`
      * leaves nothing behind: no feature, no history entry, no half-written collection.
      *
-     * The payload carries a `FeatureInput`, not a `FlexiFeature` — at this point the store
+     * The payload carries a `FeatureInput`, not a `BlaeuFeature` — at this point the store
      * has not minted an id or stamped a version, and pretending otherwise would hand
      * listeners a feature whose id no later event will ever mention again.
      */
@@ -93,7 +93,7 @@ declare module '@fleximap/core' {
   }
 }
 
-export function drawPlugin(options: DrawOptions = {}): FlexiPlugin<DrawApi, DrawOptions> {
+export function drawPlugin(options: DrawOptions = {}): BlaeuPlugin<DrawApi, DrawOptions> {
   let session: DrawSession | undefined
 
   return {

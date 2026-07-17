@@ -1,10 +1,4 @@
-import type {
-  CollectionId,
-  Command,
-  CommandContext,
-  FeatureInput,
-  FlexiFeature,
-} from '@fleximap/core'
+import type { CollectionId, Command, CommandContext, FeatureInput, BlaeuFeature } from '@blaeu/core'
 
 /** One collection and the features that should be in it after the command runs. */
 export type CollectionContent = readonly [
@@ -40,7 +34,7 @@ export class ReplaceCollectionsCommand implements Command<void> {
 
   readonly #entries: readonly CollectionContent[]
   /** What was in those collections before the first execution, with meta intact. */
-  #previous: readonly FlexiFeature[] | undefined
+  #previous: readonly BlaeuFeature[] | undefined
 
   constructor(entries: readonly CollectionContent[], options: ReplaceOptions) {
     this.#entries = entries
@@ -71,7 +65,7 @@ export class ReplaceCollectionsCommand implements Command<void> {
     // Re-added by collection, carrying the meta the store stamped the first time —
     // same id, same version, same createdAt. That is what makes the round-trip *deep*
     // equality rather than "the same shape, one version higher".
-    const byCollection = new Map<CollectionId, FlexiFeature[]>()
+    const byCollection = new Map<CollectionId, BlaeuFeature[]>()
     for (const feature of this.#previous) {
       const group = byCollection.get(feature.meta.collection) ?? []
       group.push(feature)

@@ -1,13 +1,13 @@
-import { DisposableStore } from '@fleximap/core'
+import { DisposableStore } from '@blaeu/core'
 import type {
   Disposable,
-  FlexiFeature,
+  BlaeuFeature,
   Geometry,
   LayerStyle,
   LngLat,
   PluginContext,
   ThemeTokens,
-} from '@fleximap/core'
+} from '@blaeu/core'
 
 /**
  * Renderer sources and layers, **not** store collections.
@@ -81,7 +81,7 @@ export class SelectionOverlay implements Disposable {
     )
   }
 
-  setSelected(features: readonly FlexiFeature[]): void {
+  setSelected(features: readonly BlaeuFeature[]): void {
     this.#ctx.renderer.setData(HIGHLIGHT_SOURCE, features)
   }
 
@@ -113,8 +113,8 @@ export class SelectionOverlay implements Disposable {
   }
 }
 
-/** Synthetic, renderer-only. It carries a `meta` because `FlexiFeature` requires one, not because anything reads it. */
-function previewFeature(geometry: Geometry): FlexiFeature {
+/** Synthetic, renderer-only. It carries a `meta` because `BlaeuFeature` requires one, not because anything reads it. */
+function previewFeature(geometry: Geometry): BlaeuFeature {
   return {
     id: PREVIEW_ID,
     geometry,

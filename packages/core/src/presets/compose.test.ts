@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { FlexiPlugin } from '../types/plugin.js'
+import type { BlaeuPlugin } from '../types/plugin.js'
 import type { Preset } from '../types/preset.js'
 import type { ValidationRule } from '../types/validation.js'
 import type { InteractionMiddleware } from '../types/pipeline.js'
@@ -18,14 +18,14 @@ interface SnapOptions {
 /** A plugin factory of the shape a preset actually writes: pure, fully defaulted. */
 function makeFactory(id: string) {
   const calls: unknown[] = []
-  const factory = (options: SnapOptions = {}): FlexiPlugin<{ id: string }, SnapOptions> => {
+  const factory = (options: SnapOptions = {}): BlaeuPlugin<{ id: string }, SnapOptions> => {
     calls.push(options)
     return { id, version: '1.0.0', setup: () => ({ id }) }
   }
   return Object.assign(factory, { calls })
 }
 
-function pluginObject(id: string): FlexiPlugin<{ id: string }, never> {
+function pluginObject(id: string): BlaeuPlugin<{ id: string }, never> {
   return { id, version: '1.0.0', setup: () => ({ id }) }
 }
 
@@ -97,7 +97,7 @@ describe('normalisePluginSpec', () => {
   it('names the plugin when a factory throws', () => {
     const broken = (() => {
       throw new Error('boom')
-    }) as unknown as (options?: never) => FlexiPlugin<unknown, never>
+    }) as unknown as (options?: never) => BlaeuPlugin<unknown, never>
 
     expect(() => normalisePluginSpec([broken, {}])).toThrow(/must be pure/)
   })

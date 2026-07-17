@@ -39,7 +39,7 @@ original (providers query against it, so the snap is not sticky), and `ctx.xy` i
 that re-projects `lngLat` on every read, so a cached projected coordinate cannot drift out
 of sync with a snapped geographic one.
 
-By the time `FlexiMap` hands the context to the active tool, the position has already been
+By the time `BlaeuMap` hands the context to the active tool, the position has already been
 snapped, grid-locked, and constrained by whatever the preset installed. **The draw plugin
 has never heard of the snap plugin and does not import it.** It reads `ctx.lngLat`, like
 every other tool.

@@ -52,7 +52,7 @@ export function resolveHistoryOptions(options: HistoryOptions): ResolvedHistoryO
   const limit = options.limit ?? DEFAULT_LIMIT
   if (!Number.isFinite(limit) || limit < 1) {
     throw new Error(
-      `[fleximap] historyPlugin: limit must be a finite number >= 1, received ${String(options.limit)}. ` +
+      `[blaeu] historyPlugin: limit must be a finite number >= 1, received ${String(options.limit)}. ` +
         `To disable undo entirely, do not install the history plugin.`,
     )
   }
@@ -60,7 +60,7 @@ export function resolveHistoryOptions(options: HistoryOptions): ResolvedHistoryO
   const coalesceWindowMs = options.coalesceWindowMs ?? DEFAULT_COALESCE_WINDOW_MS
   if (!Number.isFinite(coalesceWindowMs) || coalesceWindowMs < 0) {
     throw new Error(
-      `[fleximap] historyPlugin: coalesceWindowMs must be a finite number >= 0, received ${String(
+      `[blaeu] historyPlugin: coalesceWindowMs must be a finite number >= 0, received ${String(
         options.coalesceWindowMs,
       )}. Use 0 to record every command as its own undo step.`,
     )

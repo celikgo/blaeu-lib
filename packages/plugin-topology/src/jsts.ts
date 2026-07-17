@@ -33,7 +33,7 @@ import Centroid from 'jsts/org/locationtech/jts/algorithm/Centroid.js'
 import ConvexHull from 'jsts/org/locationtech/jts/algorithm/ConvexHull.js'
 
 import type { Geometry, Position } from 'geojson'
-import type { LngLat, ProjectedCrs, ProjectedXY } from '@fleximap/core'
+import type { LngLat, ProjectedCrs, ProjectedXY } from '@blaeu/core'
 
 /**
  * The slice of the JTS `Geometry` API this package actually uses.

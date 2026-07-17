@@ -1,6 +1,6 @@
-# @fleximap/plugin-topology
+# @blaeu/plugin-topology
 
-Topology validation for FlexiMap: self-intersection, overlaps, gaps, slivers,
+Topology validation for BlaeuMap: self-intersection, overlaps, gaps, slivers,
 minimum area, and the two cheap structural checks that catch a bad import before
 it reaches a boolean operation.
 
@@ -9,16 +9,16 @@ The geometry engine is [JSTS](https://github.com/bjornharrtell/jsts), run in the
 important sentence in this package. A `0.001` tolerance in degrees is about 100 m.
 
 ```bash
-npm i @fleximap/plugin-topology
+npm i @blaeu/plugin-topology
 ```
 
 ## Usage
 
 ```ts
-import { createFlexiMap } from '@fleximap/core'
-import { topologyPlugin } from '@fleximap/plugin-topology'
+import { createBlaeuMap } from '@blaeu/core'
+import { topologyPlugin } from '@blaeu/plugin-topology'
 
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
   config: { crs: { working: 'EPSG:5254' } }, // TUREF / TM30 — a real cadastral plane
   plugins: [topologyPlugin({ tolerance: 0.001 })],
@@ -94,7 +94,7 @@ edit.
 
 ## Dependencies
 
-- `@fleximap/core` — **peer**. Never a direct dependency: two copies of the core
+- `@blaeu/core` — **peer**. Never a direct dependency: two copies of the core
   means two event buses and two stores.
 - `jsts` — a real dependency, bundled deep-imported (its package.json has no `main`
   and no `exports`, so a bare `import 'jsts'` fails at runtime under ESM).
@@ -117,7 +117,7 @@ import {
   noDuplicateVertices,
   noSlivers,
   topologyMessages,
-} from '@fleximap/plugin-topology'
+} from '@blaeu/plugin-topology'
 
 export const cadastre = definePreset({
   validation: [

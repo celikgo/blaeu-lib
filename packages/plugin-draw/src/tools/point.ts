@@ -1,4 +1,4 @@
-import type { InteractionContext } from '@fleximap/core'
+import type { InteractionContext } from '@blaeu/core'
 
 import type { DrawSession } from '../session.js'
 import type { DrawTool } from './tool.js'

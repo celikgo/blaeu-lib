@@ -1,4 +1,4 @@
-import type { CollectionId, LayerSpec } from '@fleximap/core'
+import type { CollectionId, LayerSpec } from '@blaeu/core'
 
 import { CADASTRE_COLORS } from './theme.js'
 

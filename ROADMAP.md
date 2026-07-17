@@ -72,16 +72,16 @@ for a finger that is _covering_ the corner it is snapping to, and a UI that assu
 That is design work more than architecture work, and it is high on the list because it is the
 difference between a tool a surveyor uses in the office and one they use in the field.
 
-### A React binding package (`@fleximap/react`)
+### A React binding package (`@blaeu/react`)
 
-`@fleximap/plugin-ui` is framework-free DOM on purpose, and it should stay that way — but the
+`@blaeu/plugin-ui` is framework-free DOM on purpose, and it should stay that way — but the
 host app is usually React, and the current story ("useEffect, create the map, remember to
 destroy it") is boilerplate we should own.
 
 The shape falls out of the existing API rather than fighting it: every subscription returns a
 `Disposable`, which is precisely an effect cleanup; `ListenerOptions.signal` already takes an
 `AbortSignal`; `map.plugin('draw')` is already typed, so a `usePlugin('draw')` hook is typed
-with no extra machinery. `<FlexiMap preset={cadastrePreset()}>` plus `useFlexiMap()`,
+with no extra machinery. `<BlaeuMap preset={cadastrePreset()}>` plus `useBlaeuMap()`,
 `usePlugin()`, `useSelection()`, `useHistory()`. Nothing in the kernel changes.
 
 ### Offline / PWA tile caching
@@ -97,7 +97,7 @@ being the right seam.
 `LayerTypeDef` is the extension point and it already works: `preset-game` registers a
 `tile-grid` layer type in one file, and the core has never heard of it. A deck.gl plugin
 registering `type: 'deckgl'` — scatterplot, hexbin, arc, trip — is the same move, and gives
-FlexiMap large-scale analytical visualisation without a line of it entering the kernel.
+BlaeuMap large-scale analytical visualisation without a line of it entering the kernel.
 
 ### WASM GEOS for heavy topology
 
@@ -153,6 +153,6 @@ the case a topological sort cannot handle and parking can.
 
 - **A basemap or tile service.** Bring your own MapLibre style.
 - **A full GIS.** No raster reprojection, no geoprocessing suite, no cross-dataset attribute
-  joins. FlexiMap is an editing kernel, and the boundary is deliberate.
+  joins. Blaeu is an editing kernel, and the boundary is deliberate.
 - **A visual plugin builder.** Plugins are forty lines of TypeScript. That is already the
   simplification.

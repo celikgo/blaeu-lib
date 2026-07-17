@@ -26,7 +26,7 @@ The obvious implementations fail in specific, well-known ways:
 
 ## Decision
 
-**Every state change in FlexiMap is a `Command`, and a `Command` is the only way state
+**Every state change in BlaeuMap is a `Command`, and a `Command` is the only way state
 changes.**
 
 ```ts

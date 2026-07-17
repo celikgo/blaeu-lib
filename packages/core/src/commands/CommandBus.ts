@@ -9,10 +9,10 @@ import type {
   DispatchResult,
 } from '../types/command.js'
 import { isCommitCommand } from '../types/command.js'
-import type { FlexiEventBus } from '../events/EventBus.js'
+import type { BlaeuEventBus } from '../events/EventBus.js'
 import type { FeatureStore, StoreSnapshot } from '../types/store.js'
 import type { CommitContext, CommitPipeline } from '../types/pipeline.js'
-import type { FlexiFeature } from '../types/feature.js'
+import type { BlaeuFeature } from '../types/feature.js'
 
 /**
  * The mutable context middleware sees. One per commit.
@@ -22,12 +22,12 @@ import type { FlexiFeature } from '../types/feature.js'
  * obvious thing in the world to write, or people will reach around the pipeline and
  * write to the store directly.
  */
-class FlexiCommitContext implements CommitContext {
+class BlaeuCommitContext implements CommitContext {
   readonly operation: 'add' | 'update' | 'remove'
-  readonly previous: readonly FlexiFeature[]
+  readonly previous: readonly BlaeuFeature[]
   readonly command: Command | undefined
 
-  features: FlexiFeature[]
+  features: BlaeuFeature[]
 
   #rejected = false
   #reason: string | undefined
@@ -95,19 +95,19 @@ export class CompositeCommand implements Command<void> {
  * backed by operational transforms without the core, or any other plugin, being
  * aware that undo now works across a network.
  */
-export class FlexiCommandBus implements CommandBus {
+export class BlaeuCommandBus implements CommandBus {
   #handlers: ((command: Command, transaction: string | null, origin: CommandOrigin) => void)[] = []
   /** True only while `_apply` is running a command backwards or forwards. */
   #replaying = false
   #transaction: { label: string; children: Command[] } | null = null
   /** The first veto seen inside the open `commitTransaction`, if any. */
   #vetoed: string | undefined
-  /** Tail of the serialised write queue. See {@link FlexiCommandBus.#enqueue}. */
+  /** Tail of the serialised write queue. See {@link BlaeuCommandBus.#enqueue}. */
   #queue: Promise<void> = Promise.resolve()
 
   constructor(
     private readonly store: FeatureStore,
-    private readonly events: FlexiEventBus,
+    private readonly events: BlaeuEventBus,
     private readonly pipeline: CommitPipeline,
   ) {}
 
@@ -128,7 +128,7 @@ export class FlexiCommandBus implements CommandBus {
     const candidate: Command<R> = command
     if (isCommitCommand(candidate)) {
       throw new Error(
-        `[fleximap] "${candidate.type}" writes features, so it must go through commands.commit() ` +
+        `[blaeu] "${candidate.type}" writes features, so it must go through commands.commit() ` +
           `(async, runs the commit pipeline), not commands.dispatch() (sync, does not). ` +
           `dispatch() is for transient, non-durable commands — previews, handles, highlights.`,
       )
@@ -168,7 +168,7 @@ export class FlexiCommandBus implements CommandBus {
       return this.#fail(err, `commit:${command.type}`)
     }
 
-    const ctx = new FlexiCommitContext(intent, command)
+    const ctx = new BlaeuCommitContext(intent, command)
 
     let result: CommitContext
     try {
@@ -381,7 +381,7 @@ export class FlexiCommandBus implements CommandBus {
       try {
         handler(command, transaction, origin)
       } catch (err) {
-        console.error('[fleximap] command subscriber threw:', err)
+        console.error('[blaeu] command subscriber threw:', err)
       }
     }
   }

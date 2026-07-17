@@ -1,4 +1,4 @@
-import type { Disposable, InteractionContext, InteractionPipeline } from '@fleximap/core'
+import type { Disposable, InteractionContext, InteractionPipeline } from '@blaeu/core'
 import type { PointerFeed, PointerSample } from './types.js'
 
 /**
@@ -72,7 +72,7 @@ export class InteractionPointerFeed implements PointerFeed {
         // This runs at pointer frequency. A throwing readout must not take the
         // snap indicator down with it, and must certainly not kill the pipeline —
         // the map would stop responding to the mouse.
-        console.error('[fleximap/ui] a pointer handler threw:', err)
+        console.error('[blaeu/ui] a pointer handler threw:', err)
       }
     }
   }

@@ -6,14 +6,14 @@ import {
   parcelFixture,
   sharedEdgeParcels,
   type TestMap,
-} from '@fleximap/core/testing'
+} from '@blaeu/core/testing'
 import type {
   Command,
   FeatureInput,
-  FlexiFeature,
+  BlaeuFeature,
   ValidationContext,
   ValidationIssue,
-} from '@fleximap/core'
+} from '@blaeu/core'
 
 import {
   closedRings,
@@ -144,7 +144,7 @@ function validationContext(map: TestMap): ValidationContext {
   return { store: map.store, crs: map.crs, t: (key, params) => map.i18n.t(key, params) }
 }
 
-function rawFeature(input: FeatureInput): FlexiFeature {
+function rawFeature(input: FeatureInput): BlaeuFeature {
   return {
     id: input.id ?? 'raw',
     geometry: input.geometry,

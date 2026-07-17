@@ -4,7 +4,7 @@
     // The root tsconfig references the packages, not the examples: an example is a
     // consumer of the library, and building the library must never depend on one.
     // So this config stands alone — no `references`, no `composite`, nothing emitted.
-    // The `paths` it inherits from the base resolve `@fleximap/*` to source, exactly
+    // The `paths` it inherits from the base resolve `@blaeu/*` to source, exactly
     // as the Vite aliases do, so the compiler and the bundler agree on what they are
     // looking at.
     "composite": false,

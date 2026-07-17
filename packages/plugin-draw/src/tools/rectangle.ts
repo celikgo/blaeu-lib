@@ -1,4 +1,4 @@
-import type { InteractionContext, LngLat } from '@fleximap/core'
+import type { InteractionContext, LngLat } from '@blaeu/core'
 
 import type { DrawSession } from '../session.js'
 import { degenerateRectangle, rectanglePolygon } from '../shapes.js'

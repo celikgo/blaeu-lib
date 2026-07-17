@@ -1,4 +1,4 @@
-import type { CollectionId, FeatureProperties, LngLat } from '@fleximap/core'
+import type { CollectionId, FeatureProperties, LngLat } from '@blaeu/core'
 
 /** The shapes this plugin knows how to draw. One tool each, one file each. */
 export type DrawMode = 'point' | 'line' | 'polygon' | 'rectangle' | 'circle' | 'freehand'

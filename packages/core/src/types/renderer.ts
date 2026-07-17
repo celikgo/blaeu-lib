@@ -1,5 +1,5 @@
 import type { Bbox, Disposable, LngLat, ScreenPoint } from './common.js'
-import type { FlexiFeature } from './feature.js'
+import type { BlaeuFeature } from './feature.js'
 
 export interface Camera {
   readonly center: LngLat
@@ -70,7 +70,7 @@ export interface RendererPointerEvent {
  * MapLibre is the only implementation we ship, and it's the right default. But
  * the interface exists so that a Three.js renderer for a 2.5D game map, or a
  * headless one for server-side rendering and tests, is a *new package* rather
- * than a fork. The `FakeRenderer` in `@fleximap/core/testing` is the proof that
+ * than a fork. The `FakeRenderer` in `@blaeu/core/testing` is the proof that
  * the seam is real: the entire test suite runs against it with no GPU.
  *
  * Deliberately small. Anything that can be built on top of these primitives —
@@ -88,8 +88,8 @@ export interface Renderer {
   unproject(point: ScreenPoint): LngLat
 
   /* --- data --- */
-  setData(sourceId: string, features: readonly FlexiFeature[]): void
-  addSource(sourceId: string, features?: readonly FlexiFeature[]): Disposable
+  setData(sourceId: string, features: readonly BlaeuFeature[]): void
+  addSource(sourceId: string, features?: readonly BlaeuFeature[]): Disposable
   removeSource(sourceId: string): void
 
   /* --- layers --- */
@@ -104,8 +104,8 @@ export interface Renderer {
   fitBounds(bbox: Bbox, options?: { padding?: number; duration?: number }): void
 
   /* --- hit testing --- */
-  queryAt(point: ScreenPoint, layerIds?: readonly string[]): readonly FlexiFeature[]
-  queryInBox(a: ScreenPoint, b: ScreenPoint, layerIds?: readonly string[]): readonly FlexiFeature[]
+  queryAt(point: ScreenPoint, layerIds?: readonly string[]): readonly BlaeuFeature[]
+  queryInBox(a: ScreenPoint, b: ScreenPoint, layerIds?: readonly string[]): readonly BlaeuFeature[]
 
   /* --- events --- */
   onPointer(handler: (event: RendererPointerEvent) => void): Disposable

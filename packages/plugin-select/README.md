@@ -1,18 +1,18 @@
-# @fleximap/plugin-select
+# @blaeu/plugin-select
 
-Selection for FlexiMap: single click, multi-select, box drag, freehand lasso.
+Selection for BlaeuMap: single click, multi-select, box drag, freehand lasso.
 
 ```bash
-npm install @fleximap/plugin-select
+npm install @blaeu/plugin-select
 ```
 
 ## Usage
 
 ```ts
-import { createFlexiMap } from '@fleximap/core'
-import { selectPlugin } from '@fleximap/plugin-select'
+import { createBlaeuMap } from '@blaeu/core'
+import { selectPlugin } from '@blaeu/plugin-select'
 
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
   plugins: [selectPlugin({ collections: ['parcels'], multiKey: 'shift' })],
   layers: [{ id: 'parcels', type: 'vector', source: 'parcels' }],
@@ -45,7 +45,7 @@ never painted over by the features it highlights.
 ## What it depends on
 
 Nothing. No plugin dependencies, optional or otherwise — selection is what every
-other plugin wants to build on, so it has to work on a bare kernel. `@fleximap/core`
+other plugin wants to build on, so it has to work on a bare kernel. `@blaeu/core`
 is a peer dependency; `@turf/boolean-point-in-polygon` and `@turf/helpers` are the
 only runtime dependencies.
 
@@ -84,8 +84,8 @@ interface SelectApi {
   ): void
   clear(): void
   readonly selected: ReadonlySet<FeatureId>
-  readonly features: readonly FlexiFeature[]
-  selectByFilter(fn: (f: FlexiFeature) => boolean): void
+  readonly features: readonly BlaeuFeature[]
+  selectByFilter(fn: (f: BlaeuFeature) => boolean): void
   onChange(handler: (ids: ReadonlySet<FeatureId>) => void): Disposable
 }
 ```

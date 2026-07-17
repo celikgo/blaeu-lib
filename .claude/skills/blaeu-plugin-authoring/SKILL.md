@@ -1,9 +1,9 @@
 ---
-name: fleximap-plugin-authoring
-description: How to write a FlexiMap plugin — the lifecycle contract, typed registry augmentation so map.plugin('id') needs no cast, extension points (snap providers, layer types, commands, middleware), and the dependency rules. Use when creating a new packages/plugin-* or changing an existing plugin's shape.
+name: blaeu-plugin-authoring
+description: How to write a BlaeuMap plugin — the lifecycle contract, typed registry augmentation so map.plugin('id') needs no cast, extension points (snap providers, layer types, commands, middleware), and the dependency rules. Use when creating a new packages/plugin-* or changing an existing plugin's shape.
 ---
 
-# Authoring a FlexiMap plugin
+# Authoring a BlaeuMap plugin
 
 A plugin is a function returning an object. That's the whole thing. It gets a
 `PluginContext`, registers what it wants, and returns its public API.
@@ -15,7 +15,7 @@ export interface DrawApi {
   readonly active: DrawMode | null
 }
 
-export function drawPlugin(opts: DrawOptions = {}): FlexiPlugin<DrawApi> {
+export function drawPlugin(opts: DrawOptions = {}): BlaeuPlugin<DrawApi> {
   return {
     id: 'draw',
     version: '1.0.0',
@@ -52,7 +52,7 @@ export function drawPlugin(opts: DrawOptions = {}): FlexiPlugin<DrawApi> {
 
 `setup` runs once, `enable`/`disable` can run many times, `destroy` runs once.
 Anything you register in `setup` must go through `ctx.disposables` — see
-`fleximap-core-invariants` rule 5, and the teardown test that enforces it.
+`blaeu-core-invariants` rule 5, and the teardown test that enforces it.
 
 ## Make it typed. This is the DX differentiator.
 
@@ -60,16 +60,16 @@ Augment the registry from your plugin's entry point, and `map.plugin('draw')`
 resolves to `DrawApi` with no cast, no generic, no import gymnastics:
 
 ```ts
-declare module '@fleximap/core' {
-  interface FlexiPluginRegistry {
+declare module '@blaeu/core' {
+  interface BlaeuPluginRegistry {
     draw: DrawApi
   }
-  interface FlexiEventMap {
+  interface BlaeuEventMap {
     'draw:start': { mode: DrawMode }
-    'draw:complete': { feature: FlexiFeature }
+    'draw:complete': { feature: BlaeuFeature }
     // `before:` prefix is what makes an event cancellable — the type system
     // only lets emitCancellable() accept keys matching `before:${string}`.
-    'before:draw:complete': { feature: FlexiFeature }
+    'before:draw:complete': { feature: BlaeuFeature }
   }
 }
 ```
@@ -107,7 +107,7 @@ const snap = ctx.tryPlugin('snap') // → SnapApi | undefined
 snap?.addProvider(myParcelCornerProvider)
 ```
 
-Then write the degradation test (`fleximap-testing`, test 1). An "optional"
+Then write the degradation test (`blaeu-testing`, test 1). An "optional"
 dependency with no test proving the map works without it is a required dependency
 with a bug.
 
@@ -135,10 +135,10 @@ class MoveVertexCommand implements Command {
 
 ## Package checklist
 
-- `package.json`: `@fleximap/core` is a **peerDependency**, never a dependency —
+- `package.json`: `@blaeu/core` is a **peerDependency**, never a dependency —
   two copies of the core means two event buses and two stores, and the symptom is
   "my listener never fires," which is a bad afternoon.
 - Side-effect free (`"sideEffects": false`) so it tree-shakes.
 - Named export `xPlugin()`, plus the `Api` and `Options` types.
 - README with: what it registers, what it depends on, what events it emits.
-- The three tests from `fleximap-testing`.
+- The three tests from `blaeu-testing`.

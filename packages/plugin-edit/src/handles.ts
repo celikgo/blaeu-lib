@@ -24,7 +24,7 @@ import type {
   CollectionId,
   FeatureId,
   FeatureInput,
-  FlexiFeature,
+  BlaeuFeature,
   Geometry,
   LayerStyle,
   LngLat,
@@ -32,7 +32,7 @@ import type {
   ProjectedCrs,
   ScreenPoint,
   VertexRef,
-} from '@fleximap/core'
+} from '@blaeu/core'
 import { cornerCount, eachRing, hasClosedRings, planarMidpoint, toLngLat } from './geometry.js'
 
 /** Where vertex and gizmo handles live. Public, because a UI plugin may legitimately read them. */
@@ -262,7 +262,7 @@ export class EditHandles {
  * puts a visible kink in a boundary the surveyor drew straight.
  */
 export function handlesFor(
-  feature: FlexiFeature,
+  feature: BlaeuFeature,
   plane: ProjectedCrs,
   isShared: (point: LngLat) => boolean,
 ): Handle[] {
@@ -347,7 +347,7 @@ class ReplaceHandlesCommand implements Command<void> {
 
   readonly #collection: CollectionId
   readonly #features: readonly FeatureInput[]
-  #removed: readonly FlexiFeature[] = []
+  #removed: readonly BlaeuFeature[] = []
   #added: readonly FeatureId[] = []
 
   constructor(collection: CollectionId, features: readonly FeatureInput[]) {

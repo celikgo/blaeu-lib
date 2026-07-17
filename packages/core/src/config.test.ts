@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { DEFAULT_CAMERA, DEFAULT_CRS, DEFAULT_INTERACTION, resolveConfig } from './config.js'
-import type { FlexiMapOptions } from './types/config.js'
+import type { BlaeuMapOptions } from './types/config.js'
 import type { Preset } from './types/preset.js'
 import type { Logger } from './types/common.js'
 
 /** `resolveConfig` never touches the container, so it need not be a real element. */
 const container = {} as HTMLElement
 
-const options = (extra: Partial<FlexiMapOptions> = {}): FlexiMapOptions => ({
+const options = (extra: Partial<BlaeuMapOptions> = {}): BlaeuMapOptions => ({
   container,
   ...extra,
 })
@@ -60,7 +60,7 @@ describe('resolveConfig', () => {
       for (const value of Object.values(config.camera)) expect(value).toBeDefined()
     })
 
-    it('ignores the non-config fields of FlexiMapOptions', () => {
+    it('ignores the non-config fields of BlaeuMapOptions', () => {
       const config = resolveConfig(
         options({ plugins: [], layers: [], theme: {}, preset: preset() }),
       )
@@ -157,7 +157,7 @@ describe('resolveConfig', () => {
         // exactOptionalPropertyTypes forbids writing this in TypeScript, which is
         // the point: the shape arrives from a JS caller or from `{...spread}` of a
         // partially-filled options object, and resolveConfig must survive it.
-        options({ crs: { working: undefined } } as unknown as Partial<FlexiMapOptions>),
+        options({ crs: { working: undefined } } as unknown as Partial<BlaeuMapOptions>),
         preset({ config: { crs: { working: 'EPSG:5254' } } }),
       )
 
@@ -225,7 +225,7 @@ describe('resolveConfig', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
       resolveConfig(options()).logger.warn('careful')
 
-      expect(warn).toHaveBeenCalledWith('[fleximap] careful')
+      expect(warn).toHaveBeenCalledWith('[blaeu] careful')
     })
 
     it('replaces the logger wholesale rather than merging halves of two', () => {
@@ -253,7 +253,7 @@ describe('resolveConfig', () => {
       expect(debug).not.toHaveBeenCalled()
 
       resolveConfig(options({ strict: true })).logger.debug('noisy')
-      expect(debug).toHaveBeenCalledWith('[fleximap] noisy')
+      expect(debug).toHaveBeenCalledWith('[blaeu] noisy')
     })
   })
 

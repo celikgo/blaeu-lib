@@ -1,9 +1,9 @@
-import { FlexiMap } from '../FlexiMap.js'
+import { BlaeuMap } from '../BlaeuMap.js'
 // `FeatureId` lives in common.js — feature.ts imports it but does not re-export it.
 import type { CollectionId, FeatureId, LngLat, ScreenPoint } from '../types/common.js'
 import type { Command, CommandContext } from '../types/command.js'
-import type { FeatureInput, FlexiFeature } from '../types/feature.js'
-import type { FlexiMapConfig, FlexiMapOptions } from '../types/config.js'
+import type { FeatureInput, BlaeuFeature } from '../types/feature.js'
+import type { BlaeuMapConfig, BlaeuMapOptions } from '../types/config.js'
 import type { InteractionContext } from '../types/pipeline.js'
 import type { PluginSpec } from '../types/plugin.js'
 import type { Preset } from '../types/preset.js'
@@ -17,7 +17,7 @@ export interface TestMapOptions {
   readonly features?: Readonly<Record<CollectionId, readonly FeatureInput[]>>
   readonly camera?: Partial<Camera>
   readonly preset?: Preset
-  readonly config?: FlexiMapConfig
+  readonly config?: BlaeuMapConfig
   /** The fake viewport. 800×600 unless a test needs something else. */
   readonly viewport?: { readonly width: number; readonly height: number }
 }
@@ -61,18 +61,18 @@ export interface TestFacade {
   camera(camera: Partial<Camera>, moving?: boolean): void
 
   /** Seed more features after construction. Same command path as the initial seed. */
-  seed(collection: CollectionId, features: readonly FeatureInput[]): readonly FlexiFeature[]
+  seed(collection: CollectionId, features: readonly FeatureInput[]): readonly BlaeuFeature[]
 
   /** Let the async commit pipeline settle. Await this before asserting on validation. */
   flush(): Promise<void>
 }
 
-export interface TestMap extends FlexiMap {
+export interface TestMap extends BlaeuMap {
   readonly test: TestFacade
 }
 
 /**
- * A real `FlexiMap` — real store, real command bus, real pipelines, real plugins —
+ * A real `BlaeuMap` — real store, real command bus, real pipelines, real plugins —
  * wired to a `FakeRenderer` and a stub container.
  *
  * ```ts
@@ -105,7 +105,7 @@ export async function createTestMap(options: TestMapOptions = {}): Promise<TestM
 
   const renderer = new FakeRenderer({ width, height, camera })
 
-  const mapOptions: FlexiMapOptions = {
+  const mapOptions: BlaeuMapOptions = {
     ...(options.config ?? {}),
     container: createContainer(width, height),
     renderer,
@@ -114,7 +114,7 @@ export async function createTestMap(options: TestMapOptions = {}): Promise<TestM
     ...(options.plugins !== undefined ? { plugins: options.plugins } : {}),
   }
 
-  const map = new FlexiMap(mapOptions)
+  const map = new BlaeuMap(mapOptions)
   await map.whenReady()
 
   const facade = new TestFacadeImpl(map, renderer, camera.center)
@@ -124,7 +124,7 @@ export async function createTestMap(options: TestMapOptions = {}): Promise<TestM
   }
 
   // `Object.assign` rather than a subclass: the harness must return the *real*
-  // FlexiMap a plugin will see in production, with one extra property — not a
+  // BlaeuMap a plugin will see in production, with one extra property — not a
   // lookalike whose behaviour could drift from it.
   return Object.assign(map, { test: facade as TestFacade })
 }
@@ -137,7 +137,7 @@ class TestFacadeImpl implements TestFacade {
   #lastLngLat: LngLat
 
   constructor(
-    readonly map: FlexiMap,
+    readonly map: BlaeuMap,
     readonly renderer: FakeRenderer,
     initialPosition: LngLat,
   ) {
@@ -226,7 +226,7 @@ class TestFacadeImpl implements TestFacade {
     this.renderer.emitCamera(camera, moving)
   }
 
-  seed(collection: CollectionId, features: readonly FeatureInput[]): readonly FlexiFeature[] {
+  seed(collection: CollectionId, features: readonly FeatureInput[]): readonly BlaeuFeature[] {
     if (features.length === 0) return []
 
     if (!this.map.store.collections().includes(collection)) {
@@ -236,7 +236,7 @@ class TestFacadeImpl implements TestFacade {
     const result = this.map.commands.dispatch(new SeedFeaturesCommand(collection, features))
     if (!result.ok) {
       throw new Error(
-        `[fleximap] seeding collection "${collection}" was rejected: ${result.rejectedReason}. ` +
+        `[blaeu] seeding collection "${collection}" was rejected: ${result.rejectedReason}. ` +
           `A validation rule or a before:command:execute hook vetoed the fixture — either the fixture is genuinely ` +
           `invalid (some of them are, deliberately), or the rule is too strict.`,
       )
@@ -328,7 +328,7 @@ class TestFacadeImpl implements TestFacade {
  * action under test — and would then "fix" the plugin until that stopped happening.
  * Fixture setup is not a user action.
  */
-class SeedFeaturesCommand implements Command<readonly FlexiFeature[]> {
+class SeedFeaturesCommand implements Command<readonly BlaeuFeature[]> {
   readonly type = 'testing:seed-features'
   readonly label = 'Seed test features'
   readonly transient = true
@@ -342,7 +342,7 @@ class SeedFeaturesCommand implements Command<readonly FlexiFeature[]> {
     this.#features = features
   }
 
-  execute(ctx: CommandContext): readonly FlexiFeature[] {
+  execute(ctx: CommandContext): readonly BlaeuFeature[] {
     const added = ctx.store._add(this.#collection, this.#features)
     this.#added = added.map((f) => f.id)
     return added
@@ -359,7 +359,7 @@ class SeedFeaturesCommand implements Command<readonly FlexiFeature[]> {
 
 /**
  * Vitest runs this workspace in the **node** environment, where there is no
- * `document` — that is deliberate, because 95% of FlexiMap has no business needing
+ * `document` — that is deliberate, because 95% of BlaeuMap has no business needing
  * one, and the day a plugin quietly starts reaching for `document.body` we want the
  * test suite to say so rather than to shrug.
  *

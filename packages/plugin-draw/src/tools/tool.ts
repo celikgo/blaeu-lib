@@ -1,4 +1,4 @@
-import type { Tool } from '@fleximap/core'
+import type { Tool } from '@blaeu/core'
 
 /**
  * A draw tool is a {@link Tool} that can also be told to finish from *outside* the pointer

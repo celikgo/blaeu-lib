@@ -1,4 +1,4 @@
-import type { Locale, Messages } from '@fleximap/core'
+import type { Locale, Messages } from '@blaeu/core'
 
 /**
  * The cadastral vocabulary — the part of this package a surveyor will judge in the

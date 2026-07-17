@@ -24,7 +24,7 @@ export const WGS84_PROJ4 = '+proj=longlat +datum=WGS84 +no_defs'
 
 /**
  * Codes that name a *geographic* CRS. These are not planes, and are refused as a
- * working CRS — see `FlexiCrsService.setWorking`. EPSG:4326 is listed for exactly
+ * working CRS — see `BlaeuCrsService.setWorking`. EPSG:4326 is listed for exactly
  * that reason: so it can be recognised and rejected with a message that helps,
  * rather than silently accepted as a plane whose "metres" are degrees.
  */

@@ -1,5 +1,5 @@
 {
-  "name": "@fleximap/plugin-select",
+  "name": "@blaeu/plugin-select",
   "version": "0.1.0",
   "description": "Selection: single, multi, box, lasso.",
   "license": "MIT",
@@ -26,10 +26,10 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "peerDependencies": {
-    "@fleximap/core": "^0.1.0"
+    "@blaeu/core": "^0.1.0"
   },
   "devDependencies": {
-    "@fleximap/core": "^0.1.0"
+    "@blaeu/core": "^0.1.0"
   },
   "publishConfig": {
     "access": "public"

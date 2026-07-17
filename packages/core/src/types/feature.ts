@@ -8,13 +8,13 @@ export type { Geometry, Point, LineString, Polygon, MultiPolygon, Position } fro
  *
  * ```ts
  * interface ParcelProps { ada: string; parsel: string; yuzolcumu: number }
- * const parcel: FlexiFeature<ParcelProps> = ...   // properties are now typed
+ * const parcel: BlaeuFeature<ParcelProps> = ...   // properties are now typed
  * ```
  */
 export type FeatureProperties = Record<string, Json | undefined>
 
 /**
- * Bookkeeping FlexiMap maintains *about* a feature, kept separate from the
+ * Bookkeeping BlaeuMap maintains *about* a feature, kept separate from the
  * user's `properties`.
  *
  * The separation is the point. Merging our bookkeeping into `properties` would
@@ -59,7 +59,7 @@ export interface FeatureMeta {
 }
 
 /**
- * The unified data model. Everything in FlexiMap — drawn, imported, generated —
+ * The unified data model. Everything in BlaeuMap — drawn, imported, generated —
  * is one of these.
  *
  * It is *GeoJSON-shaped but not GeoJSON*: `geometry` and `properties` are exactly
@@ -69,7 +69,7 @@ export interface FeatureMeta {
  *
  * `geometry` is **always** EPSG:4326 (core invariant 3).
  */
-export interface FlexiFeature<P extends FeatureProperties = FeatureProperties> {
+export interface BlaeuFeature<P extends FeatureProperties = FeatureProperties> {
   readonly id: FeatureId
   readonly geometry: Geometry
   readonly properties: P

@@ -1,4 +1,4 @@
-# @fleximap/plugin-edit
+# @blaeu/plugin-edit
 
 Vertex editing, transforms, split and merge — with topological awareness.
 
@@ -21,10 +21,10 @@ and both are about not losing a millimetre:
 ## Install
 
 ```ts
-import { createFlexiMap } from '@fleximap/core'
-import { editPlugin } from '@fleximap/plugin-edit'
+import { createBlaeuMap } from '@blaeu/core'
+import { editPlugin } from '@blaeu/plugin-edit'
 
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
   plugins: [editPlugin({ topological: true })],
 })

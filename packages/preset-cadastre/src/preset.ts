@@ -1,12 +1,12 @@
-import { definePreset, type Preset, type Theme } from '@fleximap/core'
-import { drawPlugin } from '@fleximap/plugin-draw'
-import { editPlugin } from '@fleximap/plugin-edit'
-import { historyPlugin } from '@fleximap/plugin-history'
-import { measurePlugin } from '@fleximap/plugin-measure'
-import { selectPlugin } from '@fleximap/plugin-select'
-import { snapPlugin } from '@fleximap/plugin-snap'
-import { topologyPlugin } from '@fleximap/plugin-topology'
-import { uiPlugin } from '@fleximap/plugin-ui'
+import { definePreset, type Preset, type Theme } from '@blaeu/core'
+import { drawPlugin } from '@blaeu/plugin-draw'
+import { editPlugin } from '@blaeu/plugin-edit'
+import { historyPlugin } from '@blaeu/plugin-history'
+import { measurePlugin } from '@blaeu/plugin-measure'
+import { selectPlugin } from '@blaeu/plugin-select'
+import { snapPlugin } from '@blaeu/plugin-snap'
+import { topologyPlugin } from '@blaeu/plugin-topology'
+import { uiPlugin } from '@blaeu/plugin-ui'
 
 import { DERIVE_AREA_ID, DERIVE_AREA_PRIORITY, deriveAreaMiddleware } from './derive.js'
 import { cadastreLayers } from './layers.js'
@@ -27,7 +27,7 @@ import { cadastreValidation } from './validation.js'
  * is a dispute and the other is a slip of the mouse.
  *
  * ```ts
- * const map = await createFlexiMap({
+ * const map = await createBlaeuMap({
  *   container: '#map',
  *   preset: cadastrePreset({ crs: 'EPSG:5255', locale: 'tr' }),   // Izmir belt
  * })

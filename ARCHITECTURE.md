@@ -1,6 +1,6 @@
 # Architecture
 
-This document explains how FlexiMap is put together and, more usefully, _why_. It assumes
+This document explains how Blaeu is put together and, more usefully, _why_. It assumes
 you have read the [README](README.md).
 
 The short version: the kernel owns five things and refuses to own a sixth. Everything a
@@ -12,23 +12,23 @@ what the core declines to do.
 
 ## 1. The kernel
 
-`FlexiMap` (`packages/core/src/FlexiMap.ts`) is a class with fifteen fields and no
+`BlaeuMap` (`packages/core/src/BlaeuMap.ts`) is a class with fifteen fields and no
 `draw()`, no `measure()`, no `snapTo()`. Read the field list and notice the absences:
 
 ```ts
-class FlexiMap {
-  readonly events: FlexiEventBus
-  readonly store: FlexiFeatureStore
-  readonly commands: FlexiCommandBus
-  readonly plugins: FlexiPluginManager
+class BlaeuMap {
+  readonly events: BlaeuEventBus
+  readonly store: BlaeuFeatureStore
+  readonly commands: BlaeuCommandBus
+  readonly plugins: BlaeuPluginManager
   readonly interaction: SyncInteractionPipeline
   readonly commit: AsyncCommitPipeline
-  readonly tools: FlexiToolManager
-  readonly layers: FlexiLayerManager
-  readonly crs: FlexiCrsService
-  readonly theme: FlexiThemeManager
-  readonly i18n: FlexiI18n
-  readonly validation: FlexiValidationRegistry
+  readonly tools: BlaeuToolManager
+  readonly layers: BlaeuLayerManager
+  readonly crs: BlaeuCrsService
+  readonly theme: BlaeuThemeManager
+  readonly i18n: BlaeuI18n
+  readonly validation: BlaeuValidationRegistry
   readonly renderer: Renderer
   readonly config: ResolvedConfig
   readonly log: Logger
@@ -38,7 +38,7 @@ class FlexiMap {
 The first six are the kernel proper. The rest are _seams_: services with an interface the
 core owns, which plugins extend rather than replace.
 
-`createFlexiMap()` is async because the renderer must mount and every plugin's `setup` must
+`createBlaeuMap()` is async because the renderer must mount and every plugin's `setup` must
 finish before the map is usable — and a plugin's setup may legitimately fetch a projection
 definition or warm a spatial index. Returning a half-initialised map from a synchronous
 constructor and hoping the caller awaits the right thing is how you get bug reports that
@@ -46,14 +46,14 @@ say "sometimes the first click does nothing."
 
 ### EventBus
 
-Strongly typed through declaration merging on `FlexiEventMap`. Plugins augment the map from
+Strongly typed through declaration merging on `BlaeuEventMap`. Plugins augment the map from
 their own entry point, and thereby teach the core's bus about events the core has never
 heard of:
 
 ```ts
-declare module '@fleximap/core' {
-  interface FlexiEventMap {
-    'draw:complete': { readonly mode: DrawMode; readonly feature: FlexiFeature }
+declare module '@blaeu/core' {
+  interface BlaeuEventMap {
+    'draw:complete': { readonly mode: DrawMode; readonly feature: BlaeuFeature }
     'before:draw:complete': { readonly mode: DrawMode; readonly feature: FeatureInput }
   }
 }
@@ -63,7 +63,7 @@ Two channels, and the type system keeps them apart:
 
 - `on(type, handler, options?)` — past-tense notification. Cannot be cancelled.
 - `onBefore(type, handler, options?)` — a cancellable hook. The handler receives a
-  `CancellableFlexiEvent` with `preventDefault(reason?)`. `emitCancellable()` accepts only
+  `CancellableBlaeuEvent` with `preventDefault(reason?)`. `emitCancellable()` accepts only
   keys matching `` `before:${string}` ``, so the `before:` prefix _is_ the capability, not a
   naming convention we ask people to respect.
 
@@ -77,7 +77,7 @@ teardown test can assert it returns to zero.
 
 ### FeatureStore
 
-The single source of truth for geometry. A `FlexiFeature` is GeoJSON-_shaped_ but not
+The single source of truth for geometry. A `BlaeuFeature` is GeoJSON-_shaped_ but not
 GeoJSON: `geometry` and `properties` are exactly the RFC 7946 fields, so `toGeoJSON()` is a
 projection rather than a conversion, but a mandatory string `id` and a `meta` block
 (collection, version, timestamps, `locked`, `hidden`, a namespaced `ext` slot) are ours.
@@ -181,11 +181,11 @@ explain most of the library between them.
 touch and pen are already unified here. **No tool ever sees a raw DOM event**, which is what
 makes a tool written for a mouse work on a tablet in the field without changes.
 
-`FlexiMap.#wireInteraction()` subscribes once, in `#init`, and holds the `Disposable`.
+`BlaeuMap.#wireInteraction()` subscribes once, in `#init`, and holds the `Disposable`.
 
 ### 2.2 The kernel builds an InteractionContext
 
-`FlexiMap.#normalise(event)` constructs the context handed down the pipeline. Three of its
+`BlaeuMap.#normalise(event)` constructs the context handed down the pipeline. Three of its
 properties are worth reading closely:
 
 ```ts
@@ -300,7 +300,7 @@ if (!gate.allowed) {
 
 The hook fires **before** anything is dispatched, so a listener that calls `preventDefault()`
 leaves nothing behind: no feature, no history entry, no half-written collection. The payload
-carries a `FeatureInput`, not a `FlexiFeature` — the store has not minted an id or stamped a
+carries a `FeatureInput`, not a `BlaeuFeature` — the store has not minted an id or stamped a
 version yet, and pretending otherwise would hand listeners an id no later event will ever
 mention.
 
@@ -318,7 +318,7 @@ const result = ctx.commands.transaction(label, () => {
 })
 ```
 
-`FlexiCommandBus.dispatch()`:
+`BlaeuCommandBus.dispatch()`:
 
 1. `emitCancellable('before:command:execute', { command })`. **A veto here costs nothing to
    clean up** — the store has not been touched. This is where a permission check or a
@@ -339,8 +339,8 @@ const result = ctx.commands.transaction(label, () => {
 ```ts
 {
   readonly operation: 'add' | 'update' | 'remove',
-  features: FlexiFeature[],              // mutable — rewrite them
-  readonly previous: readonly FlexiFeature[],
+  features: BlaeuFeature[],              // mutable — rewrite them
+  readonly previous: readonly BlaeuFeature[],
   readonly command: Command | undefined,
   reject(reason: string): void,
   readonly rejected: boolean,
@@ -349,7 +349,7 @@ const result = ctx.commands.transaction(label, () => {
 
 Two things register there today:
 
-- `FlexiValidationRegistry.asCommitMiddleware()`, at priority **−100** so it runs _last_.
+- `BlaeuValidationRegistry.asCommitMiddleware()`, at priority **−100** so it runs _last_.
   That is deliberate: the middleware that fills in defaults, quantises coordinates and
   rewinds ring winding order all sit above zero, and a rule that judged the pre-quantised
   ring while the store keeps the quantised one is a bug you find in production, in a land
@@ -399,7 +399,7 @@ referenced the old ones dangling.
 
 ### 3.5 The LayerManager coalesces, and the renderer draws
 
-`FlexiLayerManager.connectStore()` subscribes to `store.onChange`, marks the changed
+`BlaeuLayerManager.connectStore()` subscribes to `store.onChange`, marks the changed
 collection dirty, and flushes on a `queueMicrotask`. A transaction that writes forty
 features to one collection therefore produces **one** `renderer.setData()` call, not forty.
 Teardown sets a `stopped` flag, because a queued flush after destroy would talk to a
@@ -437,7 +437,7 @@ Every successful install then drains the parking lot (`#drainPending`), looping 
 pass makes no progress — so a chain A→B→C installs correctly no matter what order the three
 arrive in. The promise a parked plugin returned resolves when it finally installs.
 
-`FlexiMap.#init()` installs every preset and user plugin with `Promise.all`, then calls
+`BlaeuMap.#init()` installs every preset and user plugin with `Promise.all`, then calls
 `plugins.settle()`. Anything still parked at that point has a dependency that is never
 coming, and `settle()` throws with a report naming each plugin and what it is waiting for —
 rather than leaving a plugin sitting inert and being blamed on something else three hours
@@ -506,7 +506,7 @@ built on top of those primitives — measurement, highlighting, editing handles 
 not a renderer method.
 
 `MapLibreRenderer` is the only implementation we ship and the right default. `FakeRenderer`
-(in `@fleximap/core/testing`) is the proof that the seam is real rather than aspirational:
+(in `@blaeu/core/testing`) is the proof that the seam is real rather than aspirational:
 it implements the whole contract with deterministic, analytically-invertible
 `project`/`unproject`, and the entire test suite runs against it with no GPU. A test can
 therefore say "the pointer is 8 pixels from that vertex" and mean it — which is the only

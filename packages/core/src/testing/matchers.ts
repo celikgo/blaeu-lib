@@ -23,7 +23,7 @@ import { distanceMetres } from './fixtures.js'
  * one, everywhere on Earth.
  *
  * Deliberately framework-agnostic — it throws a plain `Error` rather than reaching
- * for `expect`. `@fleximap/core/testing` is a *published* entry point, and a
+ * for `expect`. `@blaeu/core/testing` is a *published* entry point, and a
  * package that drags Vitest into a consumer's dependency graph because its test
  * helper imports it is a package nobody trusts.
  */
@@ -34,7 +34,7 @@ export function expectWithinMetres(actual: LngLat, expected: LngLat, metres: num
   // NaN that passes an assertion is exactly the bug this file exists to catch.
   if (!(distance <= metres)) {
     throw new Error(
-      `[fleximap] expected [${actual[0]}, ${actual[1]}] to be within ${formatMetres(metres)} of ` +
+      `[blaeu] expected [${actual[0]}, ${actual[1]}] to be within ${formatMetres(metres)} of ` +
         `[${expected[0]}, ${expected[1]}], but it is ${formatMetres(distance)} away.`,
     )
   }

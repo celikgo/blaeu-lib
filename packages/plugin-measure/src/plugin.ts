@@ -1,4 +1,4 @@
-import type { CollectionId, FlexiPlugin, LayerInstance } from '@fleximap/core'
+import type { CollectionId, BlaeuPlugin, LayerInstance } from '@blaeu/core'
 
 import { LAYER_IDS, measureLayers, styleFor } from './layers.js'
 import type { MeasureEnv } from './measurement.js'
@@ -29,7 +29,7 @@ const COLLECTIONS: readonly CollectionId[] = [
  * Distance, area and grid bearing — planar, in the working CRS, in metres.
  *
  * ```ts
- * const map = await createFlexiMap({
+ * const map = await createBlaeuMap({
  *   container: '#map',
  *   config: { crs: { working: 'EPSG:5254' } },   // TUREF / TM30. The plane the numbers live on.
  *   plugins: [snapPlugin(), measurePlugin({ areaUnit: 'donum' })],
@@ -44,7 +44,7 @@ const COLLECTIONS: readonly CollectionId[] = [
  */
 export function measurePlugin(
   options: MeasureOptions = {},
-): FlexiPlugin<MeasureApi, MeasureOptions> {
+): BlaeuPlugin<MeasureApi, MeasureOptions> {
   const resolved = resolveOptions(options)
   let session: MeasureSession | undefined
 

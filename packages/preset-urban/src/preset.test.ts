@@ -5,8 +5,8 @@ import {
   normalisePluginSpec,
   overridePreset,
   type Preset,
-} from '@fleximap/core'
-import { snapPlugin } from '@fleximap/plugin-snap'
+} from '@blaeu/core'
+import { snapPlugin } from '@blaeu/plugin-snap'
 
 import { urbanPlanningPreset } from './preset.js'
 import { DEFAULT_ZONING_CATEGORIES, zoningAttributeSchema, zoningFillColour } from './zoning.js'
@@ -155,7 +155,7 @@ describe('urbanPlanningPreset — shape', () => {
           "history",
           "scenario",
         ],
-        "themeId": "fleximap-urban",
+        "themeId": "blaeu-urban",
         "validation": {
           "topology.closed-rings": "error",
           "topology.duplicate-vertices": "error",

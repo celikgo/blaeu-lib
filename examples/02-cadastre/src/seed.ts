@@ -34,7 +34,7 @@ import {
   type CrsService,
   type Polygon,
   type ProjectedXY,
-} from '@fleximap/core'
+} from '@blaeu/core'
 
 /**
  * Origin of the local schedule, in TUREF/TM30 metres: a block near Sivrihisar,

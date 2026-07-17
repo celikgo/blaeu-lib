@@ -1,4 +1,4 @@
-import type { InteractionContext, LngLat, PluginContext, ScreenPoint, Tool } from '@fleximap/core'
+import type { InteractionContext, LngLat, PluginContext, ScreenPoint, Tool } from '@blaeu/core'
 import { boxRing, closeRing } from './geometry.js'
 import type { SelectionController, SelectMode } from './SelectionController.js'
 

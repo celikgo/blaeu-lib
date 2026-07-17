@@ -38,19 +38,19 @@ export interface ResolvedConfig {
 }
 
 /** What a user writes. Everything optional; sensible defaults fill the rest. */
-export type FlexiMapConfig = DeepPartial<Omit<ResolvedConfig, 'logger'>> & {
+export type BlaeuMapConfig = DeepPartial<Omit<ResolvedConfig, 'logger'>> & {
   readonly logger?: Logger
 }
 
-/** What `createFlexiMap` takes. */
-export interface FlexiMapOptions extends FlexiMapConfig {
+/** What `createBlaeuMap` takes. */
+export interface BlaeuMapOptions extends BlaeuMapConfig {
   readonly container: HTMLElement | string
 
   /**
    * A domain preset — the usual way to build a product.
    *
    * ```ts
-   * const map = await createFlexiMap({
+   * const map = await createBlaeuMap({
    *   container: '#map',
    *   preset: cadastrePreset({ crs: 'EPSG:5254', locale: 'tr' }),
    * })
@@ -70,7 +70,7 @@ export interface FlexiMapOptions extends FlexiMapConfig {
   /**
    * Swap the rendering engine.
    *
-   * Defaults to MapLibre. `@fleximap/core/testing` passes a `FakeRenderer` here,
+   * Defaults to MapLibre. `@blaeu/core/testing` passes a `FakeRenderer` here,
    * which is how the whole suite runs headless — and the proof that the seam is
    * real rather than aspirational.
    */

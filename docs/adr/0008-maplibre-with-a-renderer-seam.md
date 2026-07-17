@@ -4,7 +4,7 @@ Status: accepted
 
 ## Context
 
-FlexiMap has to draw. MapLibre GL is the obvious engine: open source, no licence key, vector
+BlaeuMap has to draw. MapLibre GL is the obvious engine: open source, no licence key, vector
 tiles, a mature style specification, WebGL performance, and a large ecosystem. There is no
 serious argument for writing our own.
 
@@ -59,7 +59,7 @@ We _want_ people to reach the underlying map. The alternative is that they fork 
 the first time we have not wrapped something. But the hatch is explicit, greppable, and
 documented as "you are now outside the abstraction; we cannot undo/redo what you do here."
 
-**`FakeRenderer` is the proof the seam is real.** It lives in `@fleximap/core/testing`,
+**`FakeRenderer` is the proof the seam is real.** It lives in `@blaeu/core/testing`,
 implements the entire `Renderer` contract with deterministic, analytically-invertible
 `project`/`unproject`, and the whole test suite (500+ tests) runs against it with no GPU. A
 seam that only one implementation has ever gone through is not a seam; it is a wish. This one

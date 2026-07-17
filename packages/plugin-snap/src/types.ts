@@ -1,11 +1,4 @@
-import type {
-  Disposable,
-  FeatureId,
-  LngLat,
-  SnapKind,
-  SnapProvider,
-  SnapResult,
-} from '@fleximap/core'
+import type { Disposable, FeatureId, LngLat, SnapKind, SnapProvider, SnapResult } from '@blaeu/core'
 
 export interface SnapOptions {
   /** Screen pixels. How close is "close". Default 10. */

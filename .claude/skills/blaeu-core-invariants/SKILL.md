@@ -1,6 +1,6 @@
 ---
-name: fleximap-core-invariants
-description: The six non-negotiable rules of the FlexiMap kernel — what may never be imported, mutated, or bypassed. Read BEFORE editing anything under packages/core, or when a change is tempted to "just add one small thing" to the core to make a plugin work.
+name: blaeu-core-invariants
+description: The six non-negotiable rules of the BlaeuMap kernel — what may never be imported, mutated, or bypassed. Read BEFORE editing anything under packages/core, or when a change is tempted to "just add one small thing" to the core to make a plugin work.
 ---
 
 # Core invariants
@@ -19,7 +19,7 @@ core owns.
 The check is mechanical, and CI runs it:
 
 ```bash
-grep -rE "from '@fleximap/(plugin|preset)-" packages/core/src && exit 1
+grep -rE "from '@blaeu/(plugin|preset)-" packages/core/src && exit 1
 ```
 
 If you find yourself wanting to import the draw plugin into core, the real
@@ -60,7 +60,7 @@ Rule of thumb: **if it survives the gesture, it commits.** A rubber band does no
 A parcel does.
 
 Every command must satisfy `undo(execute(s)) === s` by **deep equality**. If it
-can't, the command captured too little state. See `fleximap-testing`.
+can't, the command captured too little state. See `blaeu-testing`.
 
 ### Why this is stated so emphatically
 
@@ -136,7 +136,7 @@ setup(ctx) {
 `ctx.disposables` is disposed automatically on `destroy()`. A plugin that
 registers a listener without adding it to `ctx.disposables` leaks it forever, and
 worse, a re-registered plugin then runs its handler twice. The teardown test in
-`fleximap-testing` exists to catch precisely this, and it is not optional.
+`blaeu-testing` exists to catch precisely this, and it is not optional.
 
 ## 6. Public API is the `index.ts` barrel. Deep imports are not API.
 

@@ -9,13 +9,8 @@ import {
   type ProjectedXY,
   type ScreenPoint,
   type SnapResult,
-} from '@fleximap/core'
-import {
-  createTestMap,
-  expectWithinMetres,
-  parcelFixture,
-  type TestMap,
-} from '@fleximap/core/testing'
+} from '@blaeu/core'
+import { createTestMap, expectWithinMetres, parcelFixture, type TestMap } from '@blaeu/core/testing'
 import { snapPlugin } from './index.js'
 import { INDICATOR_LAYER, INDICATOR_SOURCE } from './constants.js'
 import type { SnapOptions } from './types.js'

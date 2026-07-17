@@ -1,4 +1,4 @@
-import type { ThemeTokens } from '@fleximap/core'
+import type { ThemeTokens } from '@blaeu/core'
 
 /**
  * Mirror the theme's tokens onto an element as CSS custom properties.
@@ -11,8 +11,8 @@ import type { ThemeTokens } from '@fleximap/core'
  * point of the exercise — but the variables have to be *defined* somewhere the
  * cascade can see them.
  *
- * The naming must match the ThemeManager's (`--fx-color-accent`,
- * `--fx-size-vertex-radius`). If the core ever renames them, this breaks loudly
+ * The naming must match the ThemeManager's (`--bl-color-accent`,
+ * `--bl-size-vertex-radius`). If the core ever renames them, this breaks loudly
  * rather than quietly: the UI loses its palette wholesale, not one shade of grey.
  */
 export function applyTokens(element: HTMLElement, tokens: ThemeTokens): void {
@@ -24,7 +24,7 @@ export function applyTokens(element: HTMLElement, tokens: ThemeTokens): void {
     for (const key of Object.keys(values)) {
       const value = values[key]
       if (value === undefined) continue
-      element.style.setProperty(`--fx-${kebab(group)}-${kebab(key)}`, cssValue(group, value))
+      element.style.setProperty(`--bl-${kebab(group)}-${kebab(key)}`, cssValue(group, value))
     }
   }
 }

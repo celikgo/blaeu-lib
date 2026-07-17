@@ -1,7 +1,7 @@
 import type {
   CrsConfig,
-  FlexiMapConfig,
-  FlexiMapOptions,
+  BlaeuMapConfig,
+  BlaeuMapOptions,
   InteractionConfig,
   ResolvedConfig,
 } from './types/config.js'
@@ -60,8 +60,8 @@ export const DEFAULT_LOCALE: Locale = 'en'
  * find out about in production. It also sidesteps prototype pollution: nothing here
  * copies an attacker-controlled key onto an object.
  */
-export function resolveConfig(options: FlexiMapOptions, preset?: Preset): ResolvedConfig {
-  const fromPreset: FlexiMapConfig | undefined = preset?.config
+export function resolveConfig(options: BlaeuMapOptions, preset?: Preset): ResolvedConfig {
+  const fromPreset: BlaeuMapConfig | undefined = preset?.config
 
   // Resolved first because the default logger depends on it.
   const strict = coalesce(options.strict, fromPreset?.strict, !isProduction())
@@ -139,7 +139,7 @@ function coalesce<T>(...values: [...(T | undefined)[], T]): T {
     if (value !== undefined) return value
   }
   /* c8 ignore next 2 -- unreachable: the final element is non-optional by type. */
-  throw new Error('[fleximap] coalesce() reached its end. This is a bug in FlexiMap, not in you.')
+  throw new Error('[blaeu] coalesce() reached its end. This is a bug in BlaeuMap, not in you.')
 }
 
 /**

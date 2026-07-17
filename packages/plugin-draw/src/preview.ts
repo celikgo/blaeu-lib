@@ -1,5 +1,5 @@
-import type { CollectionId, Command, CommandContext, FeatureId, FlexiFeature } from '@fleximap/core'
-import type { Geometry } from '@fleximap/core'
+import type { CollectionId, Command, CommandContext, FeatureId, BlaeuFeature } from '@blaeu/core'
+import type { Geometry } from '@blaeu/core'
 
 /**
  * The in-progress shape lives in its own collection, separate from the data.
@@ -23,7 +23,7 @@ export const PREVIEW_PROPERTY = 'draw:preview'
  * **Transient**, and that is the whole point of the class. The rubber band is rewritten on
  * every pointer move; if those writes were recorded, Ctrl-Z mid-draw would step the user
  * back through their own cursor path one sample at a time instead of undoing the last real
- * action. `FlexiCommandBus` skips `onDidExecute` for transient commands, so the history
+ * action. `BlaeuCommandBus` skips `onDidExecute` for transient commands, so the history
  * plugin never sees these.
  *
  * It is still a `Command` rather than a direct `store._add` because invariant 2 admits no
@@ -37,7 +37,7 @@ export class SetPreviewCommand implements Command<void> {
   readonly transient = true
 
   readonly #geometry: Geometry | null
-  #previous: FlexiFeature | undefined
+  #previous: BlaeuFeature | undefined
 
   constructor(geometry: Geometry | null) {
     this.#geometry = geometry

@@ -1,8 +1,8 @@
 {
-  "name": "fleximap-monorepo",
+  "name": "blaeu-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "FlexiMap — an extensible geospatial kernel. Plugin-first, preset-driven, MapLibre-powered.",
+  "description": "Blaeu — an extensible geospatial kernel. Plugin-first, preset-driven, MapLibre-powered.",
   "license": "MIT",
   "type": "module",
   "engines": {

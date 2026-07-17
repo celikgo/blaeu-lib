@@ -1,5 +1,5 @@
 import type { Disposable, FeatureId, LngLat } from './common.js'
-import type { FlexiFeature } from './feature.js'
+import type { BlaeuFeature } from './feature.js'
 import type { CrsService } from './crs.js'
 import type { FeatureStore } from './store.js'
 
@@ -43,9 +43,9 @@ export interface ValidationRule {
   readonly id: string
   readonly severity: Severity
   /** Skip features this rule doesn't apply to — cheaply, before doing any geometry. */
-  appliesTo?(feature: FlexiFeature): boolean
+  appliesTo?(feature: BlaeuFeature): boolean
   check(
-    feature: FlexiFeature,
+    feature: BlaeuFeature,
     ctx: ValidationContext,
   ): readonly ValidationIssue[] | Promise<readonly ValidationIssue[]>
 }
@@ -62,5 +62,5 @@ export interface ValidationRegistry {
    * offer "validate the whole layer" — which is how a surveyor checks a batch
    * import before committing to it.
    */
-  run(features: readonly FlexiFeature[]): Promise<readonly ValidationIssue[]>
+  run(features: readonly BlaeuFeature[]): Promise<readonly ValidationIssue[]>
 }

@@ -6,13 +6,13 @@ import {
   type CollectionId,
   type FeatureInput,
   type FeatureProperties,
-  type FlexiFeature,
+  type BlaeuFeature,
   type Geometry,
   type LngLat,
   type PluginContext,
   type Position,
   type ScreenPoint,
-} from '@fleximap/core'
+} from '@blaeu/core'
 
 import { PREVIEW_ID, SetPreviewCommand } from './preview.js'
 import { resolveSnapHandle } from './snap-handle.js'
@@ -185,7 +185,7 @@ export class DrawSession {
   async complete(
     geometry: Geometry,
     extraProperties: FeatureProperties = {},
-  ): Promise<FlexiFeature | undefined> {
+  ): Promise<BlaeuFeature | undefined> {
     const mode = this.#mode
     if (mode === null) return undefined
 

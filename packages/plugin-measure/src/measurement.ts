@@ -1,14 +1,14 @@
 import type {
   CrsService,
   FeatureId,
-  FlexiFeature,
+  BlaeuFeature,
   Geometry,
   I18n,
   LineString,
   LngLat,
   Polygon,
   Position,
-} from '@fleximap/core'
+} from '@blaeu/core'
 
 import { formatArea, formatBearing, formatLength } from './format.js'
 import type {
@@ -103,7 +103,7 @@ export function measurePositions(
  */
 export function measureFeature(
   env: MeasureEnv,
-  feature: FlexiFeature,
+  feature: BlaeuFeature,
   mode?: MeasureMode,
 ): Measurement {
   const positions = geometryPositions(feature.geometry, feature.id)

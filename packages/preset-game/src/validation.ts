@@ -1,4 +1,4 @@
-import { bboxAround, type FlexiFeature, type ValidationRule } from '@fleximap/core'
+import { bboxAround, type BlaeuFeature, type ValidationRule } from '@blaeu/core'
 import { ENTITY_PROPERTY, GENERATED_PROPERTY } from './styles.js'
 import type { ResolvedGameOptions, WorldXY } from './types.js'
 import { createWorldTransform, snapToSquare, worldContains } from './world.js'
@@ -132,18 +132,18 @@ function tileOccupiedRule(options: ResolvedGameOptions): ValidationRule {
 
 /* ------------------------------------------------------------------ helpers */
 
-function isEntity(feature: FlexiFeature): boolean {
+function isEntity(feature: BlaeuFeature): boolean {
   return typeof feature.properties[ENTITY_PROPERTY] === 'string'
 }
 
-function entityPoint(feature: FlexiFeature): readonly [number, number] | undefined {
+function entityPoint(feature: BlaeuFeature): readonly [number, number] | undefined {
   if (feature.geometry.type !== 'Point') return undefined
   const [lng, lat] = feature.geometry.coordinates
   if (lng === undefined || lat === undefined) return undefined
   return [lng, lat]
 }
 
-function label(feature: FlexiFeature): string {
+function label(feature: BlaeuFeature): string {
   const name = feature.properties['label']
   if (typeof name === 'string') return name
   const type = feature.properties[ENTITY_PROPERTY]

@@ -3,13 +3,13 @@ import type { Polygon, Position } from 'geojson'
 
 import type { LngLat, ProjectedXY } from '../types/common.js'
 import type { CrsCode, ProjectedCrs } from '../types/crs.js'
-import { FlexiCrsService } from './CrsService.js'
+import { BlaeuCrsService } from './CrsService.js'
 
 /** Ankara. Note it sits at 32.85°E — inside the TM33 belt, *not* TM30's. That is deliberate. */
 const ANKARA: LngLat = [32.85, 39.93]
 
-function crsService(working: CrsCode = 'EPSG:5254', precision = 3): FlexiCrsService {
-  return new FlexiCrsService({ working, display: 'projected', precision })
+function crsService(working: CrsCode = 'EPSG:5254', precision = 3): BlaeuCrsService {
+  return new BlaeuCrsService({ working, display: 'projected', precision })
 }
 
 /**

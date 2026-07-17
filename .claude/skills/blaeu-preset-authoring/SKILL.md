@@ -1,6 +1,6 @@
 ---
-name: fleximap-preset-authoring
-description: How to build a FlexiMap domain preset — the composable bundle of plugins, config, layers, validation rules, theme and i18n that turns the kernel into a vertical product. Use when creating a packages/preset-* or when a user asks how to target a new industry without forking.
+name: blaeu-preset-authoring
+description: How to build a BlaeuMap domain preset — the composable bundle of plugins, config, layers, validation rules, theme and i18n that turns the kernel into a vertical product. Use when creating a packages/preset-* or when a user asks how to target a new industry without forking.
 ---
 
 # Authoring a domain preset
@@ -55,7 +55,7 @@ export function cadastrePreset(opts: CadastreOptions = {}): Preset {
 Used as:
 
 ```ts
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
   preset: cadastrePreset({ crs: 'EPSG:5255', locale: 'tr' }),
 })

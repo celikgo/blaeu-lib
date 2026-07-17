@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { SetPropertiesCommand, type FeatureInput, type Position } from '@fleximap/core'
-import { createTestMap, ANKARA, offsetMetres, type TestMap } from '@fleximap/core/testing'
+import { SetPropertiesCommand, type FeatureInput, type Position } from '@blaeu/core'
+import { createTestMap, ANKARA, offsetMetres, type TestMap } from '@blaeu/core/testing'
 
 import { urbanPlanningPreset } from './preset.js'
 import { scenarioPlugin } from './scenario.js'

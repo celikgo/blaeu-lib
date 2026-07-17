@@ -1,10 +1,10 @@
-import { definePreset, type CollectionId, type PluginSpec, type Preset } from '@fleximap/core'
-import { drawPlugin } from '@fleximap/plugin-draw'
-import { editPlugin } from '@fleximap/plugin-edit'
-import { historyPlugin } from '@fleximap/plugin-history'
-import { measurePlugin } from '@fleximap/plugin-measure'
-import { selectPlugin } from '@fleximap/plugin-select'
-import { snapPlugin } from '@fleximap/plugin-snap'
+import { definePreset, type CollectionId, type PluginSpec, type Preset } from '@blaeu/core'
+import { drawPlugin } from '@blaeu/plugin-draw'
+import { editPlugin } from '@blaeu/plugin-edit'
+import { historyPlugin } from '@blaeu/plugin-history'
+import { measurePlugin } from '@blaeu/plugin-measure'
+import { selectPlugin } from '@blaeu/plugin-select'
+import { snapPlugin } from '@blaeu/plugin-snap'
 import {
   closedRings,
   minParcelArea,
@@ -14,7 +14,7 @@ import {
   noSelfIntersection,
   noSlivers,
   topologyPlugin,
-} from '@fleximap/plugin-topology'
+} from '@blaeu/plugin-topology'
 
 import { en, tr } from './messages.js'
 import { scenarioPlugin } from './scenario.js'
@@ -56,7 +56,7 @@ export const DEFAULT_PRECISION = 2
  * why judgement lives in a preset and not in a plugin.
  *
  * ```ts
- * const map = await createFlexiMap({
+ * const map = await createBlaeuMap({
  *   container: '#map',
  *   preset: urbanPlanningPreset({ crs: 'EPSG:5255', locale: 'tr' }),
  * })
@@ -215,7 +215,7 @@ export function urbanPlanningPreset(options: UrbanOptions = {}): Preset {
 function assertLegend(categories: readonly ZoningCategory[]): void {
   if (categories.length === 0) {
     throw new Error(
-      '[fleximap] urbanPlanningPreset: zoningCategories is empty. ' +
+      '[blaeu] urbanPlanningPreset: zoningCategories is empty. ' +
         'The legend drives the fill colours, the attribute forms and the scenario report, so an empty one ' +
         'yields a map with no styling and a comparison with no rows. Omit the option to use DEFAULT_ZONING_CATEGORIES.',
     )
@@ -225,7 +225,7 @@ function assertLegend(categories: readonly ZoningCategory[]): void {
   for (const category of categories) {
     if (seen.has(category.code)) {
       throw new Error(
-        `[fleximap] urbanPlanningPreset: zoning code "${category.code}" appears twice. ` +
+        `[blaeu] urbanPlanningPreset: zoning code "${category.code}" appears twice. ` +
           `Codes are the key in the fill expression and in the area report, so a duplicate makes one of ` +
           `the two categories invisible and silently merges their areas.`,
       )
@@ -242,14 +242,13 @@ function resolveDefaultCategory(
     // `assertLegend` has already rejected an empty legend, so this cannot be undefined
     // — but `noUncheckedIndexedAccess` does not know that, and it is right to insist.
     const first = categories[0]
-    if (first === undefined)
-      throw new Error('[fleximap] urbanPlanningPreset: no zoning categories.')
+    if (first === undefined) throw new Error('[blaeu] urbanPlanningPreset: no zoning categories.')
     return first.code
   }
 
   if (!categories.some((category) => category.code === requested)) {
     throw new Error(
-      `[fleximap] urbanPlanningPreset: defaultCategory "${requested}" is not in zoningCategories ` +
+      `[blaeu] urbanPlanningPreset: defaultCategory "${requested}" is not in zoningCategories ` +
         `(${categories.map((c) => c.code).join(', ')}). Every polygon drawn would carry a code that the ` +
         `fill expression cannot colour and the scenario report cannot attribute. Use one of those codes, ` +
         `or add "${requested}" to zoningCategories.`,
@@ -261,7 +260,7 @@ function resolveDefaultCategory(
 function positive(name: string, value: number): number {
   if (!Number.isFinite(value) || value <= 0) {
     throw new Error(
-      `[fleximap] urbanPlanningPreset: ${name} must be a finite number greater than 0, received ${String(value)}.`,
+      `[blaeu] urbanPlanningPreset: ${name} must be a finite number greater than 0, received ${String(value)}.`,
     )
   }
   return value
@@ -270,7 +269,7 @@ function positive(name: string, value: number): number {
 function unitInterval(name: string, value: number): number {
   if (!Number.isFinite(value) || value < 0 || value > 1) {
     throw new Error(
-      `[fleximap] urbanPlanningPreset: ${name} must be between 0 and 1, received ${String(value)}. ` +
+      `[blaeu] urbanPlanningPreset: ${name} must be between 0 and 1, received ${String(value)}. ` +
         `It is an opacity, not a percentage — 0.55, not 55.`,
     )
   }

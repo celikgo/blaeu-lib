@@ -21,7 +21,7 @@ const DEFAULT_TILE_SIZE = 256
  *
  * Note what it does *not* do: it never touches the feature store, and it never
  * calls `renderer.addSource()`. The `Renderer` contract's `addSource` speaks
- * {@link FlexiFeature}s — it is a vector-data primitive — and inventing a second
+ * {@link BlaeuFeature}s — it is a vector-data primitive — and inventing a second
  * source primitive on the renderer purely for tiles would enlarge the abstraction
  * for one case.
  *
@@ -47,7 +47,7 @@ export function createRasterLayerType(renderer: Renderer): LayerTypeDef<RasterLa
       const tiles = config?.tiles
       if (!Array.isArray(tiles) || tiles.length === 0 || !tiles.every(isNonEmptyString)) {
         throw new Error(
-          `[fleximap] raster layer "${spec.id}" needs config.tiles: a non-empty array of XYZ URL templates. ` +
+          `[blaeu] raster layer "${spec.id}" needs config.tiles: a non-empty array of XYZ URL templates. ` +
             `e.g. { id: "${spec.id}", type: "raster", config: { tiles: ["https://tile.example/{z}/{x}/{y}.png"], attribution: "© Example" } }`,
         )
       }

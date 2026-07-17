@@ -1,5 +1,5 @@
 {
-  "name": "@fleximap/plugin-measure",
+  "name": "@blaeu/plugin-measure",
   "version": "0.1.0",
   "description": "Measurement: distance, area, bearing — planar, in the working CRS.",
   "license": "MIT",
@@ -26,10 +26,10 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "peerDependencies": {
-    "@fleximap/core": "^0.1.0"
+    "@blaeu/core": "^0.1.0"
   },
   "devDependencies": {
-    "@fleximap/core": "^0.1.0"
+    "@blaeu/core": "^0.1.0"
   },
   "publishConfig": {
     "access": "public"

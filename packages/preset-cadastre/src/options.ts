@@ -1,11 +1,11 @@
-import type { CollectionId, CrsCode, Locale, Severity, SnapKind } from '@fleximap/core'
-import type { AreaUnit, LengthUnit } from '@fleximap/plugin-measure'
+import type { CollectionId, CrsCode, Locale, Severity, SnapKind } from '@blaeu/core'
+import type { AreaUnit, LengthUnit } from '@blaeu/plugin-measure'
 import {
   DEFAULT_MAX_GAP_AREA_M2,
   DEFAULT_MIN_AREA_M2,
   DEFAULT_SLIVER_RATIO,
   DEFAULT_TOLERANCE_METRES,
-} from '@fleximap/plugin-topology'
+} from '@blaeu/plugin-topology'
 
 import type { AttributeSchema } from './schema.js'
 import { parcelSchema } from './schema.js'
@@ -186,7 +186,7 @@ export function resolveCadastreOptions(options: CadastreOptions = {}): ResolvedC
   const snapTolerance = options.snapTolerance ?? DEFAULT_SNAP_TOLERANCE_PX
   if (!Number.isFinite(snapTolerance) || snapTolerance < 0) {
     throw new Error(
-      `[fleximap] cadastrePreset: snapTolerance must be a finite number of screen pixels >= 0, ` +
+      `[blaeu] cadastrePreset: snapTolerance must be a finite number of screen pixels >= 0, ` +
         `received ${String(options.snapTolerance)}. Pass 0 to draw with snapping installed but never engaging.`,
     )
   }
@@ -194,7 +194,7 @@ export function resolveCadastreOptions(options: CadastreOptions = {}): ResolvedC
   const precision = options.precision ?? DEFAULT_PRECISION
   if (!Number.isInteger(precision) || precision < 0) {
     throw new Error(
-      `[fleximap] cadastrePreset: precision must be a non-negative integer number of decimal ` +
+      `[blaeu] cadastrePreset: precision must be a non-negative integer number of decimal ` +
         `places in the working CRS's metres, received ${String(options.precision)}. Use 3 for millimetres.`,
     )
   }

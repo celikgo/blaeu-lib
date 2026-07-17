@@ -1,5 +1,5 @@
 /**
- * FlexiMap · Kadastro / Parsel Düzenleme
+ * BlaeuMap · Kadastro / Parsel Düzenleme
  * ======================================
  *
  * A cadastral parcel editor, built by *configuring* the kernel rather than by
@@ -33,21 +33,21 @@ import './style.css'
 import type { StyleSpecification } from 'maplibre-gl'
 
 import {
-  createFlexiMap,
-  FlexiCrsService,
+  createBlaeuMap,
+  BlaeuCrsService,
   MapLibreRenderer,
   type FeatureId,
-  type FlexiFeature,
-  type FlexiMap,
+  type BlaeuFeature,
+  type BlaeuMap,
   type InteractionContext,
   type ValidationIssue,
-} from '@fleximap/core'
+} from '@blaeu/core'
 import {
   cadastrePreset,
   BUILDINGS_COLLECTION,
   CADASTRE_COLORS,
   PARCELS_COLLECTION,
-} from '@fleximap/preset-cadastre'
+} from '@blaeu/preset-cadastre'
 
 import { commitAdd, draft, reconcile } from './commit.js'
 import {
@@ -103,13 +103,13 @@ const basemap: StyleSpecification = {
 
 /**
  * The seed data is projected *before* the map exists, so build a CRS service to do it
- * with. `FlexiCrsService` is a pure object — no DOM, no map, no globals — which is
+ * with. `BlaeuCrsService` is a pure object — no DOM, no map, no globals — which is
  * exactly why it is exported: a server-side importer, a test, and this file all need
  * the same projection maths, and none of them should have to construct a map to get it.
  */
-const crs = new FlexiCrsService({ working: CRS, display: 'projected', precision: PRECISION })
+const crs = new BlaeuCrsService({ working: CRS, display: 'projected', precision: PRECISION })
 
-const map: FlexiMap = await createFlexiMap({
+const map: BlaeuMap = await createBlaeuMap({
   container: '#map',
   preset: cadastrePreset({ crs: CRS, locale: 'tr' }),
 
@@ -131,7 +131,7 @@ const map: FlexiMap = await createFlexiMap({
 
 // A hand-hold for the console: `map.plugin('history').undo()`, `map.debug.snapshot()`.
 // An example is also a place to poke at the thing.
-;(globalThis as unknown as { map: FlexiMap }).map = map
+;(globalThis as unknown as { map: BlaeuMap }).map = map
 
 /* ========================================================================= */
 /* 3. The seed data — through the commit gate, like everything else          */
@@ -225,7 +225,7 @@ map.interaction.use(
       const features = ids
         .map((id) => map.store.find(id))
         .filter(
-          (f): f is FlexiFeature => f !== undefined && f.meta.collection === PARCELS_COLLECTION,
+          (f): f is BlaeuFeature => f !== undefined && f.meta.collection === PARCELS_COLLECTION,
         )
       live.setSharedCorner(features.length > 0 ? features : null)
     }
@@ -326,7 +326,7 @@ map.events.on('select:changed', (event) => {
   }
 })
 
-function selectedParcel(): FlexiFeature | undefined {
+function selectedParcel(): BlaeuFeature | undefined {
   const [id] = map.plugin('select').selected
   if (id === undefined) return undefined
   const feature = map.store.find(id)

@@ -9,7 +9,7 @@
  * than thrown — same reasoning as the split tool.
  */
 
-import type { FeatureId, PluginContext, Tool } from '@fleximap/core'
+import type { FeatureId, PluginContext, Tool } from '@blaeu/core'
 import type { EditController } from '../controller.js'
 
 export function mergeTool(ctx: PluginContext<unknown>, controller: EditController): Tool {

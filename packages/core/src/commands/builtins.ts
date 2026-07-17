@@ -16,7 +16,7 @@
 
 import type { CollectionId, FeatureId } from '../types/common.js'
 import type { CommandContext, CommitCommand, CommitIntent } from '../types/command.js'
-import type { FeatureInput, FeatureProperties, FlexiFeature } from '../types/feature.js'
+import type { FeatureInput, FeatureProperties, BlaeuFeature } from '../types/feature.js'
 import type { Command } from '../types/command.js'
 
 /** How long a gap in typing still counts as the same edit. Roughly one comfortable keystroke interval. */
@@ -37,16 +37,16 @@ export interface CommandOptions {
  * const [parcel] = result.value ?? []
  * ```
  */
-export class AddFeaturesCommand implements CommitCommand<readonly FlexiFeature[]> {
+export class AddFeaturesCommand implements CommitCommand<readonly BlaeuFeature[]> {
   readonly type = 'core:add-features'
   readonly label: string
 
   readonly #collection: CollectionId
   readonly #inputs: readonly FeatureInput[]
   /** What the commit pipeline approved — ids minted, meta stamped, geometry quantised. */
-  #approved: readonly FlexiFeature[] | undefined
+  #approved: readonly BlaeuFeature[] | undefined
   /** What the store actually wrote. Replayed verbatim on redo. */
-  #added: readonly FlexiFeature[] | undefined
+  #added: readonly BlaeuFeature[] | undefined
 
   constructor(
     collection: CollectionId,
@@ -67,17 +67,17 @@ export class AddFeaturesCommand implements CommitCommand<readonly FlexiFeature[]
     return { operation: 'add', features: this.#approved, previous: [] }
   }
 
-  adopt(features: readonly FlexiFeature[]): void {
+  adopt(features: readonly BlaeuFeature[]): void {
     this.#approved = features
   }
 
-  execute(ctx: CommandContext): readonly FlexiFeature[] {
+  execute(ctx: CommandContext): readonly BlaeuFeature[] {
     // Precedence, and it matters: what the store wrote (a redo — re-adding under
     // *new* ids would dangle every selection and label that referenced the old
     // ones), else what the pipeline approved, else the raw inputs.
     const writing = this.#added ?? this.#approved ?? this.#inputs
 
-    const added: FlexiFeature[] = []
+    const added: BlaeuFeature[] = []
     for (const [collection, features] of this.#byCollection(writing)) {
       added.push(...ctx.store._add(collection, features))
     }
@@ -91,8 +91,8 @@ export class AddFeaturesCommand implements CommitCommand<readonly FlexiFeature[]
     ctx.store._remove(this.#added.map((f) => f.id))
   }
 
-  #materialise(ctx: CommandContext, inputs: readonly FeatureInput[]): readonly FlexiFeature[] {
-    const out: FlexiFeature[] = []
+  #materialise(ctx: CommandContext, inputs: readonly FeatureInput[]): readonly BlaeuFeature[] {
+    const out: BlaeuFeature[] = []
     for (const [collection, features] of this.#byCollection(inputs)) {
       out.push(...ctx.store.materialise(collection, features))
     }
@@ -128,15 +128,15 @@ export class AddFeaturesCommand implements CommitCommand<readonly FlexiFeature[]
  * Writes new versions of existing features. The general-purpose geometry edit —
  * a vertex move, a reshape, a merge — is one of these.
  */
-export class UpdateFeaturesCommand implements CommitCommand<readonly FlexiFeature[]> {
+export class UpdateFeaturesCommand implements CommitCommand<readonly BlaeuFeature[]> {
   readonly type = 'core:update-features'
   readonly label: string
 
-  #next: readonly FlexiFeature[]
-  #previous: readonly FlexiFeature[] | undefined
-  #written: readonly FlexiFeature[] | undefined
+  #next: readonly BlaeuFeature[]
+  #previous: readonly BlaeuFeature[] | undefined
+  #written: readonly BlaeuFeature[] | undefined
 
-  constructor(features: readonly FlexiFeature[], options: CommandOptions = {}) {
+  constructor(features: readonly BlaeuFeature[], options: CommandOptions = {}) {
     this.#next = features
     this.label = options.label ?? (features.length === 1 ? 'Update feature' : 'Update features')
   }
@@ -146,11 +146,11 @@ export class UpdateFeaturesCommand implements CommitCommand<readonly FlexiFeatur
     return { operation: 'update', features: this.#next, previous: this.#previous ?? [] }
   }
 
-  adopt(features: readonly FlexiFeature[]): void {
+  adopt(features: readonly BlaeuFeature[]): void {
     this.#next = features
   }
 
-  execute(ctx: CommandContext): readonly FlexiFeature[] {
+  execute(ctx: CommandContext): readonly BlaeuFeature[] {
     this.#capture(ctx)
 
     // Replaying `#written` on redo (rather than `#next`) reproduces the first
@@ -184,7 +184,7 @@ export class UpdateFeaturesCommand implements CommitCommand<readonly FlexiFeatur
       const prev = ctx.store.find(feature.id)
       if (prev === undefined) {
         throw new Error(
-          `[fleximap] UpdateFeaturesCommand: feature "${feature.id}" is not in the store. ` +
+          `[blaeu] UpdateFeaturesCommand: feature "${feature.id}" is not in the store. ` +
             `Commit an AddFeaturesCommand first, or check that you are updating the id you think you are.`,
         )
       }
@@ -202,12 +202,12 @@ export class UpdateFeaturesCommand implements CommitCommand<readonly FlexiFeatur
  * wrong one is silent data corruption that surfaces weeks later as "why is this
  * parcel styled like a building?".
  */
-export class RemoveFeaturesCommand implements CommitCommand<readonly FlexiFeature[]> {
+export class RemoveFeaturesCommand implements CommitCommand<readonly BlaeuFeature[]> {
   readonly type = 'core:remove-features'
   readonly label: string
 
   readonly #ids: readonly FeatureId[]
-  #removed: readonly FlexiFeature[] = []
+  #removed: readonly BlaeuFeature[] = []
 
   constructor(ids: readonly FeatureId[], options: CommandOptions = {}) {
     this.#ids = ids
@@ -217,7 +217,7 @@ export class RemoveFeaturesCommand implements CommitCommand<readonly FlexiFeatur
   intent(ctx: CommandContext): CommitIntent {
     // Ids that aren't in the store are dropped rather than throwing: deleting a
     // selection that a collaborator already deleted is a no-op, not an error.
-    const going = this.#ids.map((id) => ctx.store.find(id)).filter((f): f is FlexiFeature => !!f)
+    const going = this.#ids.map((id) => ctx.store.find(id)).filter((f): f is BlaeuFeature => !!f)
     return { operation: 'remove', features: going, previous: going }
   }
 
@@ -231,13 +231,13 @@ export class RemoveFeaturesCommand implements CommitCommand<readonly FlexiFeatur
    */
   adopt(): void {}
 
-  execute(ctx: CommandContext): readonly FlexiFeature[] {
+  execute(ctx: CommandContext): readonly BlaeuFeature[] {
     this.#removed = ctx.store._remove(this.#ids)
     return this.#removed
   }
 
   undo(ctx: CommandContext): void {
-    const byCollection = new Map<CollectionId, FlexiFeature[]>()
+    const byCollection = new Map<CollectionId, BlaeuFeature[]>()
     for (const feature of this.#removed) {
       const group = byCollection.get(feature.meta.collection) ?? []
       group.push(feature)
@@ -264,7 +264,7 @@ export class RemoveFeaturesCommand implements CommitCommand<readonly FlexiFeatur
  * seven times to get their old value back. With it, the whole word is one step —
  * which is what every text field the user has ever used already does.
  */
-export class SetPropertiesCommand implements CommitCommand<readonly FlexiFeature[]> {
+export class SetPropertiesCommand implements CommitCommand<readonly BlaeuFeature[]> {
   readonly type = 'core:set-properties'
   readonly label: string
 
@@ -273,9 +273,9 @@ export class SetPropertiesCommand implements CommitCommand<readonly FlexiFeature
 
   readonly #window: number
   readonly #at: number = Date.now()
-  #previous: readonly FlexiFeature[] | undefined
-  #next: readonly FlexiFeature[] | undefined
-  #written: readonly FlexiFeature[] | undefined
+  #previous: readonly BlaeuFeature[] | undefined
+  #next: readonly BlaeuFeature[] | undefined
+  #written: readonly BlaeuFeature[] | undefined
 
   constructor(
     ids: readonly FeatureId[],
@@ -296,11 +296,11 @@ export class SetPropertiesCommand implements CommitCommand<readonly FlexiFeature
     return { operation: 'update', features: this.#next ?? [], previous: this.#previous ?? [] }
   }
 
-  adopt(features: readonly FlexiFeature[]): void {
+  adopt(features: readonly BlaeuFeature[]): void {
     this.#next = features
   }
 
-  execute(ctx: CommandContext): readonly FlexiFeature[] {
+  execute(ctx: CommandContext): readonly BlaeuFeature[] {
     this.#capture(ctx)
 
     const written = ctx.store._update(this.#written ?? this.#next ?? [])
@@ -321,7 +321,7 @@ export class SetPropertiesCommand implements CommitCommand<readonly FlexiFeature
       const feature = ctx.store.find(id)
       if (feature === undefined) {
         throw new Error(
-          `[fleximap] SetPropertiesCommand: feature "${id}" is not in the store. ` +
+          `[blaeu] SetPropertiesCommand: feature "${id}" is not in the store. ` +
             `It may have been deleted while the attribute panel was still open — re-read the selection.`,
         )
       }

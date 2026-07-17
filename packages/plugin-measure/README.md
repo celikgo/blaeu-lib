@@ -1,4 +1,4 @@
-# @fleximap/plugin-measure
+# @blaeu/plugin-measure
 
 Distance, area and grid bearing — **planar, in the working CRS, in metres**.
 
@@ -10,16 +10,16 @@ named after that (`the planar (EPSG:5254) area and the spherical area … DIFFER
 "optimises" it into `@turf/area` later.
 
 ```bash
-npm install @fleximap/plugin-measure
+npm install @blaeu/plugin-measure
 ```
 
 ## Usage
 
 ```ts
-import { createFlexiMap } from '@fleximap/core'
-import { measurePlugin } from '@fleximap/plugin-measure'
+import { createBlaeuMap } from '@blaeu/core'
+import { measurePlugin } from '@blaeu/plugin-measure'
 
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
   // The plane the numbers live on. Get this wrong and everything below is wrong:
   // EPSG:3857 at Ankara inflates area by 1/cos²φ ≈ 1.7.

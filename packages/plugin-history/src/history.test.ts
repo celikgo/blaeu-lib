@@ -7,11 +7,11 @@ import {
   type Command,
   type CommandContext,
   type CommitCommand,
-  type FlexiFeature,
+  type BlaeuFeature,
   type Polygon,
-} from '@fleximap/core'
-import { ANKARA, createTestMap, offsetMetres, parcelFixture } from '@fleximap/core/testing'
-import type { TestMap } from '@fleximap/core/testing'
+} from '@blaeu/core'
+import { ANKARA, createTestMap, offsetMetres, parcelFixture } from '@blaeu/core/testing'
+import type { TestMap } from '@blaeu/core/testing'
 import { historyPlugin } from './index.js'
 import { bindKeyboard, type KeyboardTarget } from './keyboard.js'
 
@@ -32,7 +32,7 @@ function newParcel(n: number) {
 }
 
 /** Translate a polygon east/north. Enough to change the geometry, not enough to leave the CRS. */
-function translated(feature: FlexiFeature, east: number, north: number): FlexiFeature {
+function translated(feature: BlaeuFeature, east: number, north: number): BlaeuFeature {
   const polygon = feature.geometry as Polygon
   return {
     ...feature,
@@ -149,7 +149,7 @@ describe('property: undoing everything restores the store exactly', () => {
         // empty store makes move/delete unreachable and the test stops testing them.
         const roll = ids.length === 0 ? 0 : random()
         // Every one of the four writes features, so every one goes through `commit()`.
-        let command: CommitCommand<readonly FlexiFeature[]>
+        let command: CommitCommand<readonly BlaeuFeature[]>
 
         if (roll < 0.35) {
           command = new AddFeaturesCommand('parcels', [newParcel(++minted)])
@@ -329,8 +329,8 @@ class GestureTranslateCommand implements Command<void> {
 
   readonly #id: string
   readonly #east: number
-  #previous: readonly FlexiFeature[] | undefined
-  #written: readonly FlexiFeature[] | undefined
+  #previous: readonly BlaeuFeature[] | undefined
+  #written: readonly BlaeuFeature[] | undefined
 
   constructor(id: string, east: number, gesture: string) {
     this.#id = id

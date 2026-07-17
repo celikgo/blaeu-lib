@@ -1,5 +1,5 @@
-import { eachPosition, geometryBbox, toLngLat } from '@fleximap/core'
-import type { Bbox, Geometry, LngLat, Position, ScreenPoint } from '@fleximap/core'
+import { eachPosition, geometryBbox, toLngLat } from '@blaeu/core'
+import type { Bbox, Geometry, LngLat, Position, ScreenPoint } from '@blaeu/core'
 
 /**
  * A representative interior-ish point for a feature, in 4326.

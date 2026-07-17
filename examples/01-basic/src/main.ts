@@ -1,9 +1,9 @@
 /**
- * FlexiMap — 01. Basic usage.
+ * BlaeuMap — 01. Basic usage.
  *
  * The sixty-second introduction, and the file to read first.
  *
- * There is **no preset here**. A preset (see `@fleximap/preset-cadastre`) is the
+ * There is **no preset here**. A preset (see `@blaeu/preset-cadastre`) is the
  * normal way to ship a product, but it bundles the plugins, the layers, the theme,
  * the CRS and the validation rules into one call — which is exactly what you do
  * *not* want when you are trying to understand what the thing is made of. So this
@@ -26,13 +26,13 @@ import './style.css'
 // both the `maplibregl.Map` *type* and the `NavigationControl` *value*.
 import * as maplibregl from 'maplibre-gl'
 
-import { AddFeaturesCommand, MapLibreRenderer, createFlexiMap } from '@fleximap/core'
-import type { FeatureInput, LayerSpec } from '@fleximap/core'
-import { PREVIEW_COLLECTION, drawPlugin } from '@fleximap/plugin-draw'
-import { historyPlugin } from '@fleximap/plugin-history'
-import { selectPlugin } from '@fleximap/plugin-select'
-import { snapPlugin } from '@fleximap/plugin-snap'
-import { uiPlugin } from '@fleximap/plugin-ui'
+import { AddFeaturesCommand, MapLibreRenderer, createBlaeuMap } from '@blaeu/core'
+import type { FeatureInput, LayerSpec } from '@blaeu/core'
+import { PREVIEW_COLLECTION, drawPlugin } from '@blaeu/plugin-draw'
+import { historyPlugin } from '@blaeu/plugin-history'
+import { selectPlugin } from '@blaeu/plugin-select'
+import { snapPlugin } from '@blaeu/plugin-snap'
+import { uiPlugin } from '@blaeu/plugin-ui'
 
 /** Where drawn and seeded geometry lives. A collection maps 1:1 to a renderer source. */
 const PARCELS = 'parcels'
@@ -105,7 +105,7 @@ const layers: readonly LayerSpec[] = [
 /* 2. The map                                                                */
 /* ========================================================================= */
 
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
 
   /**
@@ -170,13 +170,13 @@ const map = await createFlexiMap({
  * plugin's entry point declaration-merges itself into the core's registry:
  *
  * ```ts
- * declare module '@fleximap/core' {
- *   interface FlexiPluginRegistry { draw: DrawApi }
+ * declare module '@blaeu/core' {
+ *   interface BlaeuPluginRegistry { draw: DrawApi }
  * }
  * ```
  *
- * `FlexiPluginRegistry` ships *empty* from the core. That empty interface is not an
- * oversight, it is the seam — importing `@fleximap/plugin-draw` is what teaches the
+ * `BlaeuPluginRegistry` ships *empty* from the core. That empty interface is not an
+ * oversight, it is the seam — importing `@blaeu/plugin-draw` is what teaches the
  * kernel that `'draw'` is a valid id and that it resolves to `DrawApi`. Autocomplete
  * on `map.plugin('` lists exactly the plugins you installed, a typo in the id is a
  * compile error, and a plugin a stranger writes next year is as first-class as this
@@ -197,8 +197,8 @@ const snap = map.tryPlugin('snap')
 const feed = document.querySelector<HTMLElement>('#feed')
 
 /**
- * `FlexiEventMap` is augmented the same way `FlexiPluginRegistry` is, so the payload
- * below is fully inferred: `e.payload.feature` is a `FlexiFeature`, `e.payload.mode`
+ * `BlaeuEventMap` is augmented the same way `BlaeuPluginRegistry` is, so the payload
+ * below is fully inferred: `e.payload.feature` is a `BlaeuFeature`, `e.payload.mode`
  * is a `DrawMode` union. Nothing is `any`, and nothing was cast.
  */
 map.events.on('draw:complete', (e) => {
@@ -224,7 +224,7 @@ map.events.on('draw:complete', (e) => {
  * mistyped event name is not a listener that silently never fires at 3 a.m. It is a
  * red squiggle now.
  */
-// @ts-expect-error — 'draw:complet' is not a key of FlexiEventMap. A typo in an event name does not compile.
+// @ts-expect-error — 'draw:complet' is not a key of BlaeuEventMap. A typo in an event name does not compile.
 map.events.on('draw:complet', () => log('this listener can never exist'))
 
 // Selection reports deltas, not just the new set — a table binding that only got the
@@ -264,7 +264,7 @@ map.events.on('history:changed', (e) => {
  * first frame.
  *
  * Note *how* they get in: not `store.add()` — there is no such method — but a
- * `Command` dispatched through the bus. Every mutation in FlexiMap is a command with
+ * `Command` dispatched through the bus. Every mutation in BlaeuMap is a command with
  * an `execute` and an `undo` (core invariant 2), which is the entire reason the
  * history plugin can offer undo for a plugin it has never heard of.
  */
@@ -326,7 +326,7 @@ history.clear()
  * That indirection is the whole library. A mapping toolkit where `drawTool` calls
  * `snapEngine.snap(point)` has, at that moment, decided that snapping means whatever
  * the draw tool asks for, forever; only tools that remember to call it snap, and a
- * third-party tool never does. FlexiMap put the seam one level down, in the pipeline,
+ * third-party tool never does. BlaeuMap put the seam one level down, in the pipeline,
  * and got snapping for tools that do not exist yet.
  *
  * Two things follow, and both are visible in this file:
@@ -387,7 +387,7 @@ ui.status.set('hint', 'Pick a tool, then click on the map. Alt suppresses snappi
 draw.start('polygon')
 
 // Handy in the console: `map.debug.snapshot()` reports listener, middleware, layer,
-// plugin and feature counts. The teardown test in `fleximap-testing` asserts they all
+// plugin and feature counts. The teardown test in `blaeu-testing` asserts they all
 // return to zero after `map.destroy()`, and you can watch that happen live here.
 declare global {
   interface Window {

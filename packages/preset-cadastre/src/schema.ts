@@ -1,12 +1,12 @@
 import type {
   CollectionId,
-  FlexiFeature,
+  BlaeuFeature,
   Geometry,
   LngLat,
   Severity,
   ValidationIssue,
   ValidationRule,
-} from '@fleximap/core'
+} from '@blaeu/core'
 
 /**
  * The parcel form's fields, as data.
@@ -121,7 +121,7 @@ export function parcelAttributesRule(
       return collection === undefined || feature.meta.collection === collection
     },
 
-    check(feature: FlexiFeature, ctx): readonly ValidationIssue[] {
+    check(feature: BlaeuFeature, ctx): readonly ValidationIssue[] {
       const issues: ValidationIssue[] = []
       const at = firstPosition(feature.geometry)
 

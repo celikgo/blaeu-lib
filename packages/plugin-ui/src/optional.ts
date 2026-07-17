@@ -1,4 +1,4 @@
-import type { Disposable } from '@fleximap/core'
+import type { Disposable } from '@blaeu/core'
 import type { ControlContext } from './types.js'
 
 /**
@@ -59,7 +59,7 @@ export function watchPlugin(
  * prevent.
  *
  * The only cast is on the *signature*: `tryPlugin` is keyed on
- * `keyof FlexiPluginRegistry`, and that key belongs to the other plugin's module
+ * `keyof BlaeuPluginRegistry`, and that key belongs to the other plugin's module
  * augmentation. Importing that augmentation to make `tryPlugin('history')`
  * type-check would turn an optional dependency into a compile-time one — this
  * package would no longer build without it, and the degradation test would be

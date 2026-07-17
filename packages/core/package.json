@@ -1,7 +1,7 @@
 {
-  "name": "@fleximap/core",
+  "name": "@blaeu/core",
   "version": "0.1.0",
-  "description": "The FlexiMap kernel: event bus, plugin registry, pipelines, command bus, feature store.",
+  "description": "The Blaeu kernel: event bus, plugin registry, pipelines, command bus, feature store.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

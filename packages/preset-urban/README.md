@@ -1,13 +1,13 @@
-# @fleximap/preset-urban
+# @blaeu/preset-urban
 
-The FlexiMap kernel, as an **urban planning** tool: a zoning legend that styles itself, a 5 m planning
+The BlaeuMap kernel, as an **urban planning** tool: a zoning legend that styles itself, a 5 m planning
 grid, forgiving snapping, warning-level topology, deep undo, and scenario comparison.
 
 ```ts
-import { createFlexiMap } from '@fleximap/core'
-import { urbanPlanningPreset } from '@fleximap/preset-urban'
+import { createBlaeuMap } from '@blaeu/core'
+import { urbanPlanningPreset } from '@blaeu/preset-urban'
 
-const map = await createFlexiMap({
+const map = await createBlaeuMap({
   container: '#map',
   preset: urbanPlanningPreset({ crs: 'EPSG:5254', locale: 'tr' }),
 })
@@ -31,7 +31,7 @@ A **planning department** drawing or revising an imar planı: allocating functio
 alternatives, and reporting how much land each function gained or lost.
 
 Not a surveyor. If your output is a boundary that ends up on a title deed, you want
-`@fleximap/preset-cadastre` — same kernel, same plugins, opposite judgement (see the table below, and
+`@blaeu/preset-cadastre` — same kernel, same plugins, opposite judgement (see the table below, and
 the comment above `validation` in [`src/preset.ts`](./src/preset.ts), which is the clearest statement in
 this repo of what a preset is _for_).
 
@@ -125,9 +125,9 @@ in six lines and inherit everything else — the provider list, the 5 m grid, th
 without restating any of it:
 
 ```ts
-import { composePresets, definePreset, createFlexiMap } from '@fleximap/core'
-import { snapPlugin } from '@fleximap/plugin-snap'
-import { urbanPlanningPreset } from '@fleximap/preset-urban'
+import { composePresets, definePreset, createBlaeuMap } from '@blaeu/core'
+import { snapPlugin } from '@blaeu/plugin-snap'
+import { urbanPlanningPreset } from '@blaeu/preset-urban'
 
 const izmir = composePresets(
   urbanPlanningPreset(), // national base
@@ -141,7 +141,7 @@ const izmir = composePresets(
   }),
 )
 
-const map = await createFlexiMap({ container: '#map', preset: izmir })
+const map = await createBlaeuMap({ container: '#map', preset: izmir })
 ```
 
 Merge semantics, worth knowing by heart:

@@ -15,11 +15,11 @@
  * still does not import `plugin-snap`, and `plugin-snap` still does not import `plugin-edit`.
  */
 import { describe, expect, it } from 'vitest'
-import { createTestMap } from '@fleximap/core/testing'
-import { snapPlugin } from '@fleximap/plugin-snap'
+import { createTestMap } from '@blaeu/core/testing'
+import { snapPlugin } from '@blaeu/plugin-snap'
 import type { Polygon } from 'geojson'
 
-import { editPlugin } from '@fleximap/plugin-edit'
+import { editPlugin } from '@blaeu/plugin-edit'
 
 /** A 43 m square at Ankara. Its SE corner is the one we drag. */
 const PARCEL: Polygon = {

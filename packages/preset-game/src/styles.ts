@@ -1,4 +1,4 @@
-import type { LayerStyle } from '@fleximap/core'
+import type { LayerStyle } from '@blaeu/core'
 import type { EntityType, ResolvedGameOptions } from './types.js'
 
 /** The property every placed entity carries. Matched by the icon expression below. */

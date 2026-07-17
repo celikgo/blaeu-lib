@@ -27,11 +27,11 @@ export function scaleBarControl(options: ScaleBarOptions = {}): Control {
     id: 'scale',
 
     render(ctx: ControlContext): HTMLElement {
-      const bar = el('div', { class: 'fx-ui-scale-bar' })
-      const label = el('span', { class: 'fx-ui-scale-label' })
+      const bar = el('div', { class: 'bl-ui-scale-bar' })
+      const label = el('span', { class: 'bl-ui-scale-label' })
 
       const element = el('div', {
-        class: 'fx-ui-scale',
+        class: 'bl-ui-scale',
         attrs: { 'aria-label': ctx.i18n.t('ui.scale'), role: 'img' },
         children: [bar, label],
       })

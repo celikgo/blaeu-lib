@@ -1,4 +1,4 @@
-import type { Messages } from '@fleximap/core'
+import type { Messages } from '@blaeu/core'
 
 /**
  * The UI's own vocabulary — and nothing else.

@@ -53,7 +53,7 @@ a monolith with drawing and measurement built in has already assumed a basemap, 
 surface and a `@turf/area`, none of which a game world has. You cannot subtract a core
 feature. You can decline to install a plugin.
 
-**Inheritance — `class CadastreMap extends FlexiMap`.** Domains would override behaviour by
+**Inheritance — `class CadastreMap extends BlaeuMap`.** Domains would override behaviour by
 subclassing. Rejected because it composes exactly once: a municipality that wants the
 national cadastre customisation _and_ a utilities extension has to pick a base class, and
 the two hierarchies do not merge. Composition of data (presets) has no such ceiling.
@@ -70,7 +70,7 @@ that owns the value, which is a pipeline, not an event.
   carry JSTS — you genuinely do not pay for what you do not use.
 - **Good.** The core is small enough to hold in your head, and its test suite runs in
   milliseconds against a fake renderer.
-- **Bad.** Nothing works out of the box. `createFlexiMap({ container })` gives you a map that
+- **Bad.** Nothing works out of the box. `createBlaeuMap({ container })` gives you a map that
   does nothing at all, which is a worse first-run experience than a library that draws by
   default. We accept it, and pay it back with presets: `preset: cadastrePreset()` is one line
   and gives a complete product.

@@ -1,9 +1,4 @@
-import {
-  DisposableStore,
-  type Disposable,
-  type FlexiPlugin,
-  type PluginContext,
-} from '@fleximap/core'
+import { DisposableStore, type Disposable, type BlaeuPlugin, type PluginContext } from '@blaeu/core'
 
 import { attributionControl } from './controls/AttributionControl.js'
 import { coordinateReadoutControl } from './controls/CoordinateReadout.js'
@@ -75,7 +70,7 @@ const DEFAULT_SLOT: Readonly<Record<string, MountSlot>> = {
  * disabled that shouldn't be, and no listener is left dangling on an event that
  * will never fire.
  */
-export function uiPlugin(options: UiOptions = {}): FlexiPlugin<UiApi, UiOptions> {
+export function uiPlugin(options: UiOptions = {}): BlaeuPlugin<UiApi, UiOptions> {
   return {
     id: 'ui',
     version: '1.0.0',
@@ -135,11 +130,11 @@ function build(ctx: PluginContext<ResolvedUiOptions>): UiApi {
     return inertApi(container)
   }
 
-  const scope = `fx-ui-${++scopeCounter}`
-  const root = el('div', { class: 'fx-ui', attrs: { 'data-fx-ui': scope } })
+  const scope = `bl-ui-${++scopeCounter}`
+  const root = el('div', { class: 'bl-ui', attrs: { 'data-bl-ui': scope } })
 
   const style = document.createElement('style')
-  style.setAttribute('data-fx-ui-style', scope)
+  style.setAttribute('data-bl-ui-style', scope)
   style.textContent = stylesheet(scope)
   document.head.appendChild(style)
   ctx.disposables.addFn(() => style.remove())
@@ -153,16 +148,16 @@ function build(ctx: PluginContext<ResolvedUiOptions>): UiApi {
 
   const corners = new Map<MountSlot, HTMLElement>()
   for (const position of POSITIONS) {
-    const corner = el('div', { class: `fx-ui-corner fx-ui-corner-${position}` })
+    const corner = el('div', { class: `bl-ui-corner bl-ui-corner-${position}` })
     corners.set(position, corner)
     root.appendChild(corner)
   }
-  const overlay = el('div', { class: 'fx-ui-overlay' })
+  const overlay = el('div', { class: 'bl-ui-overlay' })
   corners.set('overlay', overlay)
   root.appendChild(overlay)
 
   const status = el('div', {
-    class: 'fx-ui-status',
+    class: 'bl-ui-status',
     attrs: { role: 'status', 'aria-live': 'polite', 'aria-label': 'status' },
   })
   root.appendChild(status)
@@ -194,7 +189,7 @@ function build(ctx: PluginContext<ResolvedUiOptions>): UiApi {
       set(key: string, text: string): void {
         let entry = statusEntries.get(key)
         if (!entry) {
-          entry = el('span', { class: 'fx-ui-status-entry' })
+          entry = el('span', { class: 'bl-ui-status-entry' })
           entry.dataset['fxKey'] = key
           statusEntries.set(key, entry)
           status.appendChild(entry)
@@ -212,7 +207,7 @@ function build(ctx: PluginContext<ResolvedUiOptions>): UiApi {
     const parent = corners.get(slot)
     if (!parent) {
       throw new Error(
-        `[fleximap/ui] unknown control position "${slot}" for control "${control.id}". ` +
+        `[blaeu/ui] unknown control position "${slot}" for control "${control.id}". ` +
           `Use one of: ${POSITIONS.join(', ')}.`,
       )
     }
@@ -303,7 +298,7 @@ function resolveContainer(ctx: PluginContext<ResolvedUiOptions>): HTMLElement {
   if (isElementLike(fromField)) return fromField
 
   throw new Error(
-    `[fleximap/ui] could not find the map container. The renderer "${ctx.renderer.kind}" exposes ` +
+    `[blaeu/ui] could not find the map container. The renderer "${ctx.renderer.kind}" exposes ` +
       `neither getContainer() nor a container field on getNative(). Pass one explicitly: ` +
       `uiPlugin({ container: document.querySelector('#map') }).`,
   )

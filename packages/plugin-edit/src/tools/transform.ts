@@ -14,7 +14,7 @@ import {
   type PluginContext,
   type ProjectedXY,
   type Tool,
-} from '@fleximap/core'
+} from '@blaeu/core'
 import type { EditController, TransformGesture } from '../controller.js'
 import { ROTATE_HANDLE_OFFSET_FRACTION, type Handle } from '../handles.js'
 import { planarBounds } from '../geometry.js'

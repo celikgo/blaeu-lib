@@ -1,5 +1,5 @@
 {
-  "name": "@fleximap/plugin-history",
+  "name": "@blaeu/plugin-history",
   "version": "0.1.0",
   "description": "Undo/redo across every plugin, by subscribing to the command bus.",
   "license": "MIT",
@@ -26,10 +26,10 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "peerDependencies": {
-    "@fleximap/core": "^0.1.0"
+    "@blaeu/core": "^0.1.0"
   },
   "devDependencies": {
-    "@fleximap/core": "^0.1.0"
+    "@blaeu/core": "^0.1.0"
   },
   "publishConfig": {
     "access": "public"

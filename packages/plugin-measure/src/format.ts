@@ -1,4 +1,4 @@
-import type { I18n } from '@fleximap/core'
+import type { I18n } from '@blaeu/core'
 import type { AreaUnit, BearingReadout, LengthUnit } from './types.js'
 
 /**
@@ -40,7 +40,7 @@ const LENGTH_DECIMALS: Readonly<Record<LengthUnit, number>> = { m: 2, km: 3 }
 
 export function formatArea(squareMetres: number, unit: AreaUnit, i18n: I18n): string {
   // The core's own `area()` is the m² path, deliberately: it is what the rest of
-  // FlexiMap formats areas with, and routing through it means a preset that
+  // BlaeuMap formats areas with, and routing through it means a preset that
   // overrides `units.squareMetre` changes this label too, for free.
   if (unit === 'm2') return i18n.area(squareMetres)
 
@@ -66,7 +66,7 @@ export function formatLength(metres: number, unit: LengthUnit, i18n: I18n): stri
  *
  * The DMS numbers are not localised — degrees, minutes and seconds are integers
  * and carry no separators, and `123° 45' 12"` is written the same way in every
- * locale FlexiMap targets. The decimal form *is* localised, because it has a
+ * locale BlaeuMap targets. The decimal form *is* localised, because it has a
  * decimal separator and that is exactly the character locales disagree about.
  */
 export function formatBearing(degrees: number, i18n: I18n): BearingReadout {

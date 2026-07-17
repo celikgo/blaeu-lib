@@ -1,8 +1,8 @@
 /**
- * `@fleximap/preset-cadastre` — the kernel, aimed at a land registry.
+ * `@blaeu/preset-cadastre` — the kernel, aimed at a land registry.
  *
  * ```ts
- * const map = await createFlexiMap({
+ * const map = await createBlaeuMap({
  *   container: '#map',
  *   preset: cadastrePreset({ crs: 'EPSG:5254', locale: 'tr' }),
  * })

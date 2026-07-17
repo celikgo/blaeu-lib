@@ -1,5 +1,5 @@
-import { toLngLat } from '@fleximap/core'
-import type { CrsService, LngLat, ProjectedXY } from '@fleximap/core'
+import { toLngLat } from '@blaeu/core'
+import type { CrsService, LngLat, ProjectedXY } from '@blaeu/core'
 
 /**
  * Douglas-Peucker, in the projected plane, with a tolerance in metres.

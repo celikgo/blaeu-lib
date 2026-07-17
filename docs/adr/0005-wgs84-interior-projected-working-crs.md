@@ -32,7 +32,7 @@ renders, somewhere in the Gulf of Guinea.
 **Two rules, and they are not in tension.**
 
 1. **The interior CRS is WGS84 `[lng, lat]`, always.** The store, every event payload, every
-   `FlexiFeature.geometry`, and the renderer speak EPSG:4326 without exception. It is what
+   `BlaeuFeature.geometry`, and the renderer speak EPSG:4326 without exception. It is what
    GeoJSON (RFC 7946) mandates, what MapLibre expects, and what every import and export
    format can round-trip.
 
