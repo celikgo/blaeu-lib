@@ -3,9 +3,11 @@ import type { Polygon, Position } from 'geojson'
 
 import { BlaeuEventBus } from '../events/EventBus.js'
 import { BlaeuFeatureStore } from './FeatureStore.js'
+import { BlaeuTopologyIndex } from './TopologyIndex.js'
 import { createTestCrs, offsetMetres } from './test-crs.js'
 import type { CrsService } from '../types/crs.js'
 import type { LngLat } from '../types/common.js'
+import type { BlaeuFeature } from '../types/feature.js'
 
 const ANKARA: LngLat = [32.85, 39.93]
 
@@ -193,5 +195,88 @@ describe('BlaeuTopologyIndex', () => {
     const { crs, store } = setup()
     store._add('parcels', [{ id: 'p', geometry: rect(crs, ANKARA, 0, 0, 20, 20) }])
     expect(store.topology.at(offsetMetres(crs, ANKARA, 500, 500))).toEqual([])
+  })
+})
+
+describe('BlaeuTopologyIndex — rebuild is atomic and total', () => {
+  /** A polygon whose ring is the given lng/lat corners (auto-closed). */
+  function poly(id: string, ring: readonly [number, number][]): BlaeuFeature {
+    return {
+      id,
+      geometry: { type: 'Polygon', coordinates: [[...ring, ring[0]!] as unknown as number[][]] },
+      properties: {},
+      meta: { collection: 'c', version: 1, createdAt: 0, updatedAt: 0 },
+    } as BlaeuFeature
+  }
+
+  /** A CRS that refuses one sentinel longitude, exactly as forward() throws on a non-finite result. */
+  function refusingCrs(): CrsService {
+    return {
+      working: {
+        precision: 0.001,
+        forward: ([lng, lat]: LngLat) => {
+          if (lng === 999) throw new Error('[blaeu] cannot project [999, …]')
+          return [lng * 1000, lat * 1000]
+        },
+      },
+    } as unknown as CrsService
+  }
+
+  it('skips a feature it cannot project, indexes the rest, and never half-builds', () => {
+    const features = [
+      poly('good', [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+      ]),
+      // 'bad' has one un-projectable vertex — it comes BETWEEN the two good ones, so if
+      // rebuild aborted on it, 'good2' would be missing.
+      poly('bad', [
+        [999, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+      ]),
+      poly('good2', [
+        [2, 2],
+        [3, 2],
+        [3, 3],
+        [2, 3],
+      ]),
+    ]
+    const topo = new BlaeuTopologyIndex(refusingCrs(), () => features)
+
+    expect(() => topo.rebuild()).not.toThrow()
+
+    // Both good features are indexed — including the one AFTER the failure, proving the
+    // walk did not abort.
+    expect(topo.featuresAt([0, 0])).toContain('good')
+    expect(topo.featuresAt([2, 2])).toContain('good2')
+    // 'bad' contributed nothing, not even its projectable vertices: all-or-nothing, so
+    // there are no orphan entries a later de-index could never remove.
+    expect(topo.featuresAt([1, 0])).toEqual(['good'])
+  })
+
+  it('leaves the previous index intact if the source itself throws', () => {
+    const good = [
+      poly('a', [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+      ]),
+    ]
+    let source: () => Iterable<BlaeuFeature> = () => good
+    const topo = new BlaeuTopologyIndex(refusingCrs(), () => source())
+    topo.rebuild()
+    expect(topo.featuresAt([0, 0])).toContain('a')
+
+    // A source that throws mid-iteration must not wipe the working index.
+    source = () => {
+      throw new Error('store vanished')
+    }
+    expect(() => topo.rebuild()).toThrow()
+    expect(topo.featuresAt([0, 0])).toContain('a')
   })
 })

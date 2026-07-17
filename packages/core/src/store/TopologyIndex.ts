@@ -109,33 +109,76 @@ export class BlaeuTopologyIndex implements TopologyIndex {
     return this.featuresAt(point).length > 1
   }
 
+  /**
+   * Re-key every vertex in the current working plane. Called when `setWorking` moves
+   * the plane out from under the index.
+   *
+   * **Atomic and total.** It builds a *fresh* pair of maps and only swaps them in once
+   * the whole dataset has been walked — so a feature that cannot project into the new
+   * plane (a coordinate outside the CRS's usable extent) is skipped rather than
+   * aborting the walk and leaving the index half-built. A half-built index is worse
+   * than the stale-but-complete one it replaced: it reports shared corners as unshared
+   * for every feature past the failure, silently. The previous index survives an
+   * unexpected throw untouched.
+   */
   rebuild(): void {
-    this.#cells = new Map()
-    this.#byFeature = new Map()
-    for (const feature of this.#source()) this.index(feature)
+    const cells = new Map<string, Entry[]>()
+    const byFeature = new Map<FeatureId, string[]>()
+
+    for (const feature of this.#source()) {
+      try {
+        this.#indexInto(feature, cells, byFeature)
+      } catch {
+        // A feature whose vertices do not project finitely in this plane has no
+        // position in it, so it cannot take part in topology here — leave it out of
+        // the index rather than fail the whole rebuild. (`index()` on a live `_add`
+        // still throws: a bad coordinate arriving one at a time is an error to surface.)
+      }
+    }
+
+    this.#cells = cells
+    this.#byFeature = byFeature
   }
 
-  /** @internal Called by the store on `_add`. */
+  /** @internal Called by the store on `_add`. Throws (all-or-nothing) on a non-projectable vertex. */
   index(feature: BlaeuFeature): void {
+    this.#indexInto(feature, this.#cells, this.#byFeature)
+  }
+
+  /**
+   * Index one feature into the given maps, all-or-nothing.
+   *
+   * Every vertex is projected *first*, into a local list; only once they all succeed
+   * are the buckets written. So a vertex that fails to project throws before anything
+   * is mutated — no orphan entries in `cells` with no matching `byFeature` key that
+   * `deindex` could never find and remove.
+   */
+  #indexInto(
+    feature: BlaeuFeature,
+    cells: Map<string, Entry[]>,
+    byFeature: Map<FeatureId, string[]>,
+  ): void {
     const grid = this.#grid
     const plane = this.#crs.working
-    const keys: string[] = []
+    const pending: { key: string; entry: Entry }[] = []
 
     eachVertex(feature.geometry, (part, ring, index, position) => {
       const [x, y] = plane.forward(toLngLat(position))
       const key = `${Math.round(x / grid)}:${Math.round(y / grid)}`
-      const entry: Entry = { ref: { feature: feature.id, part, ring, index }, x, y }
+      pending.push({ key, entry: { ref: { feature: feature.id, part, ring, index }, x, y } })
+    })
 
-      let bucket = this.#cells.get(key)
+    const keys: string[] = []
+    for (const { key, entry } of pending) {
+      let bucket = cells.get(key)
       if (bucket === undefined) {
         bucket = []
-        this.#cells.set(key, bucket)
+        cells.set(key, bucket)
       }
       bucket.push(entry)
       keys.push(key)
-    })
-
-    this.#byFeature.set(feature.id, keys)
+    }
+    byFeature.set(feature.id, keys)
   }
 
   /** @internal Called by the store on `_remove`. */

@@ -57,12 +57,23 @@ export interface CrsService {
    * The working CRS is normally a *deployment* choice (which TM belt a region sits in),
    * not a session one — but a dataset that spans two belts, or a measure tool told it is
    * outside the current extent, may legitimately switch. Doing so moves the plane every
-   * precise measurement is taken in, so anything derived from the plane is now stale:
-   * the topology index (which buckets vertices by their projected position) is rebuilt
-   * automatically via {@link onChange}; a preset's derived areas are not re-derived, and
-   * geometry already ingested keeps the quantisation grid it was snapped to. For most
-   * belt-to-belt switches at the same precision that difference is sub-millimetre and the
-   * topology tolerance absorbs it, but it is why this is a deployment knob, not a toggle.
+   * precise measurement is taken in, so anything derived from it must be re-derived:
+   *
+   * - **The topology index is rebuilt automatically** (via {@link onChange}), so parcels
+   *   that already shared a corner still do — their vertices carry identical lng/lat and
+   *   re-project to the same point in any plane. A plugin that caches projected state can
+   *   subscribe to {@link onChange} to do the same; the measure plugin re-derives its
+   *   labels this way.
+   * - **Already-ingested geometry keeps the quantisation grid it was snapped to.** A new
+   *   feature drawn *after* the switch snaps to the new grid, and the two grids disagree
+   *   by up to ~1 mm per axis — right at the topology tolerance. Old-vs-old shared corners
+   *   are always exact, but a *new* parcel snapped onto an *old* corner can, in rare grid
+   *   phases, land just past the tolerance and read as not sharing it. Re-ingest the
+   *   dataset in the new CRS if that matters.
+   * - Derived fields written by preset middleware (a cadastral area) are **not** re-derived.
+   *
+   * The safe rule: choose the working CRS at construction for topology-critical work, and
+   * treat `setWorking` as a deployment knob, not a session toggle.
    */
   setWorking(code: CrsCode): void
 

@@ -88,6 +88,13 @@ export function measurePlugin(
       // the label layer, not a restyle of it.
       ctx.disposables.add(ctx.i18n.onChange(() => current.relabel()))
 
+      // A change of working plane re-derives the numbers, not just their wording: the
+      // measurements are re-read from their stored geometry through the live CRS on
+      // every relabel, so a belt switch (which the measure tools even suggest, when a
+      // parcel falls outside the current extent) updates every area and length instead
+      // of leaving materially wrong ones on screen until an unrelated locale change.
+      ctx.disposables.add(ctx.crs.onChange(() => current.relabel()))
+
       for (const [id, tool] of measureTools(current)) {
         ctx.disposables.add(ctx.tools.register(id, tool))
       }
