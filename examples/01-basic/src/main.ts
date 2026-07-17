@@ -301,7 +301,10 @@ const seeds: readonly FeatureInput[] = [
   },
 ]
 
-map.commands.dispatch(new AddFeaturesCommand(PARCELS, seeds, { label: 'Load parcels' }))
+// A durable write commits — it runs the commit pipeline (validation, derived fields)
+// and lands on the undo stack. `dispatch()` is only for transient scaffolding and
+// refuses a CommitCommand like this one, at compile time and at runtime.
+await map.commands.commit(new AddFeaturesCommand(PARCELS, seeds, { label: 'Load parcels' }))
 
 // Loading a document is not something the user did, so it is not something they
 // should be able to undo their way back past. Clearing after a load is the normal
@@ -399,3 +402,57 @@ window.map = map
 function log(message: string): void {
   if (feed) feed.textContent = message
 }
+
+/* ========================================================================= */
+/* 9. Theme switching — the whole map follows                                */
+/* ========================================================================= */
+
+/**
+ * `map.theme.list()` enumerates every registered theme (the six built-ins plus any
+ * the app registered), and `map.theme.use(id)` activates one. There is nothing here
+ * that knows a colour: the plugins read their own colours from the theme tokens and
+ * restyle themselves, and the parcel layers follow through a token-driven style. A
+ * built-in theme also swaps the *basemap* to its own flat ground, which the OSM
+ * tiles here sit on top of — toggle them off to see it.
+ */
+const themeBar = document.querySelector<HTMLElement>('#themes')
+const buttons = new Map<string, HTMLButtonElement>()
+
+function markActiveTheme(): void {
+  const active = map.theme.current.id
+  for (const [id, btn] of buttons) btn.setAttribute('aria-pressed', String(id === active))
+  document.querySelector('#theme-auto')?.setAttribute('aria-pressed', 'false')
+}
+
+if (themeBar) {
+  for (const theme of map.theme.list()) {
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.textContent = theme.id
+    btn.addEventListener('click', () => {
+      map.theme.use(theme.id)
+      markActiveTheme()
+      log(`Theme: ${theme.id} (${theme.scheme})`)
+    })
+    buttons.set(theme.id, btn)
+    themeBar.append(btn)
+  }
+  markActiveTheme()
+}
+
+document.querySelector<HTMLButtonElement>('#theme-auto')?.addEventListener('click', (e) => {
+  // Follow the OS setting and flip live when it changes; an explicit theme button
+  // afterwards takes back manual control.
+  map.theme.follow('auto')
+  for (const btn of buttons.values()) btn.setAttribute('aria-pressed', 'false')
+  ;(e.currentTarget as HTMLButtonElement).setAttribute('aria-pressed', 'true')
+  log(`Theme: following OS → ${map.theme.current.id} (${map.theme.scheme})`)
+})
+
+const tilesToggle = document.querySelector<HTMLButtonElement>('#tiles-toggle')
+tilesToggle?.addEventListener('click', () => {
+  const on = tilesToggle.getAttribute('aria-pressed') === 'true'
+  map.layers.get('basemap')?.setVisible(!on)
+  tilesToggle.setAttribute('aria-pressed', String(!on))
+  tilesToggle.textContent = `Basemap tiles: ${!on ? 'on' : 'off'}`
+})

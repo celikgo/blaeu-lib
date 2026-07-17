@@ -481,6 +481,9 @@ A library honest about its edges is worth more than one that is not, so:
 
 ## Further reading
 
+- [docs/theming.md](docs/theming.md) — the theme system: switching light/dark, the six
+  built-in themes (including the Twitter/X palettes), theme-following layer styles, and
+  writing your own theme.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — every core abstraction, the life of a pointer event,
   the life of a mutation, plugin dependency resolution, and the extension-point catalogue.
 - [ROADMAP.md](ROADMAP.md) — what is next, and why in that order.
