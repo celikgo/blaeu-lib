@@ -124,6 +124,12 @@ export class BlaeuMap {
     this.#disposables.add(this.#wireInteraction())
     this.#disposables.add(this.#wireCamera())
 
+    // The topology index buckets every vertex by its position *in the working plane*, so
+    // a runtime `crs.setWorking()` leaves every bucket keyed to a plane that no longer
+    // exists — and every shared corner reads as unshared until the index is rebuilt.
+    // Wire the rebuild here, once, rather than making the store reach for the event bus.
+    this.#disposables.add(this.crs.onChange(() => this.store.topology.rebuild()))
+
     if (preset?.theme) this.theme.set(preset.theme)
     if (options.theme) this.theme.set(options.theme)
 

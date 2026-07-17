@@ -1,5 +1,5 @@
 import type { Geometry } from 'geojson'
-import type { LngLat, ProjectedXY } from './common.js'
+import type { Disposable, LngLat, ProjectedXY } from './common.js'
 
 /** An EPSG code (`'EPSG:5254'`) or a registered custom name. */
 export type CrsCode = string
@@ -51,7 +51,29 @@ export interface CrsService {
   /** The plane used for all precise geometry, readouts, and exports. */
   readonly working: ProjectedCrs
 
+  /**
+   * Change the working plane at runtime.
+   *
+   * The working CRS is normally a *deployment* choice (which TM belt a region sits in),
+   * not a session one — but a dataset that spans two belts, or a measure tool told it is
+   * outside the current extent, may legitimately switch. Doing so moves the plane every
+   * precise measurement is taken in, so anything derived from the plane is now stale:
+   * the topology index (which buckets vertices by their projected position) is rebuilt
+   * automatically via {@link onChange}; a preset's derived areas are not re-derived, and
+   * geometry already ingested keeps the quantisation grid it was snapped to. For most
+   * belt-to-belt switches at the same precision that difference is sub-millimetre and the
+   * topology tolerance absorbs it, but it is why this is a deployment knob, not a toggle.
+   */
   setWorking(code: CrsCode): void
+
+  /**
+   * Fires after {@link setWorking} changes the working CRS to a different one.
+   *
+   * The kernel uses it to rebuild the projected-plane indexes; a plugin can use it to
+   * re-derive anything it computed in the old plane. It does *not* fire when `setWorking`
+   * is given the CRS that is already active.
+   */
+  onChange(handler: () => void): Disposable
 
   /** Look up any registered CRS. */
   get(code: CrsCode): ProjectedCrs | undefined

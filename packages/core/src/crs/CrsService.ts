@@ -1,7 +1,7 @@
 import proj4 from 'proj4'
 import type { Geometry, Position } from 'geojson'
 
-import type { LngLat, ProjectedXY } from '../types/common.js'
+import type { Disposable, LngLat, ProjectedXY } from '../types/common.js'
 import type { CrsCode, CrsService, ProjectedCrs } from '../types/crs.js'
 import type { CrsConfig } from '../types/config.js'
 
@@ -60,6 +60,7 @@ export class BlaeuCrsService implements CrsService {
    */
   readonly #cache = new Map<string, ProjectedCrs>()
   #working: ProjectedCrs
+  #handlers: (() => void)[] = []
 
   constructor(config: CrsConfig) {
     this.#config = config
@@ -77,7 +78,30 @@ export class BlaeuCrsService implements CrsService {
   }
 
   setWorking(code: CrsCode): void {
-    this.#working = this.#require(code)
+    const next = this.#require(code)
+    // Same plane, nothing derived from it is stale — do not fire, so a rebuild of the
+    // whole topology index does not happen on a no-op call.
+    if (next === this.#working) return
+    this.#working = next
+    for (const handler of [...this.#handlers]) {
+      try {
+        handler()
+      } catch (err) {
+        // One stale-index rebuild throwing must not stop the others running — a
+        // half-updated set of derived indexes is worse than a logged error.
+        console.error('[blaeu] a crs onChange handler threw:', err)
+      }
+    }
+  }
+
+  onChange(handler: () => void): Disposable {
+    this.#handlers.push(handler)
+    return {
+      dispose: () => {
+        const i = this.#handlers.indexOf(handler)
+        if (i >= 0) this.#handlers.splice(i, 1)
+      },
+    }
   }
 
   get(code: CrsCode): ProjectedCrs | undefined {

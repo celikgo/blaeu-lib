@@ -14,7 +14,7 @@
 import proj4 from 'proj4'
 
 import type { Geometry, Position } from 'geojson'
-import type { LngLat, ProjectedXY } from '../types/common.js'
+import type { Disposable, LngLat, ProjectedXY } from '../types/common.js'
 import type { CrsCode, CrsService, ProjectedCrs } from '../types/crs.js'
 import { planarDistance, toLngLat } from '../utils/geometry.js'
 
@@ -59,6 +59,11 @@ export function createTestCrs(precisionMetres = 0.001): CrsService {
 
     setWorking(): void {
       throw new Error('test CRS is fixed to EPSG:5254')
+    },
+
+    // Fixed CRS, so nothing ever changes; nothing to unsubscribe.
+    onChange(): Disposable {
+      return { dispose: () => {} }
     },
     get(code: CrsCode): ProjectedCrs | undefined {
       return code === working.code ? working : undefined

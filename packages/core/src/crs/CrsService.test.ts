@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Polygon, Position } from 'geojson'
 
 import type { LngLat, ProjectedXY } from '../types/common.js'
@@ -545,5 +545,53 @@ describe('registration and errors', () => {
         precision: 0.001,
       }),
     ).toThrow(/BROKEN/)
+  })
+})
+
+describe('setWorking / onChange', () => {
+  it('notifies subscribers when the working CRS changes', () => {
+    const crs = crsService('EPSG:5254')
+    let fired = 0
+    crs.onChange(() => fired++)
+
+    crs.setWorking('EPSG:5255')
+    expect(fired).toBe(1)
+    expect(crs.working.code).toBe('EPSG:5255')
+  })
+
+  it('does not fire when set to the CRS already active — a rebuild is not free', () => {
+    const crs = crsService('EPSG:5254')
+    let fired = 0
+    crs.onChange(() => fired++)
+
+    crs.setWorking('EPSG:5254')
+    expect(fired).toBe(0)
+  })
+
+  it('stops notifying once the subscription is disposed', () => {
+    const crs = crsService('EPSG:5254')
+    let fired = 0
+    const sub = crs.onChange(() => fired++)
+
+    crs.setWorking('EPSG:5255')
+    sub.dispose()
+    crs.setWorking('EPSG:5254')
+
+    expect(fired).toBe(1)
+  })
+
+  it('survives a handler that throws — the others still run', () => {
+    const crs = crsService('EPSG:5254')
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const seen: string[] = []
+    crs.onChange(() => {
+      throw new Error('boom')
+    })
+    crs.onChange(() => seen.push(crs.working.code))
+
+    crs.setWorking('EPSG:5255')
+
+    expect(seen).toEqual(['EPSG:5255'])
+    error.mockRestore()
   })
 })
