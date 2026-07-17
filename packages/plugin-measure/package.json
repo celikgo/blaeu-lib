@@ -1,7 +1,7 @@
 {
   "name": "@blaeu/plugin-measure",
   "version": "0.1.0",
-  "description": "Measurement: distance, area, bearing — planar, in the working CRS.",
+  "description": "Measurement: distance, area, bearing \u2014 planar, in the working CRS.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -10,10 +10,14 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "development": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./package.json": "./package.json"
   },

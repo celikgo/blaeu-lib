@@ -4,7 +4,15 @@ import tseslint from 'typescript-eslint'
 import prettier from 'eslint-config-prettier'
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/*.tsbuildinfo', 'examples/*/public/**'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/.tsbuild/**',
+      '**/node_modules/**',
+      '**/*.tsbuildinfo',
+      'examples/*/public/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   prettier,

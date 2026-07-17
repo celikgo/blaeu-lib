@@ -33,9 +33,15 @@ never receives an event, and the user spends a day on it.
 
 ```jsonc
 // packages/plugin-draw/package.json
-"peerDependencies": { "@blaeu/core": "workspace:^" },
-"devDependencies":  { "@blaeu/core": "workspace:*" }   // for building/testing
+"peerDependencies": { "@blaeu/core": "^0.1.0" },
+"devDependencies":  { "@blaeu/core": "^0.1.0" }   // for building/testing
 ```
+
+npm workspaces link a package into `node_modules` by its name whenever the
+installed version satisfies the range, so a plain `^0.1.0` resolves to the local
+copy in dev and to the published one for a consumer. (The `workspace:` protocol is
+a pnpm/yarn thing — npm does not understand it, and a manifest that uses it is
+uninstallable.)
 
 If you see "my listener never fires" in an issue, check for a duplicate core
 before anything else. It's this, more often than not.
@@ -65,16 +71,23 @@ declarations"_, the cause is almost always one of three things, in this order:
 
 ## Adding a package
 
-```bash
-node scripts/new-package.mjs plugin-elevation
-```
+The per-package `package.json` / `tsconfig.json` / `tsup.config.ts` are **generated**
+from one place — `scripts/scaffold-packages.mjs` — so the `exports` map, the peer-dep
+rule, the tsup config and the tsc output dir stay identical across the monorepo. To
+add a package:
 
-It scaffolds `package.json`, `tsconfig.json`, `tsup.config.ts`, `src/index.ts`, a
-README skeleton, and — importantly — the three tests from `blaeu-testing`,
-already wired and failing. A new package that starts with three failing tests
-gets them passing; one that starts with zero tests ships with zero tests.
+1. Add an entry to the `packages` array in `scripts/scaffold-packages.mjs` — its
+   `name`, `desc`, `deps`, `peers`, and `refs` (the packages it project-references).
+2. `npm run scaffold` — regenerates every package's config files from that array.
+   It rewrites the three config files and nothing else; your `src/` is never touched.
+3. Write `src/index.ts` (and the three tests from `blaeu-testing`: degradation,
+   teardown, undo round-trip).
+4. Register the package in the root `workspaces`, in `tsconfig.base.json` `paths`,
+   and in the `resolve.alias` blocks of `vitest.config.ts` and each `examples/*`.
 
-Then register it in the root `workspaces` and in `tsconfig.base.json` `paths`.
+Keep the `refs` in the array honest — a preset that depends on `plugin-topology` and
+does not list it will typecheck in dev (the `paths` resolve to source) but fail
+`tsc --build`, and the scaffold will silently drop the reference on the next run.
 The script does both, but check the diff.
 
 ## `exports` is the API boundary

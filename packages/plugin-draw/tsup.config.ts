@@ -1,9 +1,11 @@
 import { defineConfig } from 'tsup'
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  entry: { index: 'src/index.ts' },
   format: ['esm', 'cjs'],
-  dts: true,
+  // tsup's dts build runs its own tsc program, which cannot use the project-references
+  // (composite) tsconfig the typecheck relies on — so turn it off just for the .d.ts pass.
+  dts: { compilerOptions: { composite: false, declarationMap: false } },
   sourcemap: true,
   clean: true,
   treeshake: true,

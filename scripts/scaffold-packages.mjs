@@ -119,6 +119,7 @@ const packages = [
       '@blaeu/plugin-select': `^${VERSION}`,
       '@blaeu/plugin-measure': `^${VERSION}`,
       '@blaeu/plugin-history': `^${VERSION}`,
+      '@blaeu/plugin-topology': `^${VERSION}`,
       '@blaeu/plugin-ui': `^${VERSION}`,
     },
     refs: [
@@ -129,6 +130,7 @@ const packages = [
       'plugin-select',
       'plugin-measure',
       'plugin-history',
+      'plugin-topology',
       'plugin-ui',
     ],
   },
@@ -153,24 +155,20 @@ for (const pkg of packages) {
 
   const isCore = pkg.name === 'core'
 
+  // Dual-format: each condition points at the right declaration (.d.ts for ESM,
+  // .d.cts for CJS) and the right code. In-repo, resolution goes through the
+  // tsconfig `paths` and the vite/vitest aliases (both to source), not through this
+  // map — so there is no `development` condition here, which when published would
+  // resolve a consumer to `./src`, which `files: ['dist']` never ships.
+  const dual = (base) => ({
+    import: { types: `./dist/${base}.d.ts`, default: `./dist/${base}.js` },
+    require: { types: `./dist/${base}.d.cts`, default: `./dist/${base}.cjs` },
+  })
   const exportsMap = {
-    '.': {
-      // `development` resolves to source, so editing core is visible in an example
-      // with no rebuild — and a type error in core surfaces immediately downstream.
-      development: './src/index.ts',
-      types: './dist/index.d.ts',
-      import: './dist/index.js',
-      require: './dist/index.cjs',
-    },
+    '.': dual('index'),
     './package.json': './package.json',
   }
-  if (isCore) {
-    exportsMap['./testing'] = {
-      development: './src/testing/index.ts',
-      types: './dist/testing.d.ts',
-      import: './dist/testing.js',
-    }
-  }
+  if (isCore) exportsMap['./testing'] = dual('testing')
 
   writeFileSync(
     join(dir, 'package.json'),
@@ -190,7 +188,7 @@ for (const pkg of packages) {
         scripts: {
           build: 'tsup',
           dev: 'tsup --watch',
-          clean: 'rm -rf dist *.tsbuildinfo',
+          clean: 'rm -rf dist .tsbuild *.tsbuildinfo',
         },
         ...(pkg.deps ? { dependencies: pkg.deps } : {}),
         ...(pkg.peers ? { peerDependencies: pkg.peers } : {}),
@@ -212,8 +210,10 @@ for (const pkg of packages) {
         extends: '../../tsconfig.base.json',
         compilerOptions: {
           rootDir: './src',
-          outDir: './dist',
-          tsBuildInfoFile: './dist/.tsbuildinfo',
+          // `tsc --build` emits here, NOT into `dist` — tsup owns `dist`, and a stray
+          // .tsbuildinfo there both ships in the tarball and collides with tsup's output.
+          outDir: './.tsbuild',
+          tsBuildInfoFile: './.tsbuild/.tsbuildinfo',
         },
         include: ['src/**/*'],
         exclude: ['src/**/*.test.ts', 'dist'],
@@ -224,7 +224,11 @@ for (const pkg of packages) {
     ) + '\n',
   )
 
-  const entries = isCore ? `['src/index.ts', 'src/testing/index.ts']` : `['src/index.ts']`
+  // Named entries give flat output (`dist/index.js`, `dist/testing.js`) that matches
+  // the `exports` map above — array entries would nest as `dist/testing/index.js`.
+  const entries = isCore
+    ? `{ index: 'src/index.ts', testing: 'src/testing/index.ts' }`
+    : `{ index: 'src/index.ts' }`
   writeFileSync(
     join(dir, 'tsup.config.ts'),
     `import { defineConfig } from 'tsup'
@@ -232,7 +236,9 @@ for (const pkg of packages) {
 export default defineConfig({
   entry: ${entries},
   format: ['esm', 'cjs'],
-  dts: true,
+  // tsup's dts build runs its own tsc program, which cannot use the project-references
+  // (composite) tsconfig the typecheck relies on — so turn it off just for the .d.ts pass.
+  dts: { compilerOptions: { composite: false, declarationMap: false } },
   sourcemap: true,
   clean: true,
   treeshake: true,

@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      # `npm ci` is the strict, lockfile-exact install CI wants.
+      - run: npm ci
+      # boundaries + typecheck + lint + test + build — the same gate `npm run verify`
+      # runs locally, so a green PR here means a green PR there.
+      - run: npm run verify
+      - run: npm run format:check
