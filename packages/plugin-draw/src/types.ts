@@ -30,6 +30,15 @@ export interface DrawOptions {
    * a counter or a timestamp does the right thing.
    */
   readonly properties?: () => FeatureProperties
+  /**
+   * Render the rubber band with a built-in, theme-styled layer. Default `true`.
+   *
+   * The preview is drawn from the theme tokens (a dashed accent outline over a faint
+   * accent wash), so it is visible and on-brand under any preset with no work. Set it
+   * `false` if you declare your own layer over {@link PREVIEW_COLLECTION} — otherwise
+   * both draw the same feature and it renders twice.
+   */
+  readonly previewLayer?: boolean
 }
 
 /** {@link DrawOptions} with the defaults filled in. What the session and the tools read. */
@@ -39,6 +48,7 @@ export interface ResolvedDrawOptions {
   readonly freehandTolerance: number
   readonly circleSegments: number
   readonly properties: () => FeatureProperties
+  readonly previewLayer: boolean
 }
 
 export interface DrawApi {
@@ -66,5 +76,6 @@ export function resolveOptions(options: DrawOptions): ResolvedDrawOptions {
     freehandTolerance: options.freehandTolerance ?? DEFAULT_FREEHAND_TOLERANCE_METRES,
     circleSegments: options.circleSegments ?? DEFAULT_CIRCLE_SEGMENTS,
     properties: options.properties ?? (() => ({})),
+    previewLayer: options.previewLayer ?? true,
   }
 }

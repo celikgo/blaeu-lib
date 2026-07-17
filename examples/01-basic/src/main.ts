@@ -80,11 +80,10 @@ const layers: readonly LayerSpec[] = [
   /**
    * The rubber band — the shape in progress, before it is committed.
    *
-   * The draw plugin *creates* this collection but declares no layer for it, which is
-   * the correct division of labour even though it costs you these eight lines: how a
-   * preview should look is a product decision (dashed and grey in a cadastre app,
-   * neon in a game), and a plugin that hard-coded a style would have made it for you.
-   * A collection is data; a layer is a decision about how to show it.
+   * The draw plugin ships a theme-styled preview layer of its own, so a preset shows a
+   * visible rubber band with no work. Here we turn it off (`previewLayer: false` on the
+   * plugin below) and declare our own, purely to show the seam: a collection is data,
+   * and how you draw it is yours to override — dashed amber here, neon in a game.
    *
    * Declared last, so it sits above the committed parcels. A rubber band hidden
    * behind the geometry you are drawing over is a rubber band nobody can use.
@@ -151,7 +150,7 @@ const map = await createBlaeuMap({
     // 12 screen pixels of "close enough". Not metres: "close" is a thing the user
     // judges with their eyes, and their eyes are looking at a screen.
     snapPlugin({ tolerance: 12 }),
-    drawPlugin({ collection: PARCELS }),
+    drawPlugin({ collection: PARCELS, previewLayer: false }),
     selectPlugin({ collections: [PARCELS] }),
     historyPlugin({ limit: 100 }),
     uiPlugin({ attributions: ['© OpenStreetMap contributors'] }),

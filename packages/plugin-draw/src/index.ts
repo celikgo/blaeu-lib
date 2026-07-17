@@ -1,8 +1,9 @@
 /**
  * `@blaeu/plugin-draw` — point, line, polygon, rectangle, circle and freehand.
  *
- * What it registers: six tools (`draw:point` … `draw:freehand`) and one collection for the
- * shape in progress (`draw:preview`).
+ * What it registers: six tools (`draw:point` … `draw:freehand`), a collection for the
+ * shape in progress (`draw:preview`), and — unless you turn it off — a theme-styled layer
+ * that renders it (`previewLayer`, on by default).
  *
  * What it depends on: nothing, hard. `snap` and `history` are both optional and both
  * *enhance* rather than enable — see the degradation test in `draw.test.ts`.
@@ -16,7 +17,7 @@
 
 import type { CollectionId, FeatureInput, BlaeuFeature, BlaeuPlugin, LngLat } from '@blaeu/core'
 
-import { PREVIEW_COLLECTION } from './preview.js'
+import { PREVIEW_COLLECTION, PREVIEW_LAYER, previewLayerStyle } from './preview.js'
 import { DrawSession } from './session.js'
 import { circleTool } from './tools/circle.js'
 import { freehandTool } from './tools/freehand.js'
@@ -40,7 +41,13 @@ export {
   DEFAULT_COLLECTION,
   DEFAULT_FREEHAND_TOLERANCE_METRES,
 } from './types.js'
-export { PREVIEW_COLLECTION, PREVIEW_ID, PREVIEW_PROPERTY } from './preview.js'
+export {
+  PREVIEW_COLLECTION,
+  PREVIEW_ID,
+  PREVIEW_PROPERTY,
+  PREVIEW_LAYER,
+  previewLayerStyle,
+} from './preview.js'
 export {
   CIRCLE_CENTRE_PROPERTY,
   CIRCLE_RADIUS_PROPERTY,
@@ -125,6 +132,27 @@ export function drawPlugin(options: DrawOptions = {}): BlaeuPlugin<DrawApi, Draw
       // Disposed last (the store disposes in reverse), so the tools have already been
       // deactivated — and their previews cleared — by the time the collection goes.
       ctx.disposables.addFn(() => ctx.store.removeCollection(PREVIEW_COLLECTION))
+
+      // Render the rubber band. Without this the preview is invisible unless the app
+      // declares its own layer — which every preset forgot to, so drawing showed nothing
+      // in progress. The style is a *function of the theme*, so the layer re-tints on a
+      // theme change with no work here; an app that wants a different look sets
+      // `previewLayer: false` and declares its own over PREVIEW_COLLECTION.
+      if (resolved.previewLayer) {
+        ctx.disposables.add(
+          ctx.layers.add({
+            id: PREVIEW_LAYER,
+            type: 'vector',
+            source: PREVIEW_COLLECTION,
+            style: (tokens) => previewLayerStyle(tokens),
+          }),
+        )
+        // The rubber band must sit above the data it is drawn over, but plugins install
+        // before a preset's layers exist. `map:ready` fires after every declared layer is
+        // added — the first moment "on top" means anything. (Installed at runtime, the
+        // layer is already on top and this never fires.)
+        ctx.disposables.add(ctx.events.on('map:ready', () => ctx.layers.move(PREVIEW_LAYER)))
+      }
 
       const tools = new Map<DrawMode, DrawTool>()
       for (const mode of DRAW_MODES) {

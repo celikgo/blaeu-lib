@@ -9,6 +9,7 @@ import {
   CIRCLE_SHAPE_PROPERTY,
   PREVIEW_COLLECTION,
   PREVIEW_ID,
+  PREVIEW_LAYER,
   drawPlugin,
 } from './index.js'
 
@@ -529,6 +530,40 @@ describe('the snap handshake', () => {
     // ...but an incompatible snap plugin is a bug, not a degradation, and it says so once.
     expect(warn).toHaveBeenCalledTimes(1)
     expect(String(warn.mock.calls[0]?.[0])).toContain('setInProgress()')
+  })
+})
+
+describe('the preview layer', () => {
+  const lineColorOf = (map: TestMap): unknown =>
+    map.test.renderer.layers.get(PREVIEW_LAYER)?.style.line?.color
+
+  it('registers a themed layer over the preview collection by default', async () => {
+    const map = await createTestMap({ plugins: [drawPlugin()] })
+    // Without this the rubber band was invisible under every preset — the collection
+    // existed, but nothing drew it.
+    const layer = map.layers.get(PREVIEW_LAYER)
+    expect(layer?.type).toBe('vector')
+    // Styled from the tokens, not a hardcoded colour.
+    expect(lineColorOf(map)).toBe(map.theme.token('color').accent)
+    await map.destroy()
+  })
+
+  it('re-tints the rubber band when the theme changes', async () => {
+    const map = await createTestMap({ plugins: [drawPlugin()] })
+    const before = lineColorOf(map)
+
+    map.theme.use('twitter-dim')
+
+    const after = lineColorOf(map)
+    expect(after).not.toBe(before)
+    expect(after).toBe(map.theme.token('color').accent)
+    await map.destroy()
+  })
+
+  it('can be turned off for an app that declares its own preview layer', async () => {
+    const map = await createTestMap({ plugins: [drawPlugin({ previewLayer: false })] })
+    expect(map.layers.get(PREVIEW_LAYER)).toBeUndefined()
+    await map.destroy()
   })
 })
 
