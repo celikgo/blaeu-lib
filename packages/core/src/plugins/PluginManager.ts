@@ -81,30 +81,51 @@ export class BlaeuPluginManager implements PluginManager {
     plugin: BlaeuPlugin<TApi, TOptions>,
     options?: TOptions,
   ): Promise<TApi> {
-    if (this.#installed.has(plugin.id)) {
+    // Guard on both the completed set *and* the in-flight set. Checking only
+    // `#installed` is a race: it is populated after `#install` finishes, but the map
+    // installs plugins concurrently (`Promise.all`), and `use()` runs synchronously up
+    // to its first `await`. Two `use()` calls for the same id — a preset that lists it
+    // twice, most often from composing two presets that both include it — would both
+    // pass an `#installed`-only check and each run `setup`, registering every listener
+    // and layer twice. `#announced` is added synchronously below, so the second call
+    // sees the first and rejects instead.
+    if (this.#installed.has(plugin.id) || this.#announced.has(plugin.id)) {
       throw new Error(
-        `[blaeu] plugin "${plugin.id}" is already installed. ` +
-          `Two instances would each register their listeners and layers, and you would see every action happen twice.`,
+        `[blaeu] plugin "${plugin.id}" is already installed (or still installing). ` +
+          `Two instances would each register their listeners and layers, and you would see every action happen twice. ` +
+          `If a composed preset lists "${plugin.id}" twice, include it once.`,
       )
     }
 
     // Synchronously, before the first `await`: see the docstring on `#announced`.
     this.#announced.add(plugin.id)
 
-    const missing = this.#missingDependencies(plugin)
-    if (missing.length > 0 || this.#awaitedOptional(plugin).length > 0) {
-      // Park it. It installs as soon as the dependencies show up.
-      return new Promise<TApi>((resolve, reject) => {
-        this.#pending.push({
-          plugin: plugin as BlaeuPlugin<unknown, unknown>,
-          options,
-          resolve: resolve as (api: unknown) => void,
-          reject,
+    // Anything from here to a successful install that throws — a dependency version
+    // mismatch (`#missingDependencies`), a `makeContext` that fails, a parked install
+    // that later rejects — must take the id back out of `#announced`. Otherwise the
+    // duplicate guard above would reject every future retry of a plugin that is neither
+    // installed nor installing, turning a recoverable config error into a permanent
+    // brick. Idempotent with `#install`'s own cleanup on the paths where both run.
+    try {
+      const missing = this.#missingDependencies(plugin)
+      if (missing.length > 0 || this.#awaitedOptional(plugin).length > 0) {
+        // Park it. It installs as soon as the dependencies show up. `await` so a later
+        // rejection (a never-arriving dep, a failed install) reaches the cleanup below.
+        return await new Promise<TApi>((resolve, reject) => {
+          this.#pending.push({
+            plugin: plugin as BlaeuPlugin<unknown, unknown>,
+            options,
+            resolve: resolve as (api: unknown) => void,
+            reject,
+          })
         })
-      })
-    }
+      }
 
-    return (await this.#install(plugin as BlaeuPlugin<unknown, unknown>, options)) as TApi
+      return (await this.#install(plugin as BlaeuPlugin<unknown, unknown>, options)) as TApi
+    } catch (err) {
+      this.#announced.delete(plugin.id)
+      throw err
+    }
   }
 
   /** Dependencies that are neither installed nor optional. Version mismatches throw here. */
@@ -224,8 +245,24 @@ export class BlaeuPluginManager implements PluginManager {
 
       for (let i = 0; i < this.#pending.length; i++) {
         const entry = this.#pending[i]!
-        if (this.#missingDependencies(entry.plugin).length > 0) continue
-        if (!relaxOptional && this.#awaitedOptional(entry.plugin).length > 0) continue
+
+        // `#missingDependencies` throws when a *ranged hard* dependency has now arrived
+        // at an incompatible version. That must reject this one parked plugin — not
+        // escape the drain, which would leave every other parked plugin hung (its
+        // `use()` never settles), reject the successful install that triggered the drain,
+        // and skip `settle()`'s own failure report. Handled here like the install failure
+        // below: reject the entry, stop tracking it, and carry on.
+        try {
+          if (this.#missingDependencies(entry.plugin).length > 0) continue
+          if (!relaxOptional && this.#awaitedOptional(entry.plugin).length > 0) continue
+        } catch (err) {
+          this.#pending.splice(i, 1)
+          i--
+          progressed = true
+          this.#announced.delete(entry.plugin.id)
+          entry.reject(err instanceof Error ? err : new Error(String(err)))
+          continue
+        }
 
         this.#pending.splice(i, 1)
         i--
