@@ -11,6 +11,7 @@ import type {
   MapOptions,
   MapTouchEvent,
   PaddingOptions,
+  SourceSpecification,
   StyleSpecification,
   Subscription,
 } from 'maplibre-gl'
@@ -121,7 +122,12 @@ const STRUCTURAL_KEYS: ReadonlySet<string> = new Set(['id', 'type', 'source', 'p
 
 interface NativeLayer {
   readonly id: string
-  readonly type: NativeLayerType
+  /**
+   * A vector sublayer (`fill`/`line`/`circle`/`symbol`) or a raw MapLibre layer
+   * type a native-declared layer asked for (`raster`, `hillshade`, …). Widened to
+   * `string` so a raster basemap is a first-class layer, not a special case.
+   */
+  readonly type: string
   readonly paint: Record<string, unknown>
   readonly layout: Record<string, unknown>
   /** `filter`, `minzoom`, `maxzoom`, `metadata` — anything `native` set at layer level. */
@@ -177,6 +183,16 @@ export class MapLibreRenderer implements Renderer {
    * empty sources and the map would go blank on a theme change.
    */
   readonly #sourceData = new Map<string, readonly BlaeuFeature[]>()
+  /**
+   * Inline source *definitions* for native layers (a raster basemap's tile set),
+   * kept for two reasons. First, `map.setStyle()` deletes them, and a basemap swap
+   * must re-add them or the orthophoto vanishes on a theme change. Second, they are
+   * **ref-counted** by the native layers drawing from them: several raster layers may
+   * deliberately point at one tile set (see `rasterLayerType`), and the source must
+   * outlive the first of them to be removed. These are not GeoJSON and never see
+   * `setData`, so they live apart from `#sources`.
+   */
+  readonly #nativeSources = new Map<string, { spec: Record<string, unknown>; refs: number }>()
   readonly #layers = new Map<string, LayerEntry>()
 
   readonly #pointerHandlers = new Set<(event: RendererPointerEvent) => void>()
@@ -326,10 +342,21 @@ export class MapLibreRenderer implements Renderer {
    * remember the ordering is a rule nobody remembers, and the punishment is a hard
    * throw in the middle of teardown — which strands the disposables behind it.
    * We know which layers we created, so we clean them up.
+   *
+   * A native (tile) source is the exception: it is ref-counted by the native layers
+   * drawing from it (a raster layer type calls this from its `dispose()` to release
+   * *its* hold). So for those, this releases one hold and drops the source only when
+   * the last holder lets go — it must never cascade into a sibling raster layer that
+   * still needs the tiles, the way the GeoJSON path deliberately does.
    */
   removeSource(sourceId: string): void {
     const map = this.#map
     if (!map) return // Nothing was ever added; teardown before mount is a no-op, not an error.
+
+    if (this.#nativeSources.has(sourceId)) {
+      this.#releaseNativeSource(map, sourceId)
+      return
+    }
 
     for (const [layerId, entry] of [...this.#layers]) {
       if (entry.sourceId === sourceId) this.removeLayer(layerId)
@@ -337,6 +364,30 @@ export class MapLibreRenderer implements Renderer {
     if (map.getSource(sourceId)) map.removeSource(sourceId)
     this.#sources.delete(sourceId)
     this.#sourceData.delete(sourceId)
+  }
+
+  /**
+   * Release one hold on a ref-counted native (tile) source, dropping it from the map
+   * only when no native layer still draws from it. Returns whether the id was a
+   * native source at all.
+   */
+  #releaseNativeSource(map: MapLibreMap, sourceId: string): boolean {
+    const native = this.#nativeSources.get(sourceId)
+    if (!native) return false
+    // Still held by another native layer: release our ref and leave everything — the
+    // source and every sibling layer — untouched. This is the whole point of the ref
+    // count, and the bug it prevents (disposing one shared-source layer nuking the rest).
+    if (--native.refs > 0) return true
+    this.#nativeSources.delete(sourceId)
+    // Nothing ref-counts it now. In the normal flow the layers were already removed
+    // (a raster layer disposes its layer before releasing its source); this sweeps up
+    // any straggler a direct removeSource() left, so map.removeSource never throws
+    // "source still in use".
+    for (const [layerId, entry] of [...this.#layers]) {
+      if (entry.sourceId === sourceId) this.removeLayer(layerId)
+    }
+    if (map.getSource(sourceId)) map.removeSource(sourceId)
+    return true
   }
 
   /* --------------------------------------------------------------- layers */
@@ -349,32 +400,71 @@ export class MapLibreRenderer implements Renderer {
           `Call setLayerStyle("${layerId}", style) to restyle it, or removeLayer() first.`,
       )
     }
-    if (!map.getSource(sourceId)) {
-      throw new Error(
-        `[blaeu] addLayer("${layerId}") references source "${sourceId}", which does not exist. ` +
-          `Call addSource("${sourceId}") first.`,
-      )
-    }
 
-    const entry: LayerEntry = {
-      sourceId,
-      beforeId,
-      style,
-      visible: true,
-      native: generateLayers(layerId, sourceId, style),
-    }
-    if (entry.native.length === 0) {
+    const native = generateLayers(layerId, sourceId, style)
+    if (native.length === 0) {
       throw new Error(
         `[blaeu] addLayer("${layerId}") was given a style with none of fill/line/circle/symbol set, ` +
           `so there is nothing to draw. Set at least one, or use \`native\` with a custom layer type.`,
       )
     }
 
+    // A native-typed layer (a raster basemap, an orthophoto) carries its own source
+    // *definition* inline in `style.native.source`, because the `Renderer.addSource`
+    // primitive speaks BlaeuFeatures — it cannot register a tile source. We must
+    // materialise that source before the layer that draws from it: MapLibre rejects a
+    // layer whose source is not yet on the map. A vector layer, by contrast, has had
+    // its GeoJSON source registered through `addSource()` already.
+    const inlineSource = inlineSourceOf(style)
+    const existingNative = this.#nativeSources.get(sourceId)
+    let touchedNativeSource = false
+    if (existingNative) {
+      // Another native layer already owns this tile source. Share it by ref-count —
+      // *however* this layer named it (an inline object, a string id, or nothing at
+      // all) — so the source outlives every layer but the last, and a basemap swap
+      // re-materialises it once. Keying on the tracked source rather than on this
+      // call's `native.source` is what stops an un-counted sibling being swept away
+      // when the counted one is released.
+      existingNative.refs++
+      touchedNativeSource = true
+    } else if (!map.getSource(sourceId)) {
+      if (!inlineSource) {
+        throw new Error(
+          `[blaeu] addLayer("${layerId}") references source "${sourceId}", which does not exist. ` +
+            `Call addSource("${sourceId}") first.`,
+        )
+      }
+      map.addSource(sourceId, inlineSource as SourceSpecification)
+      this.#nativeSources.set(sourceId, { spec: inlineSource, refs: 1 })
+      touchedNativeSource = true
+    } else if (inlineSource) {
+      // The id is taken by a source we do not track as a tile source — almost always a
+      // store collection a vector layer already registered. Creating a tile source over
+      // it would make `setData` on that collection throw against a raster source; a
+      // clear error now beats a silently blank layer later.
+      throw new Error(
+        `[blaeu] addLayer("${layerId}") wants to create a tile source "${sourceId}", but a ` +
+          `source with that id already exists and is not a tile source (most likely a store ` +
+          `collection). Give this layer a distinct id, or a distinct \`source\`.`,
+      )
+    }
+    // Else: an existing non-native (GeoJSON) source and no inline tile definition — the
+    // ordinary vector path. The source is managed by addSource()/LayerManager, not here.
+
+    const entry: LayerEntry = { sourceId, beforeId, style, visible: true, native }
     const before = this.#resolveBeforeId(beforeId)
-    // Each sublayer is inserted immediately *before* the same anchor, so they stack
-    // in SUBLAYERS order: fill, then its outline on top of it, then labels on top of
-    // that. Insert them in any other order and a polygon eats its own boundary.
-    for (const native of entry.native) map.addLayer(toSpec(native, sourceId), before)
+    try {
+      // Each sublayer is inserted immediately *before* the same anchor, so they stack
+      // in SUBLAYERS order: fill, then its outline on top of it, then labels on top of
+      // that. Insert them in any other order and a polygon eats its own boundary.
+      for (const n of entry.native) map.addLayer(toSpec(n, sourceId), before)
+    } catch (err) {
+      // A source we touched for a layer that never made it onto the map must be left
+      // exactly as it was — release our ref, and tear the source down only if we were
+      // the one who created it and nothing else now holds it.
+      if (touchedNativeSource) this.#releaseNativeSource(map, sourceId)
+      throw err
+    }
 
     this.#layers.set(layerId, entry)
     return { dispose: () => this.removeLayer(layerId) }
@@ -504,6 +594,14 @@ export class MapLibreRenderer implements Renderer {
           promoteId: ID_PROPERTY,
         })
       }
+    }
+
+    // Raster/tile sources a native layer brought inline. Re-added before the layers
+    // below, for the same reason addLayer materialises them first: MapLibre rejects a
+    // raster layer whose source is not yet on the freshly-swapped style. Ref counts
+    // are preserved — the layers holding them are still in `#layers`.
+    for (const [sourceId, { spec }] of this.#nativeSources) {
+      if (!map.getSource(sourceId)) map.addSource(sourceId, spec as SourceSpecification)
     }
 
     // #layers is insertion-ordered, which is the order they were originally stacked;
@@ -828,6 +926,7 @@ export class MapLibreRenderer implements Renderer {
     this.#layers.clear()
     this.#sources.clear()
     this.#sourceData.clear()
+    this.#nativeSources.clear()
     this.#resolveFeature = undefined
     this.#lastTap = undefined
 
@@ -1004,6 +1103,14 @@ function whenStyleReady(map: MapLibreMap): Promise<void> {
  * id. `nativeLayerIds()` is the supported way to discover them.
  */
 function generateLayers(layerId: string, sourceId: string, style: LayerStyle): NativeLayer[] {
+  // A native-declared layer (`style.native.type` set to `raster`, `hillshade`, …) is
+  // not one of the portable fill/line/circle/symbol shapes — the caller is speaking
+  // MapLibre directly. It expands to exactly one layer, built verbatim from `native`,
+  // and skips the vector translation below entirely.
+  const declaredType = style.native?.['type']
+  const nativeType = typeof declaredType === 'string' ? declaredType : undefined
+  if (nativeType !== undefined) return [nativeLayer(layerId, nativeType, style.native!)]
+
   const out: NativeLayer[] = []
 
   for (const type of SUBLAYERS) {
@@ -1059,6 +1166,46 @@ function generateLayers(layerId: string, sourceId: string, style: LayerStyle): N
   }
 
   return out
+}
+
+/**
+ * A raw native layer — a raster basemap, a hillshade — declared entirely through
+ * `style.native`.
+ *
+ * None of the portable shorthands apply: `native.paint`/`native.layout` are copied
+ * verbatim (no per-sublayer prefix routing, because there is only one sublayer), and
+ * every other key becomes a layer-level property. `source` and `type` are consumed
+ * here — the source is materialised separately by `addLayer`, and the type is the
+ * layer's identity — so both are dropped from the spec rather than leaking through.
+ *
+ * The id is suffixed with the native type (`basemap::raster`) for the same reason
+ * every vector sublayer is: `nativeLayerIds()` is the one supported way to discover
+ * the MapLibre id, and a bare id would be a landmine the day a layer grows a second.
+ */
+function nativeLayer(layerId: string, type: string, native: Record<string, unknown>): NativeLayer {
+  const paint = { ...asRecord(native['paint']) }
+  const layout = { ...asRecord(native['layout']) }
+  const extra: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(native)) {
+    if (STRUCTURAL_KEYS.has(key)) continue // id, type, source, paint, layout
+    extra[key] = value
+  }
+  return { id: `${layerId}::${type}`, type, paint, layout, extra }
+}
+
+/**
+ * A native layer's inline source *definition*, if it carried one.
+ *
+ * `style.native.source` may be an object (a tile-source definition to materialise) or
+ * a string (an id referencing a source that already exists — several raster layers
+ * over one tile set). Only the object case is a definition; a string is handled by
+ * the "source already exists" path in `addLayer`.
+ */
+function inlineSourceOf(style: LayerStyle): Record<string, unknown> | undefined {
+  const source = style.native?.['source']
+  return typeof source === 'object' && source !== null
+    ? (source as Record<string, unknown>)
+    : undefined
 }
 
 /**
