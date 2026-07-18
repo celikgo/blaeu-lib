@@ -92,3 +92,28 @@ undo/redo, a programmatic edit — is unchanged.
   duplicate what `normaliseRing` already knows. The honest statement is narrower: _a preview is
   not an ingest, and only an ingest owes RFC 7946 winding immediately._ Everything the store
   keeps is still wound; a scratch frame under the user's finger need not be.
+
+## Follow-ups — a positional ref must not outlive the commit's rewind
+
+Splitting the preview order (un-rewound) from the committed order (rewound) means the ring
+_does_ still get reordered once, at the commit. Anything holding a **positional** vertex
+reference _across_ that boundary is then stale. A `commit`-time rewind was always possible;
+what changed is that the gesture now completes cleanly first (rather than corrupting the
+geometry as it went), so a stale ref lands in a valid, actionable state instead of amid
+garbage. Two such refs existed, and both are re-anchored to _coordinates_ rather than indices:
+
+- **The Delete key** (`plugin-edit/src/tools/vertex.ts`) cached the working vertex as a
+  `VertexRef` and re-picked its handle by ring index. After a winding-flipping drag committed,
+  that index named a different corner, so Delete removed one the user never touched. It now
+  tracks the vertex's **coordinate** and re-picks the handle sitting on it — order-proof.
+- **A re-entrant gesture during an async commit.** `commit()` is asynchronous (a validation
+  middleware may await a server), so its rewind can land _after_ the user has grabbed a corner
+  again — reversing the ring under the new gesture's live positional refs. The controller now
+  **converges the ring to committed winding synchronously on release**
+  (`EditController.#rewindToCommittedWinding`), before the async commit and before any next
+  gesture, so the commit's own rewind is a no-op and can reorder nothing. A no-op for the
+  common drag that never flipped a winding.
+
+Both are the same lesson the main decision teaches, one layer out: a ring index is only stable
+_within_ a gesture that does not rewind; the moment a rewind can intervene, address the corner
+by where it is, not by where it sits in the array.

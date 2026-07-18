@@ -12,6 +12,7 @@ import {
   RemoveFeaturesCommand,
   createId,
   distanceToGeometryMetres,
+  normaliseGeometry,
   type FeatureId,
   type BlaeuFeature,
   type Geometry,
@@ -263,6 +264,17 @@ export class EditController {
     if (pending === undefined) return
 
     const previous = [...pending.previous.values()]
+
+    // Converge the store to the committed ring winding *now*, synchronously, before the
+    // async commit and before any next gesture. The previews deliberately left rings
+    // un-rewound so the drag's positional refs stayed valid across a winding flip (ADR
+    // 0011). But the durable commit runs asynchronously (a validation middleware may await
+    // a server), so if it were the *first* thing to rewind the ring, it could land mid-way
+    // through a re-entrant gesture the user has already started — reversing the ring under
+    // that gesture's live positional refs and dragging the wrong corner. Rewinding here
+    // makes the async commit's own rewind a no-op, so it can reorder nothing.
+    this.#rewindToCommittedWinding(pending.previous.keys())
+
     const next: BlaeuFeature[] = []
     for (const feature of previous) {
       const current = this.#ctx.store.find(feature.id)
@@ -270,6 +282,33 @@ export class EditController {
     }
     if (next.length === 0) return
     this.#commit(previous, next, pending.type, pending.label)
+  }
+
+  /**
+   * Rewind the touched features' rings to RFC 7946 winding in the store, transiently.
+   *
+   * The transient previews skip rewinding to keep positional refs valid mid-gesture; this
+   * lands the winding the durable commit will produce anyway, but *synchronously* on
+   * release, so the store is in its final ring order before the async commit or the next
+   * gesture can observe it. A no-op for the common drag that never flipped a winding.
+   */
+  #rewindToCommittedWinding(ids: Iterable<FeatureId>): void {
+    const geometries = new Map<FeatureId, Geometry>()
+    for (const id of ids) {
+      const feature = this.#ctx.store.find(id)
+      if (feature === undefined) continue
+      geometries.set(
+        id,
+        normaliseGeometry(feature.geometry, this.#ctx.crs, `feature "${id}"`, true),
+      )
+    }
+    if (geometries.size === 0) return
+    this.#ctx.commands.dispatch(
+      new SetGeometriesCommand('edit:rewind', geometries, {
+        label: this.#t('edit.move'),
+        transient: true,
+      }),
+    )
   }
 
   /**

@@ -366,6 +366,91 @@ describe('editPlugin — vertex drag across the polygon (ring re-winding)', () =
 
     await map.destroy()
   })
+
+  // Review follow-up: the commit's rewind reorders the ring, which used to invalidate any
+  // positional ref that outlived it. The Delete key held such a ref (`active`).
+  it('Delete after a winding-flipping drag removes the dragged corner, not a stale one', async () => {
+    // A quad wound CCW on ingest; a delete needs >=4 corners (a triangle's is refused).
+    const A = ANKARA
+    const B = offsetMetres(ANKARA, 40, 0)
+    const C = offsetMetres(ANKARA, 40, 40)
+    const D = offsetMetres(ANKARA, 0, 40)
+    const map = await createTestMap({
+      plugins: [editPlugin()],
+      features: {
+        parcels: [
+          {
+            id: 'q',
+            geometry: {
+              type: 'Polygon',
+              coordinates: [[xy(A), xy(B), xy(C), xy(D), xy(A)]],
+            } as Polygon,
+          },
+        ],
+      },
+    })
+
+    map.plugin('edit').edit('q')
+
+    // Drag corner D out past the far side so the quad's net winding flips (it stays a
+    // simple polygon). On commit the ring is rewound, reordering every corner's index.
+    const target = offsetMetres(ANKARA, 60, -20)
+    map.test.drag(cornerNear(map, 'q', D), target, { steps: 16 })
+    await map.test.flush()
+    expect(corners(map, 'q')).toHaveLength(4)
+    expectWithinMetres(cornerNear(map, 'q', target), target, 0.01)
+
+    // Delete acts on the corner we were working on — the one just dragged to `target`.
+    map.test.key('Delete')
+    await map.test.flush()
+
+    expect(corners(map, 'q')).toHaveLength(3)
+    // The three untouched corners survive; the dragged one is gone.
+    expectWithinMetres(cornerNear(map, 'q', A), A, 0.01)
+    expectWithinMetres(cornerNear(map, 'q', B), B, 0.01)
+    expectWithinMetres(cornerNear(map, 'q', C), C, 0.01)
+    expect(distanceMetres(cornerNear(map, 'q', target), target)).toBeGreaterThan(1)
+
+    await map.destroy()
+  })
+
+  // Review follow-up (medium): the durable commit runs asynchronously, so if it were the
+  // first thing to rewind an inverted ring it could reorder the ring under a re-entrant
+  // gesture's live refs. The controller converges the winding synchronously on release.
+  it('converges the ring to committed winding synchronously on release, before the async commit', async () => {
+    const BL = ANKARA
+    const BR = offsetMetres(ANKARA, 40, 0)
+    const APEX = offsetMetres(ANKARA, 20, 30)
+    const map = await createTestMap({
+      plugins: [editPlugin()],
+      features: {
+        parcels: [
+          {
+            id: 'tri',
+            geometry: {
+              type: 'Polygon',
+              coordinates: [[xy(BL), xy(BR), xy(APEX), xy(BL)]],
+            } as Polygon,
+          },
+        ],
+      },
+    })
+
+    map.plugin('edit').edit('tri')
+    map.test.drag(cornerNear(map, 'tri', APEX), offsetMetres(ANKARA, 20, -30), { steps: 16 })
+
+    // NOTE: no flush(). The async commit has not run yet — but the store must already be
+    // in RFC 7946 winding, so a re-entrant gesture starting now (and the late commit) both
+    // see the final ring order. Without the synchronous converge this would be clockwise.
+    const onRelease = ring(map, 'tri').map((p) => [p[0], p[1]] as [number, number])
+    expect(ringSignedArea2(onRelease)).toBeGreaterThan(0)
+
+    await map.test.flush()
+    const afterCommit = ring(map, 'tri').map((p) => [p[0], p[1]] as [number, number])
+    expect(ringSignedArea2(afterCommit)).toBeGreaterThan(0)
+
+    await map.destroy()
+  })
 })
 
 describe('editPlugin — coalescing', () => {

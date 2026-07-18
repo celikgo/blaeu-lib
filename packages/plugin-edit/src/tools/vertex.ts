@@ -28,16 +28,32 @@ interface VertexDrag {
 
 export function vertexTool(ctx: PluginContext<unknown>, controller: EditController): Tool {
   let drag: VertexDrag | null = null
-  /** The vertex the Delete key acts on. Held as a ref, not a Handle: handles are rebuilt on every change. */
-  let active: VertexRef | null = null
+  /**
+   * The coordinate of the vertex the Delete key acts on. Held as a *position*, not a
+   * ring index: a commit rewinds a ring whose winding an edit flipped (ADR 0011), which
+   * reorders its indices, so an index cached at grab time would point at a different
+   * corner by the time Delete is pressed. A coordinate survives the reorder.
+   */
+  let active: LngLat | null = null
 
   const handleAt = (interaction: InteractionContext): Handle | undefined =>
     controller.handles.pick(interaction.screen, controller.options.handleSize)
 
+  /** The live vertex handle sitting on `point`, matched by coordinate (index-order-proof). */
+  const vertexHandleAt = (point: LngLat): Handle | undefined => {
+    const [x, y] = ctx.crs.quantise(point)
+    return controller.handles
+      .handles()
+      .find(
+        (candidate) =>
+          candidate.role === 'vertex' && candidate.point[0] === x && candidate.point[1] === y,
+      )
+  }
+
   const beginDrag = (refs: readonly VertexRef[], from: LngLat, gesture: string): void => {
     if (refs.length === 0) return
     drag = { refs, from, gesture }
-    active = refs[0] ?? null
+    active = from
 
     // Tell the kernel what is in play for the duration of the gesture. Without this a
     // snapping middleware sees the corner we are dragging sitting under the cursor,
@@ -131,6 +147,9 @@ export function vertexTool(ctx: PluginContext<unknown>, controller: EditControll
       // interaction pipeline before this tool ever saw the event. Do not go looking
       // for snapping here.
       controller.moveVertices(drag.refs, drag.from, interaction.lngLat, drag.gesture)
+      // Track where the vertex is now, so a Delete right after the drag finds *this*
+      // corner by position rather than by a ring index the commit may have reordered.
+      active = interaction.lngLat
       return true
     },
 
@@ -145,6 +164,7 @@ export function vertexTool(ctx: PluginContext<unknown>, controller: EditControll
         // Escape cancels: roll the preview back to the pre-drag geometry rather than
         // commit it, then leave the session.
         drag = null
+        active = null
         ctx.tools.setDragging([])
         controller.cancelGesture()
         controller.stop()
@@ -154,18 +174,10 @@ export function vertexTool(ctx: PluginContext<unknown>, controller: EditControll
       const isDelete = interaction.key === 'Delete' || interaction.key === 'Backspace'
       if (isDelete && controller.options.allowVertexDelete) {
         if (active === null) return false
-        // Re-pick the live handle: the one we grabbed is a snapshot from before the
-        // last edit, and its coordinate may be stale by a whole drag.
-        const handle = controller.handles
-          .handles()
-          .find(
-            (candidate) =>
-              candidate.role === 'vertex' &&
-              candidate.target === active?.feature &&
-              candidate.part === active.part &&
-              candidate.ring === active.ring &&
-              candidate.index === active.index,
-          )
+        // Re-pick the live handle by *where the vertex is now*, not by a cached ring
+        // index: a drag that flipped the winding had its ring reordered by the commit
+        // (ADR 0011), so the index we grabbed no longer names this corner.
+        const handle = vertexHandleAt(active)
         if (handle === undefined) return false
         attempt(() => controller.deleteVertex(handle))
         active = null
