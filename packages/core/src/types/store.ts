@@ -86,8 +86,18 @@ export interface FeatureStore {
   /* --- Internal write path. Commands call these; application code does not. --- */
   /** @internal */
   _add(collection: CollectionId, features: readonly FeatureInput[]): readonly BlaeuFeature[]
-  /** @internal */
-  _update(features: readonly BlaeuFeature[]): readonly BlaeuFeature[]
+  /**
+   * @internal
+   *
+   * `options.rewindRings` (default `true`) controls whether polygon rings are wound
+   * to RFC 7946 on the way in. A transient edit *preview* passes `false` so a drag's
+   * positional vertex references are not invalidated mid-gesture by a silent ring
+   * reversal; the durable commit leaves it `true`. See ADR 0011.
+   */
+  _update(
+    features: readonly BlaeuFeature[],
+    options?: { readonly rewindRings?: boolean },
+  ): readonly BlaeuFeature[]
   /** @internal */
   _remove(ids: readonly FeatureId[]): readonly BlaeuFeature[]
 }

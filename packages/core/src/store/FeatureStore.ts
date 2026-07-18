@@ -500,7 +500,14 @@ export class BlaeuFeatureStore implements FeatureStore {
    * it found it, and `expect(store.snapshot()).toEqual(before)` — the one test that
    * catches real command bugs — could never pass for any command at all.
    */
-  _update(features: readonly BlaeuFeature[]): readonly BlaeuFeature[] {
+  _update(
+    features: readonly BlaeuFeature[],
+    options?: { readonly rewindRings?: boolean },
+  ): readonly BlaeuFeature[] {
+    // A transient edit preview passes `rewindRings: false` so a drag's positional
+    // vertex refs survive a winding flip mid-gesture (ADR 0011). Everything durable —
+    // and every default caller — leaves it `true`, so stored geometry stays RFC 7946.
+    const rewindRings = options?.rewindRings ?? true
     const now = Date.now()
     const written: BlaeuFeature[] = []
     const previous: BlaeuFeature[] = []
@@ -530,7 +537,12 @@ export class BlaeuFeatureStore implements FeatureStore {
 
       const next: BlaeuFeature = this.#seal({
         id: incoming.id,
-        geometry: normaliseGeometry(incoming.geometry, this.#crs, `feature "${incoming.id}"`),
+        geometry: normaliseGeometry(
+          incoming.geometry,
+          this.#crs,
+          `feature "${incoming.id}"`,
+          rewindRings,
+        ),
         properties: incoming.properties,
         meta,
       })

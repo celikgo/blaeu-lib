@@ -89,12 +89,20 @@ export function ringSignedArea2(ring: readonly Position[]): number {
  * Normalises one ring: quantise → dedupe → wind → close.
  *
  * @param exterior exterior rings are counter-clockwise, holes clockwise (RFC 7946 §3.1.6).
+ * @param rewind when `false`, the winding step is skipped and the ring's coordinate
+ *   **order is preserved**. This exists for one caller — a transient edit *preview* (see
+ *   ADR 0011). During a vertex drag the tool addresses corners by positional index, and
+ *   silently reversing a ring the instant its winding flips (a triangle's apex crossing
+ *   its base) would leave those indices pointing at the wrong corners for every later
+ *   frame of the gesture. Ingest and the durable commit both leave this `true`, so every
+ *   *stored* feature that survives a gesture is still wound RFC 7946.
  */
 export function normaliseRing(
   ring: readonly Position[],
   crs: Quantiser,
   exterior: boolean,
   where: string,
+  rewind = true,
 ): Position[] {
   const quantised = ring.map((p) => quantisePosition(p, crs))
   const open = dedupeConsecutive(quantised)
@@ -118,7 +126,7 @@ export function normaliseRing(
   }
 
   const counterClockwise = area2 > 0
-  if (counterClockwise !== exterior) open.reverse()
+  if (rewind && counterClockwise !== exterior) open.reverse()
 
   return [...open, open[0]!]
 }
@@ -136,6 +144,7 @@ export function normaliseGeometry(
   geometry: Geometry,
   crs: Quantiser,
   where = 'geometry',
+  rewind = true,
 ): Geometry {
   switch (geometry.type) {
     case 'Point':
@@ -161,14 +170,14 @@ export function normaliseGeometry(
     case 'Polygon':
       return {
         type: 'Polygon',
-        coordinates: normalisePolygon(geometry.coordinates, crs, where),
+        coordinates: normalisePolygon(geometry.coordinates, crs, where, rewind),
       }
 
     case 'MultiPolygon':
       return {
         type: 'MultiPolygon',
         coordinates: geometry.coordinates.map((poly, i) =>
-          normalisePolygon(poly, crs, `${where} part ${i}`),
+          normalisePolygon(poly, crs, `${where} part ${i}`, rewind),
         ),
       }
 
@@ -176,7 +185,7 @@ export function normaliseGeometry(
       return {
         type: 'GeometryCollection',
         geometries: geometry.geometries.map((g, i) =>
-          normaliseGeometry(g, crs, `${where} member ${i}`),
+          normaliseGeometry(g, crs, `${where} member ${i}`, rewind),
         ),
       }
   }
@@ -197,11 +206,12 @@ function normalisePolygon(
   rings: readonly (readonly Position[])[],
   crs: Quantiser,
   where: string,
+  rewind = true,
 ): Position[][] {
   if (rings.length === 0) {
     throw new Error(`[blaeu] ${where}: polygon has no rings.`)
   }
-  return rings.map((ring, i) => normaliseRing(ring, crs, i === 0, `${where} ring ${i}`))
+  return rings.map((ring, i) => normaliseRing(ring, crs, i === 0, `${where} ring ${i}`, rewind))
 }
 
 /**

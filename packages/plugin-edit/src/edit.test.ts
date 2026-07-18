@@ -9,6 +9,7 @@ import {
   sharedEdgeParcels,
   type TestMap,
 } from '@blaeu/core/testing'
+import { ringSignedArea2 } from '@blaeu/core'
 import type { Command, FeatureId, BlaeuFeature, LngLat, Polygon } from '@blaeu/core'
 
 import { editPlugin } from './index.js'
@@ -40,6 +41,9 @@ function ring(map: TestMap, id: FeatureId): readonly LngLat[] {
 function corners(map: TestMap, id: FeatureId): readonly LngLat[] {
   return ring(map, id).slice(0, -1)
 }
+
+/** A LngLat as a bare coordinate pair, for building a geometry literal. */
+const xy = (p: LngLat): [number, number] => [p[0], p[1]]
 
 /** The corner nearest `point` — ring order is normalised on ingest, so never assume an index. */
 function cornerNear(map: TestMap, id: FeatureId, point: LngLat): LngLat {
@@ -305,6 +309,61 @@ describe('editPlugin — float accumulation', () => {
     // 1 mm is the working CRS's precision grid: land within it and the drag has not
     // accumulated error, because a chain of 200 incremental deltas would not.
     expectWithinMetres(cornerNear(map, 'p', target), target, 0.0015)
+    await map.destroy()
+  })
+})
+
+describe('editPlugin — vertex drag across the polygon (ring re-winding)', () => {
+  // The audit critical: a drag addresses corners by positional index, but the store
+  // used to rewind (reverse) a ring the instant an edit flipped its winding. Dragging
+  // a triangle's apex across its base flips the winding, so from that frame on the
+  // drag rewrote a *base* corner instead of the apex — silently, with no error. The
+  // fix (ADR 0011) keeps the ring order stable across the transient previews, and
+  // rewinds once, on the durable commit.
+  it('keeps addressing the dragged corner after the winding flips, and leaves the rest put', async () => {
+    const BL = ANKARA // base, left
+    const BR = offsetMetres(ANKARA, 40, 0) // base, right
+    const APEX = offsetMetres(ANKARA, 20, 30) // above the base — ingest winds this CCW
+    const map = await createTestMap({
+      plugins: [editPlugin()],
+      features: {
+        parcels: [
+          {
+            id: 'tri',
+            geometry: {
+              type: 'Polygon',
+              coordinates: [[xy(BL), xy(BR), xy(APEX), xy(BL)]],
+            } as Polygon,
+          },
+        ],
+      },
+    })
+
+    map.plugin('edit').edit('tri')
+
+    // Drag the apex straight down, across the base and out the far side. Several of the
+    // interpolated frames land below the base, where the triangle is inverted (its
+    // signed area has flipped) — the exact state that used to reverse the ring.
+    const apexStart = cornerNear(map, 'tri', APEX)
+    const target = offsetMetres(ANKARA, 20, -30)
+    map.test.drag(apexStart, target, { steps: 16 })
+    await map.test.flush()
+
+    // Still a triangle: no corner lost or duplicated by a mid-drag reversal.
+    expect(corners(map, 'tri')).toHaveLength(3)
+
+    // The two base corners the user never touched are exactly where they started.
+    expectWithinMetres(cornerNear(map, 'tri', BL), BL, 0.01)
+    expectWithinMetres(cornerNear(map, 'tri', BR), BR, 0.01)
+
+    // The dragged corner — and only it — followed the cursor all the way to the target.
+    expectWithinMetres(cornerNear(map, 'tri', target), target, 0.01)
+
+    // The committed parcel is wound RFC 7946 (a positive exterior area is CCW), even
+    // though it was inverted mid-drag: the rewind lands once, on commit, deed-safe.
+    const stored = ring(map, 'tri').map((p) => [p[0], p[1]] as [number, number])
+    expect(ringSignedArea2(stored)).toBeGreaterThan(0)
+
     await map.destroy()
   })
 })

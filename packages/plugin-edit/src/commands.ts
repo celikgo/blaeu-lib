@@ -106,7 +106,12 @@ export abstract class GeometryEditCommand implements Command<readonly BlaeuFeatu
       this.#written ??
       this.#previous.map((feature) => ({ ...feature, geometry: this.rewrite(feature) }))
 
-    this.#written = ctx.store._update(next)
+    // A transient preview keeps the ring order the edit produced: silently rewinding a
+    // ring the instant a drag flips its winding (a triangle's apex crossing its base)
+    // would leave the tool's positional vertex refs pointing at the wrong corners for
+    // the rest of the gesture. The durable commit rewinds, so the stored parcel is
+    // still RFC 7946 wound. See ADR 0011.
+    this.#written = ctx.store._update(next, { rewindRings: !this.transient })
     return this.#written
   }
 
