@@ -154,12 +154,12 @@ export class MeasureSession {
     // One transaction, so a measurement is one undo step even though it writes
     // geometry and labels into two different collections. The draft clear inside it is
     // transient and drops out of the recorded composite.
-    const result = await this.#ctx.commands.commitTransaction(label, async () => {
+    const result = await this.#ctx.commands.commitTransaction(label, async (tx) => {
       this.#clearDraft()
-      await this.#ctx.commands.commit(
+      await tx.commit(
         new AddFeaturesCommand(MEASURE_COLLECTION, [geometryFeature(measurement)], { label }),
       )
-      await this.#ctx.commands.commit(new AddFeaturesCommand(LABEL_COLLECTION, labels, { label }))
+      await tx.commit(new AddFeaturesCommand(LABEL_COLLECTION, labels, { label }))
     })
 
     if (!result.ok) {

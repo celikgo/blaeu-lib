@@ -165,6 +165,22 @@ export interface DispatchResult<R> {
 }
 
 /**
+ * The handle a {@link CommandBus.commitTransaction} callback receives.
+ *
+ * Commands submitted through it are children of *that* transaction: grouped into one
+ * undo step and rolled back together if any is vetoed or `fn` throws. This is the
+ * transaction's identity, made explicit rather than inferred from a bus-global flag —
+ * so a stray `commands.commit(...)` fired from elsewhere while the transaction awaits
+ * the pipeline is a separate, queued write, not a member of this group.
+ */
+export interface CommitTransaction {
+  /** Run a feature-writing command as part of this transaction. */
+  commit<R>(command: CommitCommand<R>): Promise<DispatchResult<R>>
+  /** Run a transient command (a preview, handles) as part of this transaction. */
+  dispatch<R>(command: Command<R> & { intent?: never }): DispatchResult<R>
+}
+
+/**
  * Dispatches commands and broadcasts what happened.
  *
  * Note what it does *not* do: it holds no undo stack. History is a plugin that
@@ -232,20 +248,29 @@ export interface CommandBus {
    * though it is a remove and an add, each of which had to clear the pipeline
    * independently.
    *
-   * Every `commit()` inside `fn` is validated on its own, against the store as the
-   * previous step left it. If any of them is vetoed, or `fn` throws, the whole
-   * transaction rolls back to the snapshot taken before it started — so a rejected
-   * *second half* of a split cannot leave you with the original parcel deleted and
-   * nothing in its place.
+   * Submit the children through the `tx` handle `fn` receives, **not** through the bus:
+   * `tx.commit(...)` runs inline as part of this transaction, whereas a bare
+   * `commands.commit(...)` is a separate top-level write that queues behind it. That
+   * distinction is what scopes the transaction to its own callback — a stray commit
+   * fired from a tool while this one is awaiting the pipeline is no longer swallowed
+   * into this undo group.
+   *
+   * Every `tx.commit()` is validated on its own, against the store as the previous step
+   * left it. If any of them is vetoed, or `fn` throws, the whole transaction rolls back
+   * to the snapshot taken before it started — so a rejected *second half* of a split
+   * cannot leave you with the original parcel deleted and nothing in its place.
    *
    * ```ts
-   * await map.commands.commitTransaction('Split parcel', async () => {
-   *   await map.commands.commit(new RemoveFeaturesCommand([parcel.id]))
-   *   await map.commands.commit(new AddFeaturesCommand('parcels', [left, right]))
+   * await map.commands.commitTransaction('Split parcel', async (tx) => {
+   *   await tx.commit(new RemoveFeaturesCommand([parcel.id]))
+   *   await tx.commit(new AddFeaturesCommand('parcels', [left, right]))
    * })
    * ```
    */
-  commitTransaction(label: string, fn: () => Promise<void>): Promise<DispatchResult<void>>
+  commitTransaction(
+    label: string,
+    fn: (tx: CommitTransaction) => Promise<void>,
+  ): Promise<DispatchResult<void>>
 
   /** Fires after a command executes successfully. This is the history plugin's hook. */
   onDidExecute(

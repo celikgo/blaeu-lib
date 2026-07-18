@@ -682,9 +682,9 @@ export class EditController {
     // refuse the cut — and if it does, `commitTransaction` rolls back the removal
     // too. A split that leaves the original deleted and no halves in its place is
     // the worst possible outcome, and it is the one this structure rules out.
-    const result = await this.#ctx.commands.commitTransaction(this.#t('edit.split'), async () => {
-      await this.#ctx.commands.commit(new RemoveFeaturesCommand([id]))
-      const added = await this.#ctx.commands.commit(
+    const result = await this.#ctx.commands.commitTransaction(this.#t('edit.split'), async (tx) => {
+      await tx.commit(new RemoveFeaturesCommand([id]))
+      const added = await tx.commit(
         new AddFeaturesCommand(
           feature.meta.collection,
           parts.map((geometry) => ({
@@ -729,9 +729,9 @@ export class EditController {
     )
 
     let created: BlaeuFeature | undefined
-    const result = await this.#ctx.commands.commitTransaction(this.#t('edit.merge'), async () => {
-      await this.#ctx.commands.commit(new RemoveFeaturesCommand(ids))
-      const added = await this.#ctx.commands.commit(
+    const result = await this.#ctx.commands.commitTransaction(this.#t('edit.merge'), async (tx) => {
+      await tx.commit(new RemoveFeaturesCommand(ids))
+      const added = await tx.commit(
         new AddFeaturesCommand(first.meta.collection, [
           {
             id: createId(),

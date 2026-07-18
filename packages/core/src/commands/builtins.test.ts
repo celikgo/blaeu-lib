@@ -274,9 +274,9 @@ describe('the command bus, end to end', () => {
     store._add('parcels', [{ id: 'a', geometry: rect(crs, ANKARA) }])
     const before = store.snapshot()
 
-    const result = await commands.commitTransaction('Split parcel', async () => {
-      await commands.commit(new RemoveFeaturesCommand(['a']))
-      await commands.commit(
+    const result = await commands.commitTransaction('Split parcel', async (tx) => {
+      await tx.commit(new RemoveFeaturesCommand(['a']))
+      await tx.commit(
         new AddFeaturesCommand('parcels', [
           { geometry: rect(crs, offsetMetres(crs, ANKARA, 30, 0)) },
         ]),
@@ -299,9 +299,9 @@ describe('the command bus, end to end', () => {
       composite = command
     })
 
-    await commands.commitTransaction('Split parcel', async () => {
-      await commands.commit(new RemoveFeaturesCommand(['a']))
-      await commands.commit(
+    await commands.commitTransaction('Split parcel', async (tx) => {
+      await tx.commit(new RemoveFeaturesCommand(['a']))
+      await tx.commit(
         new AddFeaturesCommand('parcels', [
           { id: 'a1', geometry: rect(crs, ANKARA, 10) },
           { id: 'a2', geometry: rect(crs, offsetMetres(crs, ANKARA, 10, 0), 10) },
@@ -367,9 +367,9 @@ describe('the command bus, end to end', () => {
     const announced: Command[] = []
     const off = commands.onDidExecute((command) => announced.push(command))
 
-    await commands.commitTransaction('Draw polygon', async () => {
-      commands.dispatch(new PreviewCommand())
-      await commands.commit(new AddFeaturesCommand('parcels', [{ geometry: rect(crs, ANKARA) }]))
+    await commands.commitTransaction('Draw polygon', async (tx) => {
+      tx.dispatch(new PreviewCommand())
+      await tx.commit(new AddFeaturesCommand('parcels', [{ geometry: rect(crs, ANKARA) }]))
     })
     off.dispose()
 

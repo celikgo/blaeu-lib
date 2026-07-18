@@ -231,9 +231,9 @@ describe('recording', () => {
     const history = map.plugin('history')
     const before = map.store.snapshot()
 
-    await map.commands.commitTransaction('Split parcel', async () => {
-      await map.commands.commit(new RemoveFeaturesCommand(['seed-1']))
-      await map.commands.commit(new AddFeaturesCommand('parcels', [newParcel(1), newParcel(2)]))
+    await map.commands.commitTransaction('Split parcel', async (tx) => {
+      await tx.commit(new RemoveFeaturesCommand(['seed-1']))
+      await tx.commit(new AddFeaturesCommand('parcels', [newParcel(1), newParcel(2)]))
     })
 
     expect(history.depth).toBe(1)

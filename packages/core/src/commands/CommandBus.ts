@@ -6,6 +6,7 @@ import type {
   CommandOrigin,
   CommitCommand,
   CommitIntent,
+  CommitTransaction,
   DispatchResult,
 } from '../types/command.js'
 import { isCommitCommand } from '../types/command.js'
@@ -87,6 +88,19 @@ export class CompositeCommand implements Command<void> {
 }
 
 /**
+ * An open transaction's accumulator: the commands it has collected, and the first
+ * veto seen inside it. Async (`commitTransaction`) transactions each get their own —
+ * passed explicitly into the write path, never read off a bus-global field — so two
+ * that overlap across an `await` cannot bleed into one another. The synchronous
+ * `transaction()` uses `#syncTransaction`, which is safe because it never awaits.
+ */
+interface OpenTransaction {
+  readonly label: string
+  readonly children: Command[]
+  vetoed: string | undefined
+}
+
+/**
  * Dispatches commands. Holds **no undo stack** — that is deliberate.
  *
  * History is a *plugin* that subscribes to `onDidExecute`. Keeping it out of the
@@ -99,9 +113,8 @@ export class BlaeuCommandBus implements CommandBus {
   #handlers: ((command: Command, transaction: string | null, origin: CommandOrigin) => void)[] = []
   /** True only while `_apply` is running a command backwards or forwards. */
   #replaying = false
-  #transaction: { label: string; children: Command[] } | null = null
-  /** The first veto seen inside the open `commitTransaction`, if any. */
-  #vetoed: string | undefined
+  /** The open *synchronous* transaction, if any. The async path threads its own instead. */
+  #syncTransaction: OpenTransaction | null = null
   /** Tail of the serialised write queue. See {@link BlaeuCommandBus.#enqueue}. */
   #queue: Promise<void> = Promise.resolve()
 
@@ -116,6 +129,16 @@ export class BlaeuCommandBus implements CommandBus {
   }
 
   dispatch<R>(command: Command<R> & { intent?: never }): DispatchResult<R> {
+    // A bare dispatch joins the open *synchronous* transaction, if one is running — its
+    // whole purpose is grouping dispatches (previews, handles) into one undo step.
+    return this.#dispatchInto(command, this.#origin(), this.#syncTransaction)
+  }
+
+  #dispatchInto<R>(
+    command: Command<R> & { intent?: never },
+    origin: CommandOrigin,
+    tx: OpenTransaction | null,
+  ): DispatchResult<R> {
     // TypeScript already refuses a CommitCommand here (`intent?: never`). This is
     // the backstop for JavaScript callers and for anyone who reached for `as any`:
     // a feature-writing command that slips onto the synchronous path would skip
@@ -133,7 +156,7 @@ export class BlaeuCommandBus implements CommandBus {
           `dispatch() is for transient, non-durable commands — previews, handles, highlights.`,
       )
     }
-    return this.#execute(candidate, this.#origin())
+    return this.#execute(candidate, origin, tx)
   }
 
   commit<R>(command: CommitCommand<R>): Promise<DispatchResult<R>> {
@@ -144,13 +167,12 @@ export class BlaeuCommandBus implements CommandBus {
     // would record the echo of its own undo.
     const origin = this.#origin()
 
-    // Already inside an open transaction *on this call stack* — run inline. Enqueueing
-    // here would deadlock: the transaction holds the queue while it awaits `fn()`, and
-    // `fn()` is what is calling us.
-    if (this.#transaction) return this.#commitNow(command, origin)
-
-    // Otherwise take a turn in the queue. See #enqueue.
-    return this.#enqueue(() => this.#commitNow(command, origin))
+    // A top-level commit always takes a turn in the queue (see #enqueue) — including one
+    // fired *while a transaction is open*, which is exactly the case that must not run
+    // inline: it is a separate write, not a child of that transaction. A transaction's
+    // own children run inline instead, but they arrive through the `tx` handle
+    // (#transactionNow), never through this method, so there is no deadlock.
+    return this.#enqueue(() => this.#commitNow(command, origin, null))
   }
 
   #origin(): CommandOrigin {
@@ -160,6 +182,7 @@ export class BlaeuCommandBus implements CommandBus {
   async #commitNow<R>(
     command: CommitCommand<R>,
     origin: CommandOrigin,
+    tx: OpenTransaction | null,
   ): Promise<DispatchResult<R>> {
     let intent: CommitIntent
     try {
@@ -183,9 +206,12 @@ export class BlaeuCommandBus implements CommandBus {
 
     if (result.rejected) {
       const reason = result.rejectReason ?? 'rejected'
-      // Remember it, so an enclosing commitTransaction rolls the whole group back
-      // rather than committing the half of a split that happened to be legal.
-      this.#vetoed ??= reason
+      // Remember the veto *only on the transaction it happened inside*, so an enclosing
+      // commitTransaction rolls the whole group back rather than committing the half of a
+      // split that happened to be legal. A standalone commit (tx === null) records nothing
+      // — its rejection is answered by the `{ ok: false }` it returns, and leaking it to a
+      // bus field would silently roll back the next, unrelated transaction.
+      if (tx) tx.vetoed ??= reason
       this.events.emit('commit:rejected', { command, reason })
       return { ok: false, value: undefined, rejectedReason: reason }
     }
@@ -193,39 +219,54 @@ export class BlaeuCommandBus implements CommandBus {
     // Whatever survived the chain is what lands. Middleware rewrites are not
     // advisory.
     command.adopt(result.features)
-    return this.#execute(command, origin)
+    return this.#execute(command, origin, tx)
   }
 
-  commitTransaction(label: string, fn: () => Promise<void>): Promise<DispatchResult<void>> {
-    // Nested — flatten into the open one, as the sync version does. Inline, not queued,
-    // for the same reason as `commit`.
-    if (this.#transaction) {
-      return fn().then(
-        () => ({ ok: true, value: undefined, rejectedReason: undefined }),
-        (err: unknown) => this.#fail(err, `transaction:${label}`),
-      )
-    }
-
-    return this.#enqueue(() => this.#transactionNow(label, fn))
+  commitTransaction(
+    label: string,
+    fn: (tx: CommitTransaction) => Promise<void>,
+  ): Promise<DispatchResult<void>> {
+    // Capture the replay origin NOW, synchronously, for the same reason `commit()` does:
+    // by the time this dequeues, an in-progress undo/redo has finished and `#replaying`
+    // is back to false, so reading it later would mis-record a transaction fired by a
+    // replay listener as a fresh user action — and history would echo its own undo.
+    const origin = this.#origin()
+    return this.#enqueue(() => this.#transactionNow(label, fn, origin))
   }
 
   /**
    * One write at a time, in call order.
    *
-   * `#transaction` is a single mutable field, and the moment writes became
-   * asynchronous it stopped being safe to read after an `await`. Consider a measure
-   * session whose `begin()` fires an un-awaited `clear()`: that `clear()` is still
-   * inside `await pipeline.run(...)` when the user's double-click opens `complete()`'s
-   * transaction. It resumes, looks at `#transaction`, finds one open — *not its own* —
-   * and files its removal as a child of someone else's undo group. The store ends up
-   * correct, so no assertion catches it; the undo stack does not, and one Ctrl-Z
-   * silently undoes both the clear and the new measurement.
+   * Two things conspire without this. First, the moment writes became asynchronous, a
+   * command that resumes from an `await` can no longer trust any *shared* view of "is a
+   * transaction open" — which is why an async transaction now carries its membership in
+   * the `tx` handle it hands its callback, rather than in a bus field ({@link
+   * commitTransaction}). Second, ordering itself must be deterministic. Consider a measure
+   * session whose `begin()` fires an un-awaited `clear()`: that `clear()` is still inside
+   * `await pipeline.run(...)` when the user's double-click opens `complete()`'s
+   * transaction. Run concurrently, the two interleave, and the store ends up in a state
+   * that depends on network timing — which a store that anything replays (undo,
+   * collaboration, a crash log) cannot have.
    *
-   * Serialising the write path removes the interleaving rather than trying to detect
+   * Serialising the write path removes the interleaving rather than trying to detect it.
+   * A transaction takes one turn in the queue and holds it for its whole duration, so a
+   * top-level `commit()` fired while it is open waits behind it instead of slipping into
    * it. Writes are not the hot path — the interaction pipeline is, and it stays
    * synchronous — so the cost is a queue on an operation that was already awaiting a
-   * possible network round-trip. Ordering is now also deterministic, which a store
-   * that anything replays (undo, collaboration, a crash log) needs anyway.
+   * possible network round-trip.
+   *
+   * The queue governs `commit()` and `commitTransaction()`. It deliberately does **not**
+   * govern `dispatch()` or the synchronous `transaction()` — those are synchronous by
+   * contract (previews, handles, on the `pointermove` path) and cannot wait on a promise.
+   * The consequence to know: a **non-transient** `dispatch()` (a rare, undoable dispatch
+   * such as a pre-validated scenario restore) that fires *during* an async
+   * `commitTransaction`'s `await` runs immediately and records its own history entry — and
+   * if that transaction then rolls back, its wholesale `store.restore()` reverts the
+   * interleaved write too, leaving an orphaned history entry. This is why an undoable state
+   * change should prefer `commit()` (which queues, so it can never interleave); a
+   * non-transient `dispatch()` is already swimming against {@link CommandBus.commit}'s "if
+   * it survives the gesture, it commits" rule. Transient dispatches — the overwhelming
+   * majority — are never recorded, so a rollback merely repaints them.
    */
   #enqueue<T>(task: () => Promise<T>): Promise<T> {
     // Chain off the tail regardless of whether it settled or threw: one rejected commit
@@ -238,16 +279,26 @@ export class BlaeuCommandBus implements CommandBus {
     return run
   }
 
-  async #transactionNow(label: string, fn: () => Promise<void>): Promise<DispatchResult<void>> {
+  async #transactionNow(
+    label: string,
+    fn: (tx: CommitTransaction) => Promise<void>,
+    origin: CommandOrigin,
+  ): Promise<DispatchResult<void>> {
     const before: StoreSnapshot = this.store.snapshot()
-    const origin = this.#origin()
-    this.#transaction = { label, children: [] }
+    const open: OpenTransaction = { label, children: [], vetoed: undefined }
+
+    // The handle carries the transaction's identity. Everything submitted through it is a
+    // child (inline, collected into `open`); anything submitted through the bus is a
+    // separate write that queues behind this whole transaction.
+    const tx: CommitTransaction = {
+      commit: (command) => this.#commitNow(command, origin, open),
+      dispatch: (command) => this.#dispatchInto(command, origin, open),
+    }
 
     try {
-      await fn()
+      await fn(tx)
     } catch (err) {
       this.store.restore(before)
-      this.#transaction = null
       return this.#fail(err, `transaction:${label}`)
     }
 
@@ -255,30 +306,36 @@ export class BlaeuCommandBus implements CommandBus {
     // `{ ok: false }` — so a caller who does not check it would otherwise get a
     // half-applied split: the parcel removed, the two halves rejected, and nothing
     // on screen. Roll back to the snapshot instead, and say why.
-    const vetoed = this.#vetoed
-    this.#vetoed = undefined
-    if (vetoed !== undefined) {
+    if (open.vetoed !== undefined) {
       this.store.restore(before)
-      this.#transaction = null
-      return { ok: false, value: undefined, rejectedReason: vetoed }
+      return { ok: false, value: undefined, rejectedReason: open.vetoed }
     }
 
-    return this.#close(label, origin)
+    return this.#close(label, open.children, origin)
   }
 
-  #execute<R>(command: Command<R>, origin: CommandOrigin): DispatchResult<R> {
+  #execute<R>(
+    command: Command<R>,
+    origin: CommandOrigin,
+    tx: OpenTransaction | null,
+  ): DispatchResult<R> {
     // The cancellable hook. A plugin vetoes here, before anything has touched the
-    // store — so there is nothing to roll back.
+    // store — so there is nothing to roll back *for this command*. But a veto of a
+    // command inside a transaction must still roll back the *group*, exactly as a
+    // commit-pipeline veto does (#commitNow): a split whose removal a permission
+    // listener refuses must not go on to add the two halves and report success.
     const gate = this.events.emitCancellable('before:command:execute', { command })
     if (!gate.allowed) {
-      return { ok: false, value: undefined, rejectedReason: gate.reason ?? 'rejected' }
+      const reason = gate.reason ?? 'rejected'
+      if (tx) tx.vetoed ??= reason
+      return { ok: false, value: undefined, rejectedReason: reason }
     }
 
     // Inside a transaction: execute now (so later commands in the transaction see
     // the effect), but record into the group rather than announcing individually.
-    if (this.#transaction) {
+    if (tx) {
       const value = command.execute(this.#ctx)
-      this.#transaction.children.push(command)
+      tx.children.push(command)
       return { ok: true, value, rejectedReason: undefined }
     }
 
@@ -302,10 +359,11 @@ export class BlaeuCommandBus implements CommandBus {
   }
 
   transaction(label: string, fn: () => void): DispatchResult<void> {
-    if (this.#transaction) {
+    if (this.#syncTransaction) {
       // Nested transactions flatten into the outer one. The alternative — a tree of
       // nested undo groups — is a UI nobody has ever wanted: the user pressed
-      // Ctrl-Z once and expects one coherent thing to be undone.
+      // Ctrl-Z once and expects one coherent thing to be undone. Safe as a global here
+      // because a synchronous transaction cannot await, so two can never be open at once.
       fn()
       return { ok: true, value: undefined, rejectedReason: undefined }
     }
@@ -313,7 +371,8 @@ export class BlaeuCommandBus implements CommandBus {
     // Snapshot up front so a throw mid-transaction can't leave a half-split parcel
     // on screen. Cheap because the store is structurally shared.
     const before: StoreSnapshot = this.store.snapshot()
-    this.#transaction = { label, children: [] }
+    const open: OpenTransaction = { label, children: [], vetoed: undefined }
+    this.#syncTransaction = open
 
     const origin = this.#origin()
 
@@ -321,18 +380,16 @@ export class BlaeuCommandBus implements CommandBus {
       fn()
     } catch (err) {
       this.store.restore(before)
-      this.#transaction = null
+      this.#syncTransaction = null
       return this.#fail(err, `transaction:${label}`)
     }
 
-    return this.#close(label, origin)
+    this.#syncTransaction = null
+    return this.#close(label, open.children, origin)
   }
 
   /** Roll the open group up into one undo entry and announce it. */
-  #close(label: string, origin: CommandOrigin): DispatchResult<void> {
-    const children = this.#transaction?.children ?? []
-    this.#transaction = null
-
+  #close(label: string, children: readonly Command[], origin: CommandOrigin): DispatchResult<void> {
     // Transient children have already run against the store, but they are not
     // history. Filter first, and *then* ask whether there is anything to record:
     // a transaction whose children were all transient (a gesture that only redrew

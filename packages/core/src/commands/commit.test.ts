@@ -222,9 +222,9 @@ describe('the commit pipeline runs on the write path', () => {
       ],
     })
 
-    const result = await map.commands.commitTransaction('Split', async () => {
-      await map.commands.commit(new RemoveFeaturesCommand([id!]))
-      await map.commands.commit(
+    const result = await map.commands.commitTransaction('Split', async (tx) => {
+      await tx.commit(new RemoveFeaturesCommand([id!]))
+      await tx.commit(
         new AddFeaturesCommand('parcels', [
           { geometry: SQUARE, properties: { half: true } },
           { geometry: SQUARE, properties: { half: true } },
@@ -268,8 +268,8 @@ describe('the commit pipeline runs on the write path', () => {
     // Fire and forget — exactly how a tool calls it.
     void map.commands.commit(new AddFeaturesCommand('stray', [{ geometry: SQUARE }]))
 
-    await map.commands.commitTransaction('Group', async () => {
-      await map.commands.commit(new AddFeaturesCommand('grouped', [{ geometry: SQUARE }]))
+    await map.commands.commitTransaction('Group', async (tx) => {
+      await tx.commit(new AddFeaturesCommand('grouped', [{ geometry: SQUARE }]))
     })
 
     await map.test.flush()
@@ -282,6 +282,93 @@ describe('the commit pipeline runs on the write path', () => {
     expect(groups).toEqual([null, 'Group'])
     expect(map.store.collection('stray').all()).toHaveLength(1)
     expect(map.store.collection('grouped').all()).toHaveLength(1)
+
+    map.destroy()
+  })
+
+  it('a commit fired DURING an open transaction is its own undo entry, not a child of it', async () => {
+    const map = await createTestMap()
+    const groups: (string | null)[] = []
+    map.commands.onDidExecute((_cmd, transaction) => groups.push(transaction))
+
+    await map.commands.commitTransaction('Group', async (tx) => {
+      // A stray commit submitted through the BUS while the transaction is open — a tool
+      // firing on a pointer event during a slow split, say. It must NOT join the group:
+      // before the fix it saw the bus-global transaction flag and was recorded as a
+      // child, so one Ctrl-Z undid it together with the group.
+      void map.commands.commit(new AddFeaturesCommand('stray', [{ geometry: SQUARE }]))
+      await tx.commit(new AddFeaturesCommand('grouped', [{ geometry: SQUARE }]))
+    })
+    await map.test.flush()
+
+    // Two separate entries: the group, then the stray (queued behind it), never merged.
+    expect(groups).toContain('Group')
+    expect(groups).toContain(null)
+    expect(map.store.collection('grouped').all()).toHaveLength(1)
+    expect(map.store.collection('stray').all()).toHaveLength(1)
+
+    map.destroy()
+  })
+
+  it('a rejected standalone commit does not roll back the next, unrelated transaction', async () => {
+    const map = await createTestMap()
+    // Refuse anything carrying `blocked: true`.
+    map.validation.add({
+      id: 'test:no-blocked',
+      severity: 'error',
+      appliesTo: (feature) => feature.properties['blocked'] === true,
+      check: (feature) => [
+        { rule: 'test:no-blocked', feature: feature.id, severity: 'error', message: 'blocked' },
+      ],
+    })
+
+    // A standalone commit gets vetoed. Before the fix this left the bus's `#vetoed` set
+    // forever, because only a transaction cleared it.
+    const rejected = await map.commands.commit(
+      new AddFeaturesCommand('parcels', [{ geometry: SQUARE, properties: { blocked: true } }]),
+    )
+    expect(rejected.ok).toBe(false)
+
+    // A completely unrelated transaction must commit normally — not silently roll back
+    // because it inherited the stale veto from the standalone commit above.
+    const result = await map.commands.commitTransaction('Unrelated', async (tx) => {
+      await tx.commit(new AddFeaturesCommand('parcels', [{ geometry: SQUARE }]))
+    })
+
+    expect(result.ok).toBe(true)
+    expect(map.store.collection('parcels').all()).toHaveLength(1)
+
+    map.destroy()
+  })
+
+  it('a before:command:execute veto of a transaction child rolls the whole group back', async () => {
+    const map = await createTestMap()
+    const add = await map.commands.commit(new AddFeaturesCommand('parcels', [{ geometry: SQUARE }]))
+    const id = add.value?.[0]?.id
+    expect(id).toBeDefined()
+    const before = map.store.snapshot()
+
+    // A permission policy refuses the removal through the before:command:execute gate —
+    // the veto path that is NOT the commit pipeline. It must still roll the whole group
+    // back, or a split commits its two halves on top of the parcel it failed to remove.
+    const off = map.events.onBefore('before:command:execute', (event) => {
+      if (event.payload.command.type === 'core:remove-features') {
+        event.preventDefault('removal not allowed')
+      }
+    })
+
+    const result = await map.commands.commitTransaction('Split', async (tx) => {
+      await tx.commit(new RemoveFeaturesCommand([id!]))
+      await tx.commit(
+        new AddFeaturesCommand('parcels', [{ geometry: SQUARE }, { geometry: SQUARE }]),
+      )
+    })
+    off.dispose()
+
+    expect(result.ok).toBe(false)
+    // The original parcel survives and no halves were added — not a half-applied split.
+    expect(map.store.snapshot()).toEqual(before)
+    expect(map.store.collection('parcels').all()).toHaveLength(1)
 
     map.destroy()
   })
