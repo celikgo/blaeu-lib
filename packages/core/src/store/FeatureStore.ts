@@ -509,10 +509,14 @@ export class BlaeuFeatureStore implements FeatureStore {
     // and every default caller — leaves it `true`, so stored geometry stays RFC 7946.
     const rewindRings = options?.rewindRings ?? true
     const now = Date.now()
-    const written: BlaeuFeature[] = []
-    const previous: BlaeuFeature[] = []
-    const grouped = new Map<CollectionId, { features: BlaeuFeature[]; previous: BlaeuFeature[] }>()
 
+    // Prepare pass — pure, and the *only* pass that can throw. Every next feature is built
+    // (owner lookup, meta, `normaliseGeometry` — which rejects a ring that collapsed to a
+    // degenerate shape) before a single one is written. So a batch where the third feature
+    // has bad geometry leaves the store, the topology index, and the change events exactly
+    // as they were, rather than writing the first two with no event and no undo record.
+    // Mirrors `materialise` + `_add`; the write pass below cannot fail on geometry.
+    const prepared: { owner: CollectionId; prev: BlaeuFeature; next: BlaeuFeature }[] = []
     for (const incoming of features) {
       const owner = this.#owner.get(incoming.id)
       if (owner === undefined) {
@@ -521,8 +525,7 @@ export class BlaeuFeatureStore implements FeatureStore {
             `Add it with an AddFeaturesCommand first, or check that the id survived a round-trip through your API.`,
         )
       }
-      const target = this.#collections.get(owner)!
-      const prev = target.get(incoming.id)!
+      const prev = this.#collections.get(owner)!.get(incoming.id)!
 
       const rewriting = incoming.meta.version !== prev.meta.version
       const meta: FeatureMeta = rewriting
@@ -547,7 +550,18 @@ export class BlaeuFeatureStore implements FeatureStore {
         meta,
       })
 
-      target._put(next)
+      prepared.push({ owner, prev, next })
+    }
+
+    if (prepared.length === 0) return []
+
+    // Write pass — pure mutation. Store, topology, and events now move together, so any
+    // observer that reacts to `feature:updated` sees a store that already reflects it.
+    const written: BlaeuFeature[] = []
+    const previous: BlaeuFeature[] = []
+    const grouped = new Map<CollectionId, { features: BlaeuFeature[]; previous: BlaeuFeature[] }>()
+    for (const { owner, prev, next } of prepared) {
+      this.#collections.get(owner)!._put(next)
       this.topology.reindex(next)
 
       written.push(next)
@@ -558,7 +572,6 @@ export class BlaeuFeatureStore implements FeatureStore {
       grouped.set(owner, group)
     }
 
-    if (written.length === 0) return written
     for (const [collection, group] of grouped) {
       this.#publish({
         kind: 'update',

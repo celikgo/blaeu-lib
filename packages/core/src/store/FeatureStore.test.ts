@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { Polygon, Position } from 'geojson'
+import type { MultiPolygon, Polygon, Position } from 'geojson'
 
 import { BlaeuEventBus } from '../events/EventBus.js'
 import { BlaeuFeatureStore } from './FeatureStore.js'
@@ -307,6 +307,46 @@ describe('BlaeuFeatureStore — the write path', () => {
     const { crs, store } = setup()
     const [parcel] = store._add('parcels', [{ geometry: rect(crs, ANKARA, 10, 10) }])
     expect(() => store._update([{ ...parcel!, id: 'ghost' }])).toThrow(/not in the store/)
+  })
+
+  it('_update is atomic: a mid-batch geometry failure writes nothing and fires no event', () => {
+    // A ring collapsed to a single point (rejected by normaliseRing) and an empty
+    // MultiPolygon (which normaliseGeometry used to accept, only for geometryBbox to
+    // throw later inside _put — the residual partial-write the review caught). Both must
+    // be rejected in the pure prepare pass, before the first feature is ever written.
+    const collapsed: Polygon = {
+      type: 'Polygon',
+      coordinates: [[[...ANKARA], [...ANKARA], [...ANKARA], [...ANKARA]]],
+    }
+    const emptyMulti: MultiPolygon = { type: 'MultiPolygon', coordinates: [] }
+
+    for (const bad of [collapsed, emptyMulti] as const) {
+      const { crs, events, store } = setup()
+      const [a] = store._add('parcels', [{ geometry: rect(crs, ANKARA, 20, 20) }])
+      const [b] = store._add('parcels', [
+        { geometry: rect(crs, offsetMetres(crs, ANKARA, 100, 0), 20, 20) },
+      ])
+      const before = store.snapshot()
+
+      const updated: BlaeuFeature[] = []
+      events.on('feature:updated', (event) => updated.push(...event.features))
+      const changes: StoreChange[] = []
+      store.onChange((change) => changes.push(change))
+
+      // Move A legitimately, then hand B the bad geometry. Before the fix, A was already
+      // `_put` and reindexed by the time B threw — a partial write with no event.
+      const goodA = { ...a!, geometry: rect(crs, offsetMetres(crs, ANKARA, 5, 5), 20, 20) }
+      const badB = { ...b!, geometry: bad }
+
+      expect(() => store._update([goodA, badB])).toThrow()
+
+      // The store is exactly as it was: A never moved, its version never bumped, and no
+      // change event or bus event escaped.
+      expect(store.snapshot()).toEqual(before)
+      expect(store.find(a!.id)).toEqual(a)
+      expect(updated).toHaveLength(0)
+      expect(changes).toHaveLength(0)
+    }
   })
 
   it('_remove returns exactly what went, and skips ids that were already gone', () => {

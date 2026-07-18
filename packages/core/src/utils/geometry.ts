@@ -151,6 +151,7 @@ export function normaliseGeometry(
       return { type: 'Point', coordinates: quantisePosition(geometry.coordinates, crs) }
 
     case 'MultiPoint':
+      if (geometry.coordinates.length === 0) throw emptyGeometry(where, 'MultiPoint', 'points')
       return {
         type: 'MultiPoint',
         coordinates: geometry.coordinates.map((p) => quantisePosition(p, crs)),
@@ -160,6 +161,7 @@ export function normaliseGeometry(
       return { type: 'LineString', coordinates: normaliseLine(geometry.coordinates, crs, where) }
 
     case 'MultiLineString':
+      if (geometry.coordinates.length === 0) throw emptyGeometry(where, 'MultiLineString', 'lines')
       return {
         type: 'MultiLineString',
         coordinates: geometry.coordinates.map((line, i) =>
@@ -174,6 +176,7 @@ export function normaliseGeometry(
       }
 
     case 'MultiPolygon':
+      if (geometry.coordinates.length === 0) throw emptyGeometry(where, 'MultiPolygon', 'polygons')
       return {
         type: 'MultiPolygon',
         coordinates: geometry.coordinates.map((poly, i) =>
@@ -182,6 +185,9 @@ export function normaliseGeometry(
       }
 
     case 'GeometryCollection':
+      if (geometry.geometries.length === 0) {
+        throw emptyGeometry(where, 'GeometryCollection', 'geometries')
+      }
       return {
         type: 'GeometryCollection',
         geometries: geometry.geometries.map((g, i) =>
@@ -189,6 +195,20 @@ export function normaliseGeometry(
         ),
       }
   }
+}
+
+/**
+ * An empty multi-geometry or geometry collection has no shape at all, so it cannot be
+ * indexed, given a bbox, styled, or clicked. Reject it here — the one geometry gate — so
+ * a store write cannot pass this normaliser and then throw later in `geometryBbox` deep
+ * inside `_put`, which would leave a batch write half-applied.
+ */
+function emptyGeometry(where: string, type: string, part: string): Error {
+  return new Error(
+    `[blaeu] ${where}: this ${type} is empty — it contains no ${part}. ` +
+      `An empty geometry has no position to index or draw; remove the feature instead of ` +
+      `giving it a shape with nothing in it.`,
+  )
 }
 
 function normaliseLine(line: readonly Position[], crs: Quantiser, where: string): Position[] {
