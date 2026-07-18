@@ -788,6 +788,43 @@ describe('editPlugin — split', () => {
     expect(map.store.snapshot()).toEqual(before)
     await map.destroy()
   })
+
+  it('refuses to split a self-intersecting parcel, and changes nothing', async () => {
+    // An asymmetric bowtie: self-intersecting, but with non-zero area so it survives
+    // ingest (normaliseRing rejects only zero-area/degenerate rings; self-intersection is
+    // plugin-topology's job, and a bare edit map need not have it). Before the fix,
+    // splitPolygon ran UnionOp/Polygonizer/RelateOp on it — an opaque JTS crash or a
+    // silently wrong split — instead of a clear, coordinate-naming rejection.
+    const A = SW
+    const B = offsetMetres(SW, 40, 40)
+    const C = offsetMetres(SW, 40, 0)
+    const D = offsetMetres(SW, 0, 20)
+    const map = await createTestMap({
+      plugins: [editPlugin()],
+      features: {
+        parcels: [
+          {
+            id: 'bowtie',
+            geometry: {
+              type: 'Polygon',
+              coordinates: [[xy(A), xy(B), xy(C), xy(D), xy(A)]],
+            } as Polygon,
+          },
+        ],
+      },
+    })
+    const before = map.store.snapshot()
+
+    await expect(
+      map.plugin('edit').split('bowtie', {
+        type: 'LineString',
+        coordinates: [[...offsetMetres(SW, 20, -5)], [...offsetMetres(SW, 20, 45)]],
+      }),
+    ).rejects.toThrow(/invalid/i)
+
+    expect(map.store.snapshot()).toEqual(before)
+    await map.destroy()
+  })
 })
 
 describe('editPlugin — merge', () => {

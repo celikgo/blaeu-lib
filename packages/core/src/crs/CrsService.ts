@@ -26,12 +26,6 @@ import {
 /** A spec plus the quantisation grid it will be materialised with. */
 type CrsDefinition = CrsSpec & { readonly precision: number }
 
-/** Metres per linear unit. The `unit` field exists so a foot-based CRS cannot sneak through. */
-const METRES_PER_UNIT: Record<ProjectedCrs['unit'], number> = {
-  metre: 1,
-  foot: 0.3048,
-}
-
 /**
  * The CRS service — the reason cadastral numbers come out right.
  *
@@ -136,6 +130,16 @@ export class BlaeuCrsService implements CrsService {
           `metres. Register a projected system instead — e.g. EPSG:5254 (TUREF / TM30).`,
       )
     }
+    if (crs.unit !== 'metre') {
+      // Metres are load-bearing: the topology grid, snap tolerances, the JSTS precision
+      // model and buffer distances all treat a projected coordinate as metres, and only
+      // this service ever applied a unit scale — so a foot CRS produced correct areas
+      // here and wrong ones everywhere else. Reject it rather than half-honour it.
+      throw new Error(
+        `[blaeu] cannot register "${crs.code}" with unit "${String(crs.unit)}": BlaeuMap works in ` +
+          `metres end to end. Supply a metre-based proj4 (\`+units=m\`), or pre-convert the grid to metres.`,
+      )
+    }
     if (!(crs.precision > 0) || !Number.isFinite(crs.precision)) {
       throw new Error(
         `[blaeu] CRS "${crs.code}" has precision ${String(crs.precision)}. It must be the ` +
@@ -207,17 +211,14 @@ export class BlaeuCrsService implements CrsService {
    */
   area(geometry: Geometry): number {
     const plane = this.#working
-    const scale = METRES_PER_UNIT[plane.unit] ** 2
 
     switch (geometry.type) {
       case 'Polygon':
-        return polygonArea(projectRings(plane, geometry.coordinates)) * scale
+        return polygonArea(projectRings(plane, geometry.coordinates))
       case 'MultiPolygon':
-        return (
-          geometry.coordinates.reduce(
-            (total, rings) => total + polygonArea(projectRings(plane, rings)),
-            0,
-          ) * scale
+        return geometry.coordinates.reduce(
+          (total, rings) => total + polygonArea(projectRings(plane, rings)),
+          0,
         )
       case 'GeometryCollection':
         return geometry.geometries.reduce((total, part) => total + this.area(part), 0)
@@ -232,28 +233,23 @@ export class BlaeuCrsService implements CrsService {
   /** Planar length (or perimeter, for areal geometry) in metres, in the working CRS. */
   length(geometry: Geometry): number {
     const plane = this.#working
-    const scale = METRES_PER_UNIT[plane.unit]
 
     switch (geometry.type) {
       case 'LineString':
-        return pathLength(projectPath(plane, geometry.coordinates)) * scale
+        return pathLength(projectPath(plane, geometry.coordinates))
       case 'MultiLineString':
-        return (
-          geometry.coordinates.reduce(
-            (total, line) => total + pathLength(projectPath(plane, line)),
-            0,
-          ) * scale
+        return geometry.coordinates.reduce(
+          (total, line) => total + pathLength(projectPath(plane, line)),
+          0,
         )
       // A polygon's "length" is its perimeter, holes included: a courtyard has a
       // wall too, and a fencing contractor is going to bill for it.
       case 'Polygon':
-        return polygonPerimeter(projectRings(plane, geometry.coordinates)) * scale
+        return polygonPerimeter(projectRings(plane, geometry.coordinates))
       case 'MultiPolygon':
-        return (
-          geometry.coordinates.reduce(
-            (total, rings) => total + polygonPerimeter(projectRings(plane, rings)),
-            0,
-          ) * scale
+        return geometry.coordinates.reduce(
+          (total, rings) => total + polygonPerimeter(projectRings(plane, rings)),
+          0,
         )
       case 'GeometryCollection':
         return geometry.geometries.reduce((total, part) => total + this.length(part), 0)
@@ -266,7 +262,7 @@ export class BlaeuCrsService implements CrsService {
   /** Planar distance in metres — the distance on the plan, not the great circle. */
   distance(a: LngLat, b: LngLat): number {
     const plane = this.#working
-    return distanceXY(plane.forward(a), plane.forward(b)) * METRES_PER_UNIT[plane.unit]
+    return distanceXY(plane.forward(a), plane.forward(b))
   }
 
   /** Grid bearing in degrees, clockwise from grid north. See `planar.gridBearing`. */
@@ -288,8 +284,7 @@ export class BlaeuCrsService implements CrsService {
    */
   quantise(lngLat: LngLat): LngLat {
     const plane = this.#working
-    const grid = plane.precision / METRES_PER_UNIT[plane.unit]
-    return plane.inverse(snapXYToGrid(plane.forward(lngLat), grid))
+    return plane.inverse(snapXYToGrid(plane.forward(lngLat), plane.precision))
   }
 
   format(lngLat: LngLat, options?: { readonly style?: 'projected' | 'dms' | 'decimal' }): string {
@@ -350,7 +345,7 @@ export class BlaeuCrsService implements CrsService {
     if (!pair) return undefined
 
     const plane = this.#working
-    const grid = plane.precision / METRES_PER_UNIT[plane.unit]
+    const grid = plane.precision
     const xy: ProjectedXY = [snapToGrid(pair[0], grid), snapToGrid(pair[1], grid)]
 
     const lngLat = plane.inverse(xy)

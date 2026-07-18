@@ -25,6 +25,9 @@ import OverlayOp from 'jsts/org/locationtech/jts/operation/overlay/OverlayOp.js'
 import RelateOp from 'jsts/org/locationtech/jts/operation/relate/RelateOp.js'
 import Polygonizer from 'jsts/org/locationtech/jts/operation/polygonize/Polygonizer.js'
 import InteriorPointArea from 'jsts/org/locationtech/jts/algorithm/InteriorPointArea.js'
+import IsValidOp from 'jsts/org/locationtech/jts/operation/valid/IsValidOp.js'
+import PrecisionModel from 'jsts/org/locationtech/jts/geom/PrecisionModel.js'
+import GeometryPrecisionReducer from 'jsts/org/locationtech/jts/precision/GeometryPrecisionReducer.js'
 
 import type { Geometry, LineString, ProjectedCrs } from '@blaeu/core'
 import { mapPositions } from './geometry.js'
@@ -78,8 +81,17 @@ export function splitPolygon(
     )
   }
 
-  const target = read(geometry, plane)
-  const cut = read(line, plane)
+  const raw = read(geometry, plane)
+  // Refuse an invalid target rather than run a boolean op on it: a self-intersecting or
+  // self-touching polygon makes JTS throw an opaque TopologyException or return the wrong
+  // face count, so the surveyor gets a crash or a silently wrong split instead of a clear
+  // rejection. Validate BEFORE reducing — the reducer itself throws on a self-intersection.
+  assertValid(raw, plane, 'split this feature')
+
+  // Snap both operands to the CRS's grid before noding. Un-reduced coordinates node into
+  // sub-millimetre slivers and can miss a crossing the surveyor drew as exact.
+  const target = reduce(raw, plane.precision)
+  const cut = reduce(read(line, plane), plane.precision)
 
   const noded = UnionOp.union(BoundaryOp.getBoundary(target), cut)
   const polygonizer = new Polygonizer()
@@ -124,7 +136,12 @@ export function mergePolygons(geometries: readonly Geometry[], plane: ProjectedC
     }
   }
 
-  const parts = geometries.map((geometry) => read(geometry, plane))
+  const raw = geometries.map((geometry) => read(geometry, plane))
+  // Reject an invalid operand (naming the coordinate) before any overlay, and validate
+  // before reducing — see splitPolygon. Then snap every part to the grid so a shared
+  // edge reads as shared, not as a sub-millimetre overlap the contiguity walk misses.
+  raw.forEach((part, i) => assertValid(part, plane, `merge feature ${i + 1}`))
+  const parts = raw.map((part) => reduce(part, plane.precision))
   assertContiguous(parts)
 
   let union: JstsGeometry = parts[0]!
@@ -200,6 +217,57 @@ function read(geometry: Geometry, plane: ProjectedCrs): JstsGeometry {
 function unread(geometry: JstsGeometry, plane: ProjectedCrs): Geometry {
   const out = writer.write(geometry) as Geometry
   return mapPositions(out, (xy) => plane.inverse(xy))
+}
+
+/**
+ * Refuse an invalid operand, naming the coordinate.
+ *
+ * split/merge act directly on a chosen feature, so per `gis-geometry-precision` an invalid
+ * one is *rejected* — never auto-repaired with `buffer(0)`, which guesses at intent — with
+ * the offending coordinate so a UI can zoom to it. Runs on the geometry as read, **before**
+ * precision reduction: `GeometryPrecisionReducer` can itself throw on a self-intersecting
+ * polygon, and a validity check that crashes on invalid input is not a validity check.
+ */
+function assertValid(geometry: JstsGeometry, plane: ProjectedCrs, action: string): void {
+  const op = new IsValidOp(geometry)
+  if (op.isValid() === true) return
+
+  const error = op.getValidationError() as {
+    getMessage?: () => string
+    getCoordinate?: () => { x: number; y: number } | null
+  } | null
+  const reason = error?.getMessage?.() ?? 'invalid geometry'
+  const xy = error?.getCoordinate?.() ?? null
+  const at =
+    xy && Number.isFinite(xy.x) && Number.isFinite(xy.y) ? ` — near ${formatAt(plane, xy)}` : ''
+
+  throw new Error(
+    `[blaeu/edit] cannot ${action}: its geometry is invalid (${reason})${at}. ` +
+      `Fix the boundary first — BlaeuMap will not guess at a repair that could change the ` +
+      `parcel's area. Nothing has been changed.`,
+  )
+}
+
+/** The offending coordinate, back in 4326 for the message; raw plane metres if it will not invert. */
+function formatAt(plane: ProjectedCrs, xy: { x: number; y: number }): string {
+  try {
+    const [lng, lat] = plane.inverse([xy.x, xy.y])
+    return `lng ${lng.toFixed(6)}, lat ${lat.toFixed(6)}`
+  } catch {
+    return `${xy.x.toFixed(3)}, ${xy.y.toFixed(3)} (working CRS)`
+  }
+}
+
+/**
+ * Snap every coordinate to the CRS's precision grid before a boolean op.
+ *
+ * Reduce **both** operands to the same grid — reducing one and not the other reintroduces
+ * the mismatch it exists to remove. JTS's `PrecisionModel` is a *scale*, not a grid size
+ * (1 mm ⇒ 1000), hence `1 / precisionMetres`.
+ */
+function reduce(geometry: JstsGeometry, precisionMetres: number): JstsGeometry {
+  const model = new PrecisionModel(1 / precisionMetres)
+  return GeometryPrecisionReducer.reduce(geometry, model) as JstsGeometry
 }
 
 /** JTS collections are Java-shaped: `size()` / `get(i)`, not iterable. */

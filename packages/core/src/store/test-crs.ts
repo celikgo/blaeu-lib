@@ -74,6 +74,13 @@ export function createTestCrs(precisionMetres = 0.001): CrsService {
     list(): readonly CrsCode[] {
       return [working.code]
     },
+    withinBounds(lngLat: LngLat, code?: CrsCode): boolean {
+      const crs = code === undefined ? working : code === working.code ? working : undefined
+      if (!crs?.bounds) return true
+      const [west, south, east, north] = crs.bounds
+      const [lng, lat] = lngLat
+      return lng >= west && lng <= east && lat >= south && lat <= north
+    },
 
     area(geometry: Geometry): number {
       if (geometry.type !== 'Polygon') return 0

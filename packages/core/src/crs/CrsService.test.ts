@@ -4,6 +4,7 @@ import type { Polygon, Position } from 'geojson'
 import type { LngLat, ProjectedXY } from '../types/common.js'
 import type { CrsCode, ProjectedCrs } from '../types/crs.js'
 import { BlaeuCrsService } from './CrsService.js'
+import { bboxAround } from '../utils/geometry.js'
 
 /** Ankara. Note it sits at 32.85°E — inside the TM33 belt, *not* TM30's. That is deliberate. */
 const ANKARA: LngLat = [32.85, 39.93]
@@ -546,6 +547,23 @@ describe('registration and errors', () => {
       }),
     ).toThrow(/BROKEN/)
   })
+
+  it('refuses a non-metre unit — the plane is metres end to end, and only CrsService ever knew otherwise', () => {
+    const crs = crsService()
+    expect(() =>
+      crs.register({
+        code: 'CA-SPCS-III-FT',
+        name: 'NAD83 California zone III (ftUS)',
+        proj4:
+          '+proj=lcc +lat_1=38.43 +lat_2=37.06 +lat_0=36.5 +lon_0=-120.5 +x_0=2000000 ' +
+          '+y_0=500000 +ellps=GRS80 +units=us-ft +no_defs',
+        // A JS caller (or an `as never`) is the only way to reach this now — the type is
+        // `'metre'` — but the runtime guard must still catch it.
+        unit: 'foot' as never,
+        precision: 0.001,
+      }),
+    ).toThrow(/metre/i)
+  })
 })
 
 describe('setWorking / onChange', () => {
@@ -593,5 +611,46 @@ describe('setWorking / onChange', () => {
 
     expect(seen).toEqual(['EPSG:5255'])
     error.mockRestore()
+  })
+})
+
+describe('bboxAround', () => {
+  it('returns a finite, world-clamped box at a huge radius instead of throwing', () => {
+    // Collection.nearest() doubles its search radius up to 20 000 km when the nearest
+    // feature is far. In a TM belt that radius runs off the projectable domain; the old
+    // four-corner box inverse-projected to NaN and threw (after returning a box that did
+    // not even contain the query point).
+    const crs = crsService('EPSG:5254') // TUREF / TM30
+    const [w, s, e, n] = bboxAround(crs, ANKARA, 20_000_000)
+
+    expect([w, s, e, n].every((v) => Number.isFinite(v))).toBe(true)
+    expect(w).toBeGreaterThanOrEqual(-180)
+    expect(e).toBeLessThanOrEqual(180)
+    expect(s).toBeGreaterThanOrEqual(-90)
+    expect(n).toBeLessThanOrEqual(90)
+    // Still contains the query point.
+    expect(w).toBeLessThanOrEqual(ANKARA[0])
+    expect(e).toBeGreaterThanOrEqual(ANKARA[0])
+    expect(s).toBeLessThanOrEqual(ANKARA[1])
+    expect(n).toBeGreaterThanOrEqual(ANKARA[1])
+  })
+
+  it('is a genuine superset of the metric disc — every point R metres out is inside', () => {
+    const crs = crsService('EPSG:5254')
+    const plane = crs.working
+    const R = 5000
+    const [cx, cy] = plane.forward(ANKARA)
+    const [w, s, e, n] = bboxAround(crs, ANKARA, R)
+
+    // Sample the true metric rim densely; the box must contain all of it. The old
+    // four-corner box misses the belt's edge-midpoint bulge and drops rim points here.
+    for (let i = 0; i < 64; i++) {
+      const a = (i / 64) * 2 * Math.PI
+      const [lng, lat] = plane.inverse([cx + R * Math.cos(a), cy + R * Math.sin(a)])
+      expect(lng).toBeGreaterThanOrEqual(w)
+      expect(lng).toBeLessThanOrEqual(e)
+      expect(lat).toBeGreaterThanOrEqual(s)
+      expect(lat).toBeLessThanOrEqual(n)
+    }
   })
 })

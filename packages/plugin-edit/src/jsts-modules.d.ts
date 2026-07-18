@@ -48,3 +48,18 @@ declare module 'jsts/org/locationtech/jts/algorithm/InteriorPointArea.js' {
   const InteriorPointArea: any
   export default InteriorPointArea
 }
+
+declare module 'jsts/org/locationtech/jts/operation/valid/IsValidOp.js' {
+  const IsValidOp: any
+  export default IsValidOp
+}
+
+declare module 'jsts/org/locationtech/jts/geom/PrecisionModel.js' {
+  const PrecisionModel: any
+  export default PrecisionModel
+}
+
+declare module 'jsts/org/locationtech/jts/precision/GeometryPrecisionReducer.js' {
+  const GeometryPrecisionReducer: any
+  export default GeometryPrecisionReducer
+}

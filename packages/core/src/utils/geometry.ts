@@ -459,24 +459,64 @@ export function bboxAround(
   radiusMetres: number,
 ): Bbox {
   const plane = crs.working
-  const [x, y] = plane.forward(centre)
-  const corners: ProjectedXY[] = [
-    [x - radiusMetres, y - radiusMetres],
-    [x + radiusMetres, y - radiusMetres],
-    [x + radiusMetres, y + radiusMetres],
-    [x - radiusMetres, y + radiusMetres],
-  ]
+  const [cx, cy] = plane.forward(centre)
 
-  let west = Infinity
-  let south = Infinity
-  let east = -Infinity
-  let north = -Infinity
-  for (const corner of corners) {
-    const [lng, lat] = plane.inverse(corner)
+  // Sample a regular polygon that *circumscribes* the projected disc — its vertices sit
+  // at R / cos(π/N), so the N-gon, and the box of its inverse-projected vertices,
+  // contains the whole disc. The old four-corner box under-covered: at large radii a TM
+  // belt is not affine, so the rim between corners bulges outside their box — and
+  // `Collection.nearest()`/`query()` use this as a pre-filter before an exact distance
+  // test, so an under-covering box silently drops the true nearest.
+  const N = 32
+  const sampleRadius = radiusMetres / Math.cos(Math.PI / N)
+
+  // Seed with the centre so a zero radius — or a disc lying entirely past the CRS's
+  // domain — still yields a box that at least contains the query point.
+  let west = centre[0]
+  let east = centre[0]
+  let south = centre[1]
+  let north = centre[1]
+  let spilled = false
+
+  for (let i = 0; i < N; i++) {
+    const angle = (i / N) * 2 * Math.PI
+    // This part of the rim may be past the plane's projectable domain — the disc has run
+    // off the belt. `inverse` throws (or, defensively, could return a non-finite) there;
+    // the old code fed the corners straight in and threw downstream, after returning a
+    // box that did not even contain the query point. Treat either as "spilled".
+    let lng: number
+    let lat: number
+    try {
+      ;[lng, lat] = plane.inverse([
+        cx + sampleRadius * Math.cos(angle),
+        cy + sampleRadius * Math.sin(angle),
+      ])
+    } catch {
+      spilled = true
+      continue
+    }
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+      spilled = true
+      continue
+    }
     if (lng < west) west = lng
     if (lng > east) east = lng
     if (lat < south) south = lat
     if (lat > north) north = lat
   }
-  return [west, south, east, north]
+
+  // Part of the disc reached beyond the belt: widen to the CRS's validity extent (or the
+  // world) so the box stays a superset of the metric disc rather than under-covering it.
+  if (spilled) {
+    const bounds = plane.bounds ?? WORLD_BOUNDS
+    west = Math.min(west, bounds[0])
+    south = Math.min(south, bounds[1])
+    east = Math.max(east, bounds[2])
+    north = Math.max(north, bounds[3])
+  }
+
+  return [Math.max(west, -180), Math.max(south, -90), Math.min(east, 180), Math.min(north, 90)]
 }
+
+/** The projectable world, in 4326 — a fallback when a metric disc spills past the CRS. */
+const WORLD_BOUNDS: Bbox = [-180, -90, 180, 90]

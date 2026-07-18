@@ -15,8 +15,14 @@ export interface ProjectedCrs {
   readonly name: string
   /** proj4 definition string. */
   readonly proj4: string
-  /** Linear unit. Every CRS we ship is metres; the field exists so a foot-based CRS can't sneak through unnoticed. */
-  readonly unit: 'metre' | 'foot'
+  /**
+   * Linear unit — always `'metre'`. `ProjectedXY` is metres end to end: the topology
+   * grid, snap tolerances, the JSTS precision model and buffer distances all treat a
+   * projected coordinate as metres, and only `CrsService` ever knew about any other
+   * unit. So `register()` rejects a non-metre CRS rather than half-honour it — supply a
+   * foot grid with a metre proj4 (`+units=m`), or pre-convert it.
+   */
+  readonly unit: 'metre'
   /** Rough validity extent, in 4326. Used to warn when a parcel is projected outside its zone. */
   readonly bounds?: readonly [number, number, number, number]
 
@@ -93,6 +99,17 @@ export interface CrsService {
   register(crs: Omit<ProjectedCrs, 'forward' | 'inverse'>): ProjectedCrs
 
   list(): readonly CrsCode[]
+
+  /**
+   * Is `lngLat` inside a CRS's declared validity extent (`bounds`)?
+   *
+   * `true` when the CRS has no `bounds`. This is the belt-mismatch check the `bounds`
+   * field exists for — a validation rule or importer calls it once per feature to warn
+   * that "this parcel sits in TM33 but you are measuring it in TM30", where the projected
+   * area is distorted by metres. It is deliberately *not* called from `forward` (which
+   * runs at pointer frequency); a warning per `pointermove` would be a torrent.
+   */
+  withinBounds(lngLat: LngLat, code?: CrsCode): boolean
 
   /* --- convenience wrappers around the projection sandwich --- */
 

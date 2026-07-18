@@ -38,7 +38,7 @@ export function drawPlugin(opts: DrawOptions = {}): BlaeuPlugin<DrawApi> {
     },
 
     enable(ctx) {
-      /* re-arm listeners; called on map.enable('draw') */
+      /* re-arm listeners; called on map.plugins.enable('draw') */
     },
     disable(ctx) {
       /* go dormant but stay registered — keep state */
@@ -117,15 +117,15 @@ Anything that changes a feature is a `Command`. Coalescing is what keeps a drag
 from producing 200 undo entries:
 
 ```ts
-class MoveVertexCommand implements Command {
+class MoveVerticesCommand implements Command {
   readonly type = 'draw:move-vertex'
   readonly label = 'Move vertex' // shown in the undo menu / history UI
 
   coalesceWith(prev: Command): Command | null {
     // Merge only if it's the *same vertex* in the same gesture, so undo steps
     // back one whole drag — not one mouse-move.
-    if (prev instanceof MoveVertexCommand && prev.targets(this)) {
-      return new MoveVertexCommand(this.id, this.ring, this.idx, this.to, prev.from)
+    if (prev instanceof MoveVerticesCommand && prev.targets(this)) {
+      return new MoveVerticesCommand(this.id, this.ring, this.idx, this.to, prev.from)
     }
     return null
   }

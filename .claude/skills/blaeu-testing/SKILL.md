@@ -72,9 +72,9 @@ it('leaks nothing on removal', async () => {
 ```ts
 it('round-trips every command', async () => {
   const before = map.store.snapshot()
-  map.commands.dispatch(new MoveVertexCommand(id, 0, 2, [32.9, 39.9]))
+  map.commands.dispatch(new MoveVerticesCommand(id, 0, 2, [32.9, 39.9]))
   expect(map.store.snapshot()).not.toEqual(before)
-  map.commands.undo()
+  map.plugin('history').undo()
   expect(map.store.snapshot()).toEqual(before) // deep equality, no tolerance
 })
 ```

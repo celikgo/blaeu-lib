@@ -19,6 +19,7 @@ import { RULE_IDS } from '@blaeu/plugin-topology'
 import { cadastrePreset } from './preset.js'
 import { deriveAreaMiddleware } from './derive.js'
 import { parcelAttributesRule, parcelSchema } from './schema.js'
+import { OUT_OF_BELT_RULE_ID } from './validation.js'
 
 /* ------------------------------------------------------------------------- */
 /* Helpers — a preset is a data structure, so testing it is asserting a value */
@@ -142,6 +143,9 @@ describe('cadastrePreset — shape', () => {
       // The geometry is drawn before the deed is typed; an error here would make a
       // parcel impossible to store *until* it was attributed.
       'cadastre.attributes': 'warning',
+      // A parcel drawn in the wrong TM belt: advisory, never blocking (a cross-belt
+      // dataset must still be storable).
+      'cadastre.crs.outOfBelt': 'warning',
     })
   })
 
@@ -324,6 +328,35 @@ describe('parcel attributes', () => {
 
     expect(issues).toHaveLength(1)
     expect(issues[0]?.data).toMatchObject({ field: 'yuzolcumu', expected: 'number' })
+  })
+})
+
+describe('out-of-belt warning', () => {
+  const rule = ruleById(cadastrePreset(), OUT_OF_BELT_RULE_ID)
+
+  function ctxWith(crs: ValidationContext['crs']): ValidationContext {
+    return { store: undefined as unknown as ValidationContext['store'], crs, t: (key) => key }
+  }
+
+  it('warns a parcel drawn in TM30 that it belongs in TM33, and names the belt', () => {
+    // Working plane TM30 (EPSG:5254); the parcel sits at Ankara (32.85°E), which is in the
+    // TM33 belt. This is the exact worked example the CRS bounds exist for, finally wired.
+    const crs = new BlaeuCrsService({ working: 'EPSG:5254', display: 'projected', precision: 3 })
+    const issues = rule.check(
+      polygonFeature('p1', 'parcels'),
+      ctxWith(crs),
+    ) as readonly ValidationIssue[]
+
+    expect(issues).toHaveLength(1)
+    expect(issues[0]?.rule).toBe(OUT_OF_BELT_RULE_ID)
+    expect(issues[0]?.severity).toBe('warning')
+    expect(issues[0]?.at).toBeDefined()
+    expect(String(issues[0]?.data?.['belt'])).toMatch(/33/)
+  })
+
+  it('is silent when the working belt already contains the parcel', () => {
+    const crs = new BlaeuCrsService({ working: 'EPSG:5255', display: 'projected', precision: 3 }) // TM33
+    expect(rule.check(polygonFeature('p1', 'parcels'), ctxWith(crs))).toEqual([])
   })
 })
 

@@ -65,7 +65,7 @@ handles differently and none handle well.
 vertex drag must recompute from the _original_ geometry plus a total delta — never
 from the previous frame's result. Otherwise a 200-frame drag compounds 200
 rounding errors, and the vertex lands somewhere it wasn't dropped. (This is also
-why `MoveVertexCommand` stores `from` and `to`, not a per-frame delta.)
+why `MoveVerticesCommand` stores `from` and `to`, not a per-frame delta.)
 
 ## Validity, and what to do about it
 
