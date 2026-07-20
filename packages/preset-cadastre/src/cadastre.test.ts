@@ -358,6 +358,34 @@ describe('out-of-belt warning', () => {
     const crs = new BlaeuCrsService({ working: 'EPSG:5255', display: 'projected', precision: 3 }) // TM33
     expect(rule.check(polygonFeature('p1', 'parcels'), ctxWith(crs))).toEqual([])
   })
+
+  it('never names a global CRS as the belt — a point off every belt gets the generic warning', () => {
+    // Working TM30, but the parcel sits at 5°E/50°N in western Europe: outside every
+    // registered TM/UTM belt and inside only Web Mercator. Naming "WGS 84 / Pseudo-Mercator"
+    // as the belt to switch the working CRS to would be worse than saying nothing, so the
+    // warning must stay generic and carry no `belt`.
+    const crs = new BlaeuCrsService({ working: 'EPSG:5254', display: 'projected', precision: 3 })
+    const feature: BlaeuFeature = {
+      ...polygonFeature('p1', 'parcels'),
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [5, 50],
+            [5.001, 50],
+            [5.001, 50.001],
+            [5, 50.001],
+            [5, 50],
+          ],
+        ],
+      },
+    }
+    const issues = rule.check(feature, ctxWith(crs)) as readonly ValidationIssue[]
+
+    expect(issues).toHaveLength(1)
+    expect(issues[0]?.data?.['belt']).toBeUndefined()
+    expect(issues[0]?.message).toBe('cadastre.crs.outOfBeltUnknown')
+  })
 })
 
 describe('deriveAreaMiddleware', () => {

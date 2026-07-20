@@ -79,11 +79,17 @@ export function outOfBeltRule(
   }
 }
 
+/** Wider than any real TM/UTM belt (≤6°), so a global system counts as "not a belt". */
+const MAX_BELT_LONGITUDE_SPAN = 12
+
 /**
- * The registered CRS whose declared bounds contain the point most *tightly* — the belt it
- * actually belongs in. Tightest, not first: a global system like Web Mercator contains
- * every point, so "first match" would name it over the 3°-wide TM belt that is the useful
- * answer. Smallest bounds area wins.
+ * The registered *belt* whose declared bounds contain the point most tightly — the one it
+ * actually belongs in. Two exclusions matter: the working CRS itself, and any **global**
+ * system such as Web Mercator, whose bounds contain every point and which is explicitly not
+ * survey-grade. Naming Web Mercator as the belt to switch to would be worse than saying
+ * nothing — so when only a global CRS matches, this returns `undefined` and the caller
+ * falls back to the generic "outside the working belt" message. Smallest bounds area wins
+ * among the remaining true belts.
  */
 function suggestBelt(ctx: ValidationContext, at: LngLat): string | undefined {
   const working = ctx.crs.working.code
@@ -93,6 +99,7 @@ function suggestBelt(ctx: ValidationContext, at: LngLat): string | undefined {
     const crs = ctx.crs.get(code)
     if (!crs?.bounds || !ctx.crs.withinBounds(at, code)) continue
     const [w, s, e, n] = crs.bounds
+    if (e - w >= MAX_BELT_LONGITUDE_SPAN) continue // a global CRS, not a belt to switch to
     const area = (e - w) * (n - s)
     if (best === undefined || area < best.area) best = { name: crs.name ?? code, area }
   }

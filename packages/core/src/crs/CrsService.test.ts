@@ -635,6 +635,29 @@ describe('bboxAround', () => {
     expect(n).toBeGreaterThanOrEqual(ANKARA[1])
   })
 
+  it('widens to the CRS bounds in the finite-garbage band, where samples never trip the NaN guard', () => {
+    // At ~8 000 km a TM inverse returns finite-but-meaningless lng/lat — no throw, no NaN
+    // (verified: every rim sample lands near 95°E). Trusting those samples would shrink the
+    // box below the true disc without ever failing the finiteness check, so the radius guard
+    // treats a disc this large as spilled and boxes it by the belt's declared bounds instead.
+    const crs = crsService('EPSG:5254') // TUREF / TM30
+    const plane = crs.working
+    const bounds = plane.bounds!
+    const [w, s, e, n] = bboxAround(crs, ANKARA, 8_000_000)
+
+    // A genuine superset of the belt's validity extent, not the arbitrary AABB of garbage.
+    expect(w).toBeLessThanOrEqual(bounds[0])
+    expect(s).toBeLessThanOrEqual(bounds[1])
+    expect(e).toBeGreaterThanOrEqual(bounds[2])
+    expect(n).toBeGreaterThanOrEqual(bounds[3])
+    // And no wider than bounds ∪ the query point — proof the garbage rim samples were
+    // discarded, not folded in. Pre-guard, a rim sample near 95°E blew `e` far past this.
+    expect(e).toBeLessThanOrEqual(Math.max(bounds[2], ANKARA[0]) + 1e-6)
+    expect(w).toBeGreaterThanOrEqual(Math.min(bounds[0], ANKARA[0]) - 1e-6)
+    expect(n).toBeLessThanOrEqual(Math.max(bounds[3], ANKARA[1]) + 1e-6)
+    expect(s).toBeGreaterThanOrEqual(Math.min(bounds[1], ANKARA[1]) - 1e-6)
+  })
+
   it('is a genuine superset of the metric disc — every point R metres out is inside', () => {
     const crs = crsService('EPSG:5254')
     const plane = crs.working

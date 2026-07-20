@@ -81,16 +81,15 @@ export function splitPolygon(
     )
   }
 
-  const raw = read(geometry, plane)
-  // Refuse an invalid target rather than run a boolean op on it: a self-intersecting or
-  // self-touching polygon makes JTS throw an opaque TopologyException or return the wrong
-  // face count, so the surveyor gets a crash or a silently wrong split instead of a clear
-  // rejection. Validate BEFORE reducing — the reducer itself throws on a self-intersection.
-  assertValid(raw, plane, 'split this feature')
-
-  // Snap both operands to the CRS's grid before noding. Un-reduced coordinates node into
-  // sub-millimetre slivers and can miss a crossing the surveyor drew as exact.
-  const target = reduce(raw, plane.precision)
+  // Snap both operands to the CRS's grid before noding — un-reduced coordinates node into
+  // sub-millimetre slivers and can miss a crossing the surveyor drew as exact — then refuse
+  // an invalid target rather than run a boolean op on it. The order is snap-then-validate on
+  // purpose: `reduce` is *pointwise* (no topology repair), so it snaps a self-intersecting
+  // polygon without touching it, and the one validity check afterwards catches both a
+  // boundary that was already invalid and one that self-intersected only once snapped —
+  // rejecting either with its coordinate, rather than letting JTS silently `buffer(0)` it.
+  const target = reduce(read(geometry, plane), plane.precision)
+  assertValid(target, plane, 'split this feature')
   const cut = reduce(read(line, plane), plane.precision)
 
   const noded = UnionOp.union(BoundaryOp.getBoundary(target), cut)
@@ -136,12 +135,11 @@ export function mergePolygons(geometries: readonly Geometry[], plane: ProjectedC
     }
   }
 
-  const raw = geometries.map((geometry) => read(geometry, plane))
-  // Reject an invalid operand (naming the coordinate) before any overlay, and validate
-  // before reducing — see splitPolygon. Then snap every part to the grid so a shared
-  // edge reads as shared, not as a sub-millimetre overlap the contiguity walk misses.
-  raw.forEach((part, i) => assertValid(part, plane, `merge feature ${i + 1}`))
-  const parts = raw.map((part) => reduce(part, plane.precision))
+  // Snap every part to the grid so a shared edge reads as shared, not as a sub-millimetre
+  // overlap the contiguity walk misses, then reject an invalid operand (naming the
+  // coordinate) before any overlay — snap-then-validate, exactly as in splitPolygon.
+  const parts = geometries.map((geometry) => reduce(read(geometry, plane), plane.precision))
+  parts.forEach((part, i) => assertValid(part, plane, `merge feature ${i + 1}`))
   assertContiguous(parts)
 
   let union: JstsGeometry = parts[0]!
@@ -224,9 +222,10 @@ function unread(geometry: JstsGeometry, plane: ProjectedCrs): Geometry {
  *
  * split/merge act directly on a chosen feature, so per `gis-geometry-precision` an invalid
  * one is *rejected* — never auto-repaired with `buffer(0)`, which guesses at intent — with
- * the offending coordinate so a UI can zoom to it. Runs on the geometry as read, **before**
- * precision reduction: `GeometryPrecisionReducer` can itself throw on a self-intersecting
- * polygon, and a validity check that crashes on invalid input is not a validity check.
+ * the offending coordinate so a UI can zoom to it. Runs on the geometry **after** pointwise
+ * reduction (see {@link reduce}), so it catches a boundary that self-intersects only once
+ * its vertices are snapped to the grid — the case that would otherwise reach JTS's own
+ * `buffer(0)` repair — as well as one that was already invalid.
  */
 function assertValid(geometry: JstsGeometry, plane: ProjectedCrs, action: string): void {
   const op = new IsValidOp(geometry)
@@ -264,10 +263,17 @@ function formatAt(plane: ProjectedCrs, xy: { x: number; y: number }): string {
  * Reduce **both** operands to the same grid — reducing one and not the other reintroduces
  * the mismatch it exists to remove. JTS's `PrecisionModel` is a *scale*, not a grid size
  * (1 mm ⇒ 1000), hence `1 / precisionMetres`.
+ *
+ * **Pointwise**, deliberately. The default `GeometryPrecisionReducer.reduce` runs a
+ * `buffer(0)` on any polygon that snapping makes invalid — a silent topological repair that
+ * drops spikes and changes area, exactly the auto-fix a cadastral op must never do. The
+ * pointwise reducer only moves each vertex to the grid; the caller then re-validates and
+ * *rejects* a snap that broke the boundary, naming the coordinate, rather than shipping a
+ * quietly rewritten one.
  */
 function reduce(geometry: JstsGeometry, precisionMetres: number): JstsGeometry {
   const model = new PrecisionModel(1 / precisionMetres)
-  return GeometryPrecisionReducer.reduce(geometry, model) as JstsGeometry
+  return GeometryPrecisionReducer.reducePointwise(geometry, model) as JstsGeometry
 }
 
 /** JTS collections are Java-shaped: `size()` / `get(i)`, not iterable. */

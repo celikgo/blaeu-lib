@@ -472,47 +472,57 @@ export function bboxAround(
 
   // Seed with the centre so a zero radius — or a disc lying entirely past the CRS's
   // domain — still yields a box that at least contains the query point.
+  const bounds = plane.bounds
   let west = centre[0]
   let east = centre[0]
   let south = centre[1]
   let north = centre[1]
   let spilled = false
 
-  for (let i = 0; i < N; i++) {
-    const angle = (i / N) * 2 * Math.PI
-    // This part of the rim may be past the plane's projectable domain — the disc has run
-    // off the belt. `inverse` throws (or, defensively, could return a non-finite) there;
-    // the old code fed the corners straight in and threw downstream, after returning a
-    // box that did not even contain the query point. Treat either as "spilled".
-    let lng: number
-    let lat: number
-    try {
-      ;[lng, lat] = plane.inverse([
-        cx + sampleRadius * Math.cos(angle),
-        cy + sampleRadius * Math.sin(angle),
-      ])
-    } catch {
-      spilled = true
-      continue
+  // Beyond a few thousand km a TM `inverse` stops throwing and quietly returns a finite but
+  // geometrically meaningless lng/lat — so *every* rim sample is garbage the finiteness guard
+  // never catches, and folding any of them in would corrupt the box rather than tighten it.
+  // A disc that large has run clear off any belt anyway, and every feature lives inside the
+  // belt, so skip sampling entirely and box by the CRS's bounds. (`nearest()` doubles its
+  // radius to 20 000 km, so this is the band it passes through on the way to a hard spill.)
+  const untrustworthy = radiusMetres > MAX_TRUSTED_RADIUS_METRES
+
+  if (!untrustworthy) {
+    for (let i = 0; i < N; i++) {
+      const angle = (i / N) * 2 * Math.PI
+      // This part of the rim may be past the plane's projectable domain — the disc has run
+      // off the belt. `inverse` throws (or, defensively, could return a non-finite) there.
+      let lng: number
+      let lat: number
+      try {
+        ;[lng, lat] = plane.inverse([
+          cx + sampleRadius * Math.cos(angle),
+          cy + sampleRadius * Math.sin(angle),
+        ])
+      } catch {
+        spilled = true
+        continue
+      }
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+        spilled = true
+        continue
+      }
+      if (lng < west) west = lng
+      if (lng > east) east = lng
+      if (lat < south) south = lat
+      if (lat > north) north = lat
     }
-    if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
-      spilled = true
-      continue
-    }
-    if (lng < west) west = lng
-    if (lng > east) east = lng
-    if (lat < south) south = lat
-    if (lat > north) north = lat
   }
 
-  // Part of the disc reached beyond the belt: widen to the CRS's validity extent (or the
-  // world) so the box stays a superset of the metric disc rather than under-covering it.
-  if (spilled) {
-    const bounds = plane.bounds ?? WORLD_BOUNDS
-    west = Math.min(west, bounds[0])
-    south = Math.min(south, bounds[1])
-    east = Math.max(east, bounds[2])
-    north = Math.max(north, bounds[3])
+  // Part of the disc reached beyond the belt (some rim samples threw), or the disc is so
+  // large every sample was untrustworthy and skipped: widen the centre-seeded box to the
+  // CRS's validity extent (or the world) so it stays a superset rather than under-covering.
+  if (spilled || untrustworthy) {
+    const extent = bounds ?? WORLD_BOUNDS
+    west = Math.min(west, extent[0])
+    south = Math.min(south, extent[1])
+    east = Math.max(east, extent[2])
+    north = Math.max(north, extent[3])
   }
 
   return [Math.max(west, -180), Math.max(south, -90), Math.min(east, 180), Math.min(north, 90)]
@@ -520,3 +530,10 @@ export function bboxAround(
 
 /** The projectable world, in 4326 — a fallback when a metric disc spills past the CRS. */
 const WORLD_BOUNDS: Bbox = [-180, -90, 180, 90]
+
+/**
+ * Past ~1 000 km a TM `inverse` is no longer trustworthy (it returns finite garbage well
+ * before it starts throwing near half the globe). No belt is that wide and every feature
+ * sits inside the belt, so a disc this large is boxed by the CRS's bounds, not by sampling.
+ */
+const MAX_TRUSTED_RADIUS_METRES = 1_000_000
