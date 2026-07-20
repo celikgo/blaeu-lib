@@ -14,6 +14,7 @@ import type { BlaeuEventBus } from '../events/EventBus.js'
 import type { FeatureStore, StoreSnapshot } from '../types/store.js'
 import type { CommitContext, CommitPipeline } from '../types/pipeline.js'
 import type { BlaeuFeature } from '../types/feature.js'
+import type { CrsService } from '../types/crs.js'
 
 /**
  * The mutable context middleware sees. One per commit.
@@ -26,6 +27,7 @@ import type { BlaeuFeature } from '../types/feature.js'
 class BlaeuCommitContext implements CommitContext {
   readonly operation: 'add' | 'update' | 'remove'
   readonly previous: readonly BlaeuFeature[]
+  readonly crs: CrsService
   readonly command: Command | undefined
 
   features: BlaeuFeature[]
@@ -33,10 +35,11 @@ class BlaeuCommitContext implements CommitContext {
   #rejected = false
   #reason: string | undefined
 
-  constructor(intent: CommitIntent, command: Command) {
+  constructor(intent: CommitIntent, command: Command, crs: CrsService) {
     this.operation = intent.operation
     this.previous = intent.previous
     this.features = [...intent.features]
+    this.crs = crs
     this.command = command
   }
 
@@ -122,6 +125,7 @@ export class BlaeuCommandBus implements CommandBus {
     private readonly store: FeatureStore,
     private readonly events: BlaeuEventBus,
     private readonly pipeline: CommitPipeline,
+    private readonly crs: CrsService,
   ) {}
 
   get #ctx(): CommandContext {
@@ -191,7 +195,7 @@ export class BlaeuCommandBus implements CommandBus {
       return this.#fail(err, `commit:${command.type}`)
     }
 
-    const ctx = new BlaeuCommitContext(intent, command)
+    const ctx = new BlaeuCommitContext(intent, command, this.crs)
 
     let result: CommitContext
     try {

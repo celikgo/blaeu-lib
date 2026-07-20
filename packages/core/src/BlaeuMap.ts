@@ -93,7 +93,7 @@ export class BlaeuMap {
     // anything. A bus constructed without it would still compile and still write —
     // it would just quietly write things no rule had ever looked at.
     this.commit = new AsyncCommitPipeline()
-    this.commands = new BlaeuCommandBus(this.store, this.events, this.commit)
+    this.commands = new BlaeuCommandBus(this.store, this.events, this.commit, this.crs)
     this.validation = new BlaeuValidationRegistry(this.store, this.crs, this.i18n)
     this.theme = new BlaeuThemeManager(this.#container)
 

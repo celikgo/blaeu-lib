@@ -1,6 +1,7 @@
 import type { Disposable, FeatureId, LngLat, ProjectedXY, ScreenPoint } from './common.js'
 import type { BlaeuFeature } from './feature.js'
 import type { Command } from './command.js'
+import type { CrsService } from './crs.js'
 import type { SnapResult } from './extensions.js'
 
 /** Where a middleware sits relative to its peers. */
@@ -121,6 +122,15 @@ export interface CommitContext {
 
   /** The previous state, for `update`/`remove`. Empty for `add`. */
   readonly previous: readonly BlaeuFeature[]
+
+  /**
+   * The map's **live** CRS service — its `working` plane is whatever `map.crs.setWorking`
+   * last set, not a snapshot. Middleware that computes survey-grade numbers (a derived area,
+   * a precision reduction) must read the working CRS from here, never build its own from a
+   * fixed code: a host that switches belts at runtime would otherwise get numbers projected
+   * onto the wrong plane, off by the belts' scale factor and silently wrong on the deed.
+   */
+  readonly crs: CrsService
 
   /** The command that triggered this, if any. Absent for direct loads/imports. */
   readonly command: Command | undefined

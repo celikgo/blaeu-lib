@@ -124,8 +124,6 @@ export function cadastrePreset(options: CadastreOptions = {}): Preset {
           commitMiddleware: [
             [
               deriveAreaMiddleware({
-                crs: o.crs,
-                precision: o.precision,
                 collection: o.parcels,
                 decimals: o.areaDecimals,
               }),

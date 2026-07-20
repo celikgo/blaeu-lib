@@ -1,8 +1,6 @@
 import {
-  BlaeuCrsService,
   type CollectionId,
   type CommitMiddleware,
-  type CrsCode,
   type BlaeuFeature,
   type Geometry,
 } from '@blaeu/core'
@@ -10,8 +8,6 @@ import {
 import { AREA_PROPERTY } from './schema.js'
 
 export interface DeriveAreaOptions {
-  readonly crs: CrsCode
-  readonly precision: number
   readonly collection: CollectionId
   readonly decimals: number
   /** The property to write. Only change it to match a legacy schema. */
@@ -36,21 +32,13 @@ export const DERIVE_AREA_ID = 'cadastre:derive-area'
  * Spherical area on a 2 000 m² parcel at 39°N is wrong by square metres, and a
  * land registry that catches you doing it is right to.
  *
- * The trade-off worth knowing: `CommitContext` carries no `CrsService`, so this
- * middleware builds its own from the same CRS code the preset was given. It is a
- * pure construction (no DOM, no globals — preset rule 1 holds), but it does mean a
- * runtime `map.crs.setWorking(other)` would leave this projecting into the *original*
- * plane. For a cadastre product the working CRS is a deployment decision, not a
- * session one, so that is the right failure mode — but if the kernel ever puts the
- * CRS on `CommitContext`, delete this instance and read it from the context.
+ * The CRS is the map's **live** one, read off `CommitContext` — not one this middleware
+ * builds from a fixed code. So `map.crs.setWorking(otherBelt)` at runtime re-projects the
+ * area onto the new belt on the next commit, rather than silently stamping the deed with a
+ * number computed on the belt the preset happened to be constructed with.
  */
 export function deriveAreaMiddleware(options: DeriveAreaOptions): CommitMiddleware {
   const property = options.property ?? AREA_PROPERTY
-  const crs = new BlaeuCrsService({
-    working: options.crs,
-    display: 'projected',
-    precision: options.precision,
-  })
   const factor = 10 ** options.decimals
 
   return async (ctx, next) => {
@@ -63,7 +51,7 @@ export function deriveAreaMiddleware(options: DeriveAreaOptions): CommitMiddlewa
       if (feature.meta.collection !== options.collection) return feature
       if (!isPolygonal(feature.geometry)) return feature
 
-      const area = Math.round(crs.area(feature.geometry) * factor) / factor
+      const area = Math.round(ctx.crs.area(feature.geometry) * factor) / factor
       // Identity when the number has not moved, so a no-op update does not bump the
       // feature's version and light up every "this parcel changed" listener.
       if (feature.properties[property] === area) return feature

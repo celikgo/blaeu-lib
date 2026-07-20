@@ -410,13 +410,11 @@ describe('deriveAreaMiddleware', () => {
     }
 
     const middleware = deriveAreaMiddleware({
-      crs: 'EPSG:5254',
-      precision: 3,
       collection: 'parcels',
       decimals: 2,
     })
 
-    const commit = commitContext([feature])
+    const commit = commitContext([feature], crs)
     await middleware(commit, async () => {})
 
     // The 9 000 m² somebody typed is gone; the boundary is what the parcel is.
@@ -424,15 +422,14 @@ describe('deriveAreaMiddleware', () => {
   })
 
   it('leaves other collections alone — a building has no yüzölçümü of record', async () => {
+    const crs = new BlaeuCrsService({ working: 'EPSG:5254', display: 'projected', precision: 3 })
     const building = polygonFeature('b1', 'buildings')
     const middleware = deriveAreaMiddleware({
-      crs: 'EPSG:5254',
-      precision: 3,
       collection: 'parcels',
       decimals: 2,
     })
 
-    const commit = commitContext([building])
+    const commit = commitContext([building], crs)
     await middleware(commit, async () => {})
 
     expect(commit.features[0]).toBe(building)
@@ -477,11 +474,15 @@ function ctx(): ValidationContext {
   }
 }
 
-function commitContext(features: readonly BlaeuFeature[]): CommitContext {
+function commitContext(
+  features: readonly BlaeuFeature[],
+  crs: CommitContext['crs'],
+): CommitContext {
   return {
     operation: 'add',
     features: [...features],
     previous: [],
+    crs,
     command: undefined,
     reject: () => {},
     rejected: false,

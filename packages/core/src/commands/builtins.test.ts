@@ -25,7 +25,7 @@ function setup() {
   // A real pipeline, with no middleware in it. The bus runs every durable write through
   // this; a bus built without one cannot commit at all.
   const commit = new AsyncCommitPipeline()
-  const commands = new BlaeuCommandBus(store, events, commit)
+  const commands = new BlaeuCommandBus(store, events, commit, crs)
   const ctx: CommandContext = { store, events }
   return { crs, events, store, commit, commands, ctx }
 }

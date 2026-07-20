@@ -44,6 +44,8 @@ function commitContext(
     operation,
     features,
     previous: [],
+    // Unused by the validation middleware under test (it reads its own CRS from the registry).
+    crs: undefined as unknown as CommitContext['crs'],
     command: undefined,
     reject(reason: string) {
       rejected = true
