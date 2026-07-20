@@ -210,9 +210,13 @@ export function noSelfIntersection(options: RuleOptions = {}): ValidationRule {
  */
 export function noOverlapWithNeighbours(options: ToleranceRuleOptions = {}): ValidationRule {
   const tolerance = options.tolerance ?? DEFAULT_TOLERANCE_METRES
-  // An overlap thinner than the precision grid is not an overlap, it is float noise:
-  // a 1 mm sliver along a 100 m shared edge is 0.1 m², which would otherwise be
-  // reported as a boundary dispute on every single shared edge in the layer.
+  // A hair of overlap is not a dispute, and there are two flavours of it. Vanishing *area*
+  // (float dust from the boolean op) is caught cheaply here. But the one that matters is the
+  // *sliver*: a ribbon narrower than the precision grid running the length of a shared edge —
+  // a 1 mm sliver along a 100 m edge is 0.1 m², which sails past any area threshold small enough
+  // to keep. That one is caught by width, not area, in `isSliver` below. Reporting slivers as
+  // errors would block a parcel from being stored next to a neighbour drawn a fraction of a
+  // cell apart — i.e. on every real shared edge in the layer.
   const minOverlapArea = tolerance * tolerance
 
   return {
@@ -233,6 +237,7 @@ export function noOverlapWithNeighbours(options: ToleranceRuleOptions = {}): Val
         const shared = intersection(subject, other)
         const area = shared.getArea()
         if (area <= minOverlapArea) continue
+        if (isSliver(shared, tolerance)) continue
 
         issues.push(
           makeIssue({
@@ -667,6 +672,19 @@ function batchInCollection(ctx: ValidationContext, collection: string): BatchInC
  */
 function bboxesIntersect(a: Bbox, b: Bbox): boolean {
   return a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3]
+}
+
+/**
+ * Is this overlap only a *sliver* — a ribbon narrower than the tolerance everywhere?
+ *
+ * Width, not area, is what separates a digitisation artefact from a dispute: the pair drew their
+ * shared edge a fraction of a grid cell apart, so the overlap is a thin ribbon that can still
+ * carry real area along a long edge. Eroding it by half the tolerance from every side removes any
+ * such ribbon (its two walls meet), while a genuine overlap keeps a core wider than the grid. The
+ * distance is metres because the geometry is projected — the discipline of the whole JSTS layer.
+ */
+function isSliver(overlap: JstsGeometry, tolerance: number): boolean {
+  return buffer(overlap, -tolerance / 2).isEmpty()
 }
 
 /**

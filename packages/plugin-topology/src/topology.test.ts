@@ -70,18 +70,23 @@ function bowtieParcel(id = 'bowtie'): FeatureInput {
   }
 }
 
-/** `parcel-left` (50×40 at the origin) plus one that eats 5 m into it. */
-function overlappingParcels(): readonly [FeatureInput, FeatureInput] {
+/** `parcel-left` (50×40 at the origin) plus one that eats `overlapMetres` into it along the shared edge. */
+function overlapPair(overlapMetres: number): readonly [FeatureInput, FeatureInput] {
   const left = parcelFixture('parcel-left')
   const right: FeatureInput = {
     id: 'parcel-right',
     geometry: {
       type: 'Polygon',
-      coordinates: [ring(offsetMetres(ANKARA, 45, 0), 50, 40)],
+      coordinates: [ring(offsetMetres(ANKARA, 50 - overlapMetres, 0), 50, 40)],
     },
     properties: {},
   }
   return [left, right]
+}
+
+/** `parcel-left` plus one that eats 5 m into it. */
+function overlappingParcels(): readonly [FeatureInput, FeatureInput] {
+  return overlapPair(5)
 }
 
 /** Two parcels that do not quite meet: a strip `gapMetres` wide down the 40 m shared edge. */
@@ -296,6 +301,35 @@ describe('noOverlapWithNeighbours', () => {
     })
     const issues = await map.plugin('topology').validate()
     expect(issues.filter((i) => i.rule === RULE_IDS.overlap)).toEqual([])
+    await map.destroy()
+  })
+
+  it('suppresses a sliver overlap narrower than the tolerance — a shared edge drawn a hair apart', async () => {
+    // The two parcels overlap by a 2 cm-wide ribbon along their 40 m shared edge (0.8 m²). Under
+    // a 5 cm tolerance that ribbon is thinner than the grid everywhere: not a dispute over real
+    // ground, just the edge digitised a fraction of a cell apart. The area guard alone (tolerance²
+    // = 25 cm²) is useless here — 0.8 m² sails past it — so before the width test this was reported
+    // as a blocking overlap error on every such shared edge in a real layer.
+    const map = await cadastreMap({ features: { parcels: [...overlapPair(0.02)] } })
+    const rule = noOverlapWithNeighbours({ severity: 'error', tolerance: 0.05 })
+    const left = map.store.find('parcel-left')!
+    const issues = rule.check(left, validationContext(map)) as readonly ValidationIssue[]
+
+    expect(issues.filter((i) => i.rule === RULE_IDS.overlap)).toEqual([])
+    await map.destroy()
+  })
+
+  it('still reports an overlap wider than the tolerance — a real dispute keeps its core', async () => {
+    // A 10 cm-wide overlap under the same 5 cm tolerance: wider than the grid, so a core survives
+    // the erosion and it is a genuine overlap. The width test must not swallow this one.
+    const map = await cadastreMap({ features: { parcels: [...overlapPair(0.1)] } })
+    const rule = noOverlapWithNeighbours({ severity: 'error', tolerance: 0.05 })
+    const left = map.store.find('parcel-left')!
+    const issues = rule.check(left, validationContext(map)) as readonly ValidationIssue[]
+
+    const overlap = issues.find((i) => i.rule === RULE_IDS.overlap)
+    expect(overlap).toBeDefined()
+    expect(overlap?.data?.['neighbour']).toBe('parcel-right')
     await map.destroy()
   })
 
