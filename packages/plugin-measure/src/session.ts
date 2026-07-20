@@ -159,7 +159,11 @@ export class MeasureSession {
       await tx.commit(
         new AddFeaturesCommand(MEASURE_COLLECTION, [geometryFeature(measurement)], { label }),
       )
-      await tx.commit(new AddFeaturesCommand(LABEL_COLLECTION, labels, { label }))
+      // Labels are text anchors — a Point at a segment midpoint, or at the ring centroid, which
+      // sits on no boundary at all. Left snappable they become spurious (and top-priority) snap
+      // targets, so the pointer can jump to a measurement's centroid. Only the measurement
+      // geometry above stays snappable.
+      await tx.commit(new AddFeaturesCommand(LABEL_COLLECTION, labels.map(unsnappable), { label }))
     })
 
     if (!result.ok) {
@@ -224,7 +228,9 @@ export class MeasureSession {
       return
     }
 
-    const labels = measurements.flatMap((measurement) => labelFeatures(this.#env, measurement))
+    const labels = measurements
+      .flatMap((measurement) => labelFeatures(this.#env, measurement))
+      .map(unsnappable)
     this.#ctx.commands.dispatch(
       new ReplaceCollectionsCommand([[LABEL_COLLECTION, labels]], {
         label: this.#ctx.i18n.t('measure.command.draft'),
@@ -249,10 +255,10 @@ export class MeasureSession {
 
     const measurement = measurePositions(this.#env, DRAFT_ID, mode, positions, true)
     this.#replaceDraft(
-      [geometryFeature(measurement)],
+      [geometryFeature(measurement)].map(unsnappable),
       // The labels include the rubber-band segment's own length, which is the number
       // the user is actually watching while they decide where to click.
-      labelFeatures(this.#env, measurement),
+      labelFeatures(this.#env, measurement).map(unsnappable),
     )
     this.#ctx.events.emit('measure:update', { mode, measurement })
   }
@@ -303,6 +309,19 @@ export class MeasureSession {
 
 function isMode(value: unknown): value is MeasureMode {
   return value === 'distance' || value === 'area' || value === 'bearing'
+}
+
+/**
+ * The rubber band is scaffolding, not a snap target.
+ *
+ * Written plain, a draft feature defaults to `snappable`, so the snap engine offers the band
+ * the pointer is dragging as a candidate — and snaps the pointer to the previous frame, pinning
+ * the measurement to itself. Marking every draft feature non-snappable takes it out of the snap
+ * index. The *committed* measurement is left snappable on purpose: that one a surveyor may
+ * legitimately want to snap a later feature to.
+ */
+function unsnappable(feature: FeatureInput): FeatureInput {
+  return { ...feature, meta: { ...feature.meta, snappable: false } }
 }
 
 /* ========================================================================= */

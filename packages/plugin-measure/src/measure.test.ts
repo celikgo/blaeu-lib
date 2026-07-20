@@ -6,7 +6,12 @@ import type { TestMap } from '@blaeu/core/testing'
 import { measurePlugin } from './plugin.js'
 import { toDms } from './format.js'
 import type { Measurement } from './types.js'
-import { LABEL_COLLECTION, MEASURE_COLLECTION, DRAFT_COLLECTION } from './types.js'
+import {
+  LABEL_COLLECTION,
+  MEASURE_COLLECTION,
+  DRAFT_COLLECTION,
+  DRAFT_LABEL_COLLECTION,
+} from './types.js'
 
 /**
  * TUREF / TM30 — the plane a Turkish cadastre actually works on, and the one the
@@ -264,6 +269,48 @@ describe('labels and the live rubber band', () => {
 
     const at = (total.geometry as { coordinates: number[] }).coordinates
     expect(map.crs.distance([at[0]!, at[1]!], diagonalMidpoint)).toBeLessThan(0.2)
+
+    await map.destroy()
+  })
+
+  it('marks the rubber band and its labels non-snappable, so the pointer cannot pin to them', async () => {
+    // The classic bug: the draft band is written to the store as an ordinary feature, so the
+    // snap engine offers it as a candidate and the pointer snaps to the previous frame's band —
+    // pinning the measurement to itself. The snap engine skips `meta.snappable === false`, so
+    // every draft feature the tool paints mid-gesture must carry it. (Committed measurements
+    // stay snappable — those a surveyor may legitimately want to snap to.)
+    const map = await measureMap()
+    map.tools.activate('measure:distance')
+    map.test.click(SW)
+    map.test.pointerMove(SE) // the rubber band is now painted
+
+    const band = map.store.collection(DRAFT_COLLECTION).all()
+    const labels = map.store.collection(DRAFT_LABEL_COLLECTION).all()
+    expect(band.length).toBeGreaterThan(0)
+    expect(labels.length).toBeGreaterThan(0)
+    for (const feature of [...band, ...labels]) {
+      expect(feature.meta.snappable).toBe(false)
+    }
+
+    await map.destroy()
+  })
+
+  it('leaves the committed measurement snappable but its label anchors non-snappable', async () => {
+    // The measurement line/ring is a legitimate snap target — a surveyor may want to snap a
+    // later parcel corner to it. Its labels are not: each is a Point at a segment midpoint or,
+    // for an area, at the ring centroid, which lies on no boundary. Left snappable, that centroid
+    // becomes a top-priority snap target on empty space. So: geometry snappable, labels not.
+    const map = await measureMap()
+    await drawArea(map, [SW, SE, NE, NW])
+
+    const geometry = map.store.collection(MEASURE_COLLECTION).all()
+    const labels = map.store.collection(LABEL_COLLECTION).all()
+    expect(geometry).toHaveLength(1)
+    expect(labels.length).toBeGreaterThan(0)
+    expect(geometry[0]?.meta.snappable).not.toBe(false)
+    for (const label of labels) {
+      expect(label.meta.snappable).toBe(false)
+    }
 
     await map.destroy()
   })
