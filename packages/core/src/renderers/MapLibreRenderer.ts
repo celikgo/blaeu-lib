@@ -13,7 +13,6 @@ import type {
   PaddingOptions,
   SourceSpecification,
   StyleSpecification,
-  Subscription,
 } from 'maplibre-gl'
 
 import type { Bbox, Disposable, FeatureId, LngLat, ScreenPoint } from '../types/common.js'
@@ -203,7 +202,7 @@ export class MapLibreRenderer implements Renderer {
 
   readonly #pointerHandlers = new Set<(event: RendererPointerEvent) => void>()
   readonly #cameraHandlers = new Set<(camera: Camera, moving: boolean) => void>()
-  #subscriptions: Subscription[] = []
+  #unbind: (() => void) | undefined
 
   #resolveFeature: ((id: FeatureId) => BlaeuFeature | undefined) | undefined
   #warnedMissingResolver = false
@@ -802,23 +801,23 @@ export class MapLibreRenderer implements Renderer {
   }
 
   #bind(map: MapLibreMap): void {
-    this.#subscriptions = [
-      map.on('mousedown', (e) => this.#dispatchPointer('pointerdown', e)),
-      map.on('mousemove', (e) => this.#dispatchPointer('pointermove', e)),
-      map.on('mouseup', (e) => this.#dispatchPointer('pointerup', e)),
-      map.on('click', (e) => this.#dispatchPointer('click', e)),
-      map.on('dblclick', (e) => this.#dispatchPointer('dblclick', e)),
+    this.#unbind = bindListeners(map, [
+      ['mousedown', (e: MapMouseEvent) => this.#dispatchPointer('pointerdown', e)],
+      ['mousemove', (e: MapMouseEvent) => this.#dispatchPointer('pointermove', e)],
+      ['mouseup', (e: MapMouseEvent) => this.#dispatchPointer('pointerup', e)],
+      ['click', (e: MapMouseEvent) => this.#dispatchPointer('click', e)],
+      ['dblclick', (e: MapMouseEvent) => this.#dispatchPointer('dblclick', e)],
 
-      map.on('touchstart', (e) => this.#onTouch('pointerdown', e)),
-      map.on('touchmove', (e) => this.#onTouch('pointermove', e)),
-      map.on('touchend', (e) => this.#onTouch('pointerup', e)),
+      ['touchstart', (e: MapTouchEvent) => this.#onTouch('pointerdown', e)],
+      ['touchmove', (e: MapTouchEvent) => this.#onTouch('pointermove', e)],
+      ['touchend', (e: MapTouchEvent) => this.#onTouch('pointerup', e)],
       // A cancelled touch (a notification slides in, the browser takes the gesture)
       // must still end the gesture, or a draw tool stays stuck mid-drag forever.
-      map.on('touchcancel', (e) => this.#onTouch('pointerup', e)),
+      ['touchcancel', (e: MapTouchEvent) => this.#onTouch('pointerup', e)],
 
-      map.on('move', () => this.#dispatchCamera(true)),
-      map.on('moveend', () => this.#dispatchCamera(false)),
-    ]
+      ['move', () => this.#dispatchCamera(true)],
+      ['moveend', () => this.#dispatchCamera(false)],
+    ])
   }
 
   /**
@@ -925,8 +924,8 @@ export class MapLibreRenderer implements Renderer {
     if (this.#destroyed) return
     this.#destroyed = true
 
-    for (const subscription of this.#subscriptions) subscription.unsubscribe()
-    this.#subscriptions = []
+    this.#unbind?.()
+    this.#unbind = undefined
     this.#pointerHandlers.clear()
     this.#cameraHandlers.clear()
     this.#layers.clear()
@@ -1013,35 +1012,65 @@ async function loadMapLibre(): Promise<MapLibreModule> {
  * must not take the whole map down with it. MapLibre tags those with a `sourceId`,
  * which is the discriminator we use.
  */
+/**
+ * Bind several listeners and return one unbind for all of them.
+ *
+ * Deliberately **not** the return value of `map.on`. Across the maplibre range this library
+ * supports (peer `>=4.7 <6`) that value is not one thing: maplibre 5 returns a `Subscription`
+ * with `.unsubscribe()`; maplibre 4 returns the map itself. Calling `.unsubscribe()` on the map,
+ * as the old code did, throws on v4 — and because that throw escaped the `load` handler in
+ * `whenLoaded` before it could `resolve()`, `mount()` never settled and the map hung silently on
+ * every v4 host, behind a green suite whose fake map returned a v5-shaped subscription.
+ * `map.off(type, listener)` is identical on both majors, so we unbind through it.
+ */
+function bindListeners(
+  map: MapLibreMap,
+  entries: readonly (readonly [string, (event: never) => void])[],
+): () => void {
+  const evented = map as unknown as {
+    on(type: string, listener: (event: never) => void): unknown
+    off(type: string, listener: (event: never) => void): unknown
+  }
+  for (const [type, listener] of entries) evented.on(type, listener)
+  return () => {
+    for (const [type, listener] of entries) evented.off(type, listener)
+  }
+}
+
 function whenLoaded(map: MapLibreMap): Promise<void> {
   if (map.loaded()) return Promise.resolve()
 
   return new Promise<void>((resolve, reject) => {
-    const subscriptions: Subscription[] = []
-    const cleanup = (): void => {
-      for (const subscription of subscriptions) subscription.unsubscribe()
-    }
-
-    subscriptions.push(
-      map.on('load', () => {
-        cleanup()
-        resolve()
-      }),
-      map.on('error', (event: { error?: { message?: string }; sourceId?: string }) => {
-        if (event.sourceId !== undefined) return
-        cleanup()
-        reject(
-          new Error(
-            `[blaeu] MapLibre failed to load its style: ${event.error?.message ?? 'unknown error'}. ` +
-              `Check the \`style\` passed to MapLibreRenderer — it must be reachable from the browser.`,
-          ),
-        )
-      }),
-      map.on('remove', () => {
-        cleanup()
-        reject(new Error('[blaeu] the renderer was destroyed before the map finished loading.'))
-      }),
-    )
+    let unbind = (): void => {}
+    unbind = bindListeners(map, [
+      [
+        'load',
+        () => {
+          unbind()
+          resolve()
+        },
+      ],
+      [
+        'error',
+        (event: { error?: { message?: string }; sourceId?: string }) => {
+          if (event.sourceId !== undefined) return
+          unbind()
+          reject(
+            new Error(
+              `[blaeu] MapLibre failed to load its style: ${event.error?.message ?? 'unknown error'}. ` +
+                `Check the \`style\` passed to MapLibreRenderer — it must be reachable from the browser.`,
+            ),
+          )
+        },
+      ],
+      [
+        'remove',
+        () => {
+          unbind()
+          reject(new Error('[blaeu] the renderer was destroyed before the map finished loading.'))
+        },
+      ],
+    ])
   })
 }
 
@@ -1066,31 +1095,39 @@ function whenStyleReady(map: MapLibreMap): Promise<void> {
   if (map.isStyleLoaded()) return Promise.resolve()
 
   return new Promise<void>((resolve, reject) => {
-    const subs: Subscription[] = []
-    const cleanup = (): void => {
-      for (const s of subs) s.unsubscribe()
-    }
-    subs.push(
-      map.on('styledata', () => {
-        if (!map.isStyleLoaded()) return
-        cleanup()
-        resolve()
-      }),
-      map.on('error', (event: { error?: { message?: string }; sourceId?: string }) => {
-        if (event.sourceId !== undefined) return // a missing tile is recoverable
-        cleanup()
-        reject(
-          new Error(
-            `[blaeu] MapLibre failed to load the basemap style: ${event.error?.message ?? 'unknown error'}. ` +
-              `Check the theme's \`basemap\` — it must be reachable from the browser.`,
-          ),
-        )
-      }),
-      map.on('remove', () => {
-        cleanup()
-        reject(new Error('[blaeu] the renderer was destroyed before the basemap finished loading.'))
-      }),
-    )
+    let unbind = (): void => {}
+    unbind = bindListeners(map, [
+      [
+        'styledata',
+        () => {
+          if (!map.isStyleLoaded()) return
+          unbind()
+          resolve()
+        },
+      ],
+      [
+        'error',
+        (event: { error?: { message?: string }; sourceId?: string }) => {
+          if (event.sourceId !== undefined) return // a missing tile is recoverable
+          unbind()
+          reject(
+            new Error(
+              `[blaeu] MapLibre failed to load the basemap style: ${event.error?.message ?? 'unknown error'}. ` +
+                `Check the theme's \`basemap\` — it must be reachable from the browser.`,
+            ),
+          )
+        },
+      ],
+      [
+        'remove',
+        () => {
+          unbind()
+          reject(
+            new Error('[blaeu] the renderer was destroyed before the basemap finished loading.'),
+          )
+        },
+      ],
+    ])
   })
 }
 

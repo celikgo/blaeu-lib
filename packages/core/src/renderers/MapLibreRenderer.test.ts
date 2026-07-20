@@ -55,16 +55,39 @@ const { FakeMapLibreMap } = vi.hoisted(() => {
     /** Set to a layer type to make `addLayer` reject it — for the rollback test. */
     failLayerType: string | undefined
 
-    constructor(_options: Record<string, unknown>) {}
+    // The load state a freshly-constructed map reports. Default loaded, so most tests need no
+    // event lifecycle; a test that exercises `whenLoaded` flips this off before mounting.
+    static nextLoaded = true
+
+    loadedFlag: boolean
+    readonly listeners = new Map<string, Set<(event: unknown) => void>>()
+
+    constructor(_options: Record<string, unknown>) {
+      this.loadedFlag = FakeMapLibreMap.nextLoaded
+    }
 
     loaded(): boolean {
-      return true
+      return this.loadedFlag
     }
     isStyleLoaded(): boolean {
       return true
     }
-    on(): { unsubscribe: () => void } {
-      return { unsubscribe: () => {} }
+    // maplibre 4 semantics on purpose: `on` returns the map itself, NOT a v5 `Subscription`. A
+    // renderer that unsubscribes through the return value of `on` breaks here — which is the
+    // whole point. Cleanup must go through `off`, which is identical across the supported range.
+    on(type: string, listener: (event: never) => void): this {
+      const set = this.listeners.get(type) ?? new Set()
+      set.add(listener as (event: unknown) => void)
+      this.listeners.set(type, set)
+      return this
+    }
+    off(type: string, listener: (event: never) => void): this {
+      this.listeners.get(type)?.delete(listener as (event: unknown) => void)
+      return this
+    }
+    /** Test helper: fire an event to whatever is bound right now. */
+    emit(type: string, event: unknown = {}): void {
+      for (const listener of [...(this.listeners.get(type) ?? [])]) listener(event)
     }
     getCanvas(): { style: Record<string, string> } {
       return { style: {} }
@@ -477,3 +500,49 @@ describe('MapLibreRenderer — visibility survives a basemap swap', () => {
     expect(map.getLayer('basemap::raster')?.layout).toMatchObject({ visibility: 'none' })
   })
 })
+
+describe('MapLibreRenderer — maplibre v4 (map.on returns the map, not a Subscription)', () => {
+  // The whole fake map already models maplibre 4: `on` returns the map, not a v5 Subscription.
+  // These pin the two failure modes the old code had on that major.
+
+  it('tears down through map.off, removing every listener it bound', async () => {
+    const { renderer, map } = await mountRenderer()
+    const count = (): number => [...map.listeners.values()].reduce((n, set) => n + set.size, 0)
+    expect(count()).toBeGreaterThan(0) // #bind bound the pointer and camera listeners
+
+    // The old destroy() kept `map.on(...)` return values and called `.unsubscribe()` — which on
+    // v4 is `map.unsubscribe`, undefined, so it threw. Cleanup must go through `map.off` — and
+    // actually remove the listeners, not just not throw (a no-op off would leak them).
+    expect(() => renderer.destroy()).not.toThrow()
+    expect(count()).toBe(0)
+  })
+
+  it('resolves mount() once the map fires load, even when loaded() starts false', async () => {
+    FakeMapLibreMap.nextLoaded = false
+    try {
+      const renderer = new MapLibreRenderer()
+      const mounting = renderer.mount({} as unknown as HTMLElement)
+      const map = await mapWhenReady(renderer)
+
+      // whenLoaded is now waiting on 'load'. The old code threw inside this very handler
+      // (`.unsubscribe()` on the map) before it could resolve, so mount() hung on every v4 host.
+      map.emit('load')
+      await expect(mounting).resolves.toBeUndefined()
+      renderer.destroy()
+    } finally {
+      FakeMapLibreMap.nextLoaded = true
+    }
+  })
+})
+
+/** Yields until the renderer has created its map (it awaits a dynamic import first). */
+async function mapWhenReady(renderer: MapLibreRenderer): Promise<FakeMap> {
+  for (let i = 0; i < 100; i++) {
+    try {
+      return renderer.getNative<FakeMap>()
+    } catch {
+      await Promise.resolve()
+    }
+  }
+  throw new Error('the fake map never mounted')
+}
