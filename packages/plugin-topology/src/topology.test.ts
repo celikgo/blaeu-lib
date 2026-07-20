@@ -14,6 +14,7 @@ import type {
   ValidationContext,
   ValidationIssue,
 } from '@blaeu/core'
+import { AddFeaturesCommand, UpdateFeaturesCommand } from '@blaeu/core'
 
 import {
   closedRings,
@@ -295,6 +296,77 @@ describe('noOverlapWithNeighbours', () => {
     })
     const issues = await map.plugin('topology').validate()
     expect(issues.filter((i) => i.rule === RULE_IDS.overlap)).toEqual([])
+    await map.destroy()
+  })
+
+  it('rejects a single commit carrying two overlapping *new* parcels (co-committed sibling)', async () => {
+    // Both parcels are new and exist only inside this one command. Validation runs *before*
+    // the store write, so neither is in the store index when the other is checked — a rule
+    // that only queried the store would find no neighbour for either and wave the overlap
+    // through. The batch itself must be visible to the rule (ctx.pending).
+    const map = await cadastreMap({ plugins: [topologyPlugin()] })
+    expect(map.store.collection('parcels').size).toBe(0)
+
+    const failed: ValidationIssue[] = []
+    map.events.on('validation:failed', (e) => failed.push(...e.payload.issues))
+
+    const result = await map.commands.commit(
+      new AddFeaturesCommand('parcels', [...overlappingParcels()]),
+    )
+
+    expect(result.ok).toBe(false)
+    expect(result.rejectedReason).toMatch(/overlap/i)
+    // A vetoed write leaves nothing behind — not even the one parcel that was fine alone.
+    expect(map.store.collection('parcels').size).toBe(0)
+    // One physical overlap, reported once — not a mirror pair (A,B)+(B,A) from validating both.
+    expect(failed.filter((i) => i.rule === RULE_IDS.overlap)).toHaveLength(1)
+    await map.destroy()
+  })
+
+  it('detects a gap between two co-committed parcels as one warning, and still writes', async () => {
+    // The fix must make the sibling *visible*, not make every co-commit fail: a 2 cm gap
+    // between two batch-committed parcels is a warning (a digitisation artefact), so the write
+    // still lands. Asserting the gap issue was actually raised — via ctx.pending, since neither
+    // parcel is in the store index during validation — is what makes this discriminate the fix:
+    // store-only, the sibling is invisible and no gap is found.
+    const map = await cadastreMap({ plugins: [topologyPlugin()] })
+
+    const warned: ValidationIssue[] = []
+    map.events.on('validation:failed', (e) => warned.push(...e.payload.issues))
+
+    const result = await map.commands.commit(
+      new AddFeaturesCommand('parcels', [...gappedParcels(0.02)]),
+    )
+
+    expect(result.ok).toBe(true)
+    expect(map.store.collection('parcels').size).toBe(2)
+    const gaps = warned.filter((i) => i.rule === RULE_IDS.gap)
+    expect(gaps).toHaveLength(1)
+    expect(gaps[0]?.data?.['neighbour']).toBeDefined()
+    await map.destroy()
+  })
+
+  it('retires an overlapping neighbour when a co-committed update relocates it away', async () => {
+    // A mis-digitised state: parcel-right was drawn overlapping parcel-left. One update fixes it
+    // by moving parcel-right far away, and also carries parcel-left (unchanged) as a subject.
+    // Validating parcel-left, the batch member's *new* geometry is far — but its stale stored
+    // copy still overlaps, so it must be retired for the whole batch, not only for siblings that
+    // stayed near the subject. Otherwise the valid correction is vetoed by a phantom overlap.
+    const map = await cadastreMap() // no topology plugin, so the overlapping seed is allowed in
+    const seeded = map.test.seed('parcels', [...overlappingParcels()])
+    const left = seeded.find((f) => f.id === 'parcel-left')!
+    const rightOld = seeded.find((f) => f.id === 'parcel-right')!
+
+    // Register the overlap rule only now, after the intentionally-overlapping seed.
+    map.validation.add(noOverlapWithNeighbours({ severity: 'error' }))
+
+    const rightMovedFar: BlaeuFeature = {
+      ...rightOld,
+      geometry: { type: 'Polygon', coordinates: [ring(offsetMetres(ANKARA, 500, 0), 50, 40)] },
+    }
+    const result = await map.commands.commit(new UpdateFeaturesCommand([left, rightMovedFar]))
+
+    expect(result.ok).toBe(true)
     await map.destroy()
   })
 })

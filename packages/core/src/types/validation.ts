@@ -22,6 +22,18 @@ export interface ValidationContext {
   readonly crs: CrsService
   /** Localise. Rules must not hardcode English. */
   readonly t: (key: string, params?: Record<string, unknown>) => string
+  /**
+   * The features being committed **together in this batch** — the whole
+   * `CommitContext.features`, the same set being validated.
+   *
+   * A relational rule (overlap, gap) must see these, not just the store: validation runs
+   * *before* the batch is written, so two overlapping parcels committed in one command are
+   * both absent from the store index when each is checked, and the overlap between them slips
+   * through. A rule reconciles `store` with `pending` (preferring `pending` for a feature that
+   * appears in both — an update's new geometry over its stored copy). Absent for an ad-hoc
+   * single-feature check that did not originate from a commit.
+   */
+  readonly pending?: readonly BlaeuFeature[]
 }
 
 /**

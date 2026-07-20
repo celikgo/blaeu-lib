@@ -226,6 +226,7 @@ export function noOverlapWithNeighbours(options: ToleranceRuleOptions = {}): Val
 
       const issues: ValidationIssue[] = []
       for (const neighbour of candidateNeighbours(feature, ctx, tolerance)) {
+        if (isMirrorOfCoCommitted(feature, neighbour, ctx)) continue
         const other = prepare(neighbour.geometry, plane)
         if (!other) continue
 
@@ -284,6 +285,7 @@ export function noGapsWithNeighbours(options: GapRuleOptions = {}): ValidationRu
 
       const issues: ValidationIssue[] = []
       for (const neighbour of candidateNeighbours(feature, ctx, searchDistance)) {
+        if (isMirrorOfCoCommitted(feature, neighbour, ctx)) continue
         const other = prepare(neighbour.geometry, plane)
         if (!other) continue
 
@@ -580,7 +582,91 @@ function candidateNeighbours(
 ): readonly BlaeuFeature[] {
   const collection = ctx.store.collection(feature.meta.collection)
   const bbox = expandBbox(geometryBbox(feature.geometry), radiusMetres, ctx.crs)
-  return collection.query(bbox).filter((f) => f.id !== feature.id && isPolygonal(f))
+  const batch = batchInCollection(ctx, feature.meta.collection)
+
+  // The co-committed batch is not in the store index yet — validation runs before the write —
+  // so a rule that only queried the store would never see a sibling committed alongside the
+  // subject, and two overlapping parcels written in one command would both pass. Add the batch
+  // members whose *new* geometry meets the search box, minus the subject itself. (See
+  // `ValidationContext.pending`.)
+  const pending = batch.list
+    .filter((entry) => entry.feature.id !== feature.id && bboxesIntersect(bbox, entry.bbox))
+    .map((entry) => entry.feature)
+
+  // A feature being *updated* sits in both the store (its pre-edit geometry) and the batch (its
+  // new one). Judge the new one: drop the stale stored copy of **any** batch member. Keyed on
+  // the whole batch, not just the members near the subject — relocating a sibling *away* must
+  // still retire its old overlapping copy, or a valid correction is vetoed by a phantom overlap.
+  const stored = collection
+    .query(bbox)
+    .filter((f) => f.id !== feature.id && isPolygonal(f) && !batch.ids.has(f.id))
+
+  return [...stored, ...pending]
+}
+
+/**
+ * A relational defect between two features in the **same commit** surfaces from both ends —
+ * once with A as subject and B as neighbour, once the reverse — because each is validated in
+ * turn and each sees the other in `pending`. Report it from the lower id only, so a
+ * co-committed overlap or gap is one issue, not a mirror-image pair. A neighbour that is only in
+ * the store (not part of this batch) is never a subject, so it is always reported.
+ */
+function isMirrorOfCoCommitted(
+  feature: BlaeuFeature,
+  neighbour: BlaeuFeature,
+  ctx: ValidationContext,
+): boolean {
+  return (
+    feature.id > neighbour.id &&
+    batchInCollection(ctx, feature.meta.collection).ids.has(neighbour.id)
+  )
+}
+
+/**
+ * The co-committed batch, grouped by collection, each polygon's bbox computed **once**.
+ *
+ * `candidateNeighbours` runs for every feature in a commit, so recomputing each sibling's bbox
+ * per subject is O(n²) over a bulk import. `ctx.pending` is constant across a validation run, so
+ * memoise on its identity: one pass builds the per-collection lists and id sets that every
+ * subject then reads.
+ */
+interface BatchInCollection {
+  readonly list: readonly { readonly feature: BlaeuFeature; readonly bbox: Bbox }[]
+  readonly ids: ReadonlySet<string>
+}
+
+const EMPTY_BATCH: BatchInCollection = { list: [], ids: new Set<string>() }
+
+const batchCache = new WeakMap<readonly BlaeuFeature[], Map<string, BatchInCollection>>()
+
+function batchInCollection(ctx: ValidationContext, collection: string): BatchInCollection {
+  const pending = ctx.pending
+  if (pending === undefined || pending.length === 0) return EMPTY_BATCH
+
+  let byCollection = batchCache.get(pending)
+  if (byCollection === undefined) {
+    const grouped = new Map<string, { feature: BlaeuFeature; bbox: Bbox }[]>()
+    for (const feature of pending) {
+      if (!isPolygonal(feature)) continue
+      const list = grouped.get(feature.meta.collection) ?? []
+      list.push({ feature, bbox: geometryBbox(feature.geometry) })
+      grouped.set(feature.meta.collection, list)
+    }
+    byCollection = new Map()
+    for (const [id, list] of grouped) {
+      byCollection.set(id, { list, ids: new Set(list.map((entry) => entry.feature.id)) })
+    }
+    batchCache.set(pending, byCollection)
+  }
+  return byCollection.get(collection) ?? EMPTY_BATCH
+}
+
+/**
+ * Do two bounding boxes share any area? Edge-touch counts — this is only a pre-filter, and a
+ * shared edge is exactly what a gap/overlap rule then measures, so it must not be excluded here.
+ */
+function bboxesIntersect(a: Bbox, b: Bbox): boolean {
+  return a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3]
 }
 
 /**

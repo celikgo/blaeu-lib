@@ -74,8 +74,14 @@ export class BlaeuValidationRegistry implements ValidationRegistry {
   async run(features: readonly BlaeuFeature[]): Promise<readonly ValidationIssue[]> {
     if (this.#rules.size === 0 || features.length === 0) return []
 
+    // The batch is the same set being judged. A relational rule (overlap, gap) needs it
+    // because validation runs before the store write, so a co-committed sibling is not yet
+    // in the index — see `ValidationContext.pending`. Built once per run, shared by every
+    // rule×feature check.
+    const ctx: ValidationContext = { ...this.#ctx, pending: features }
+
     const issues: ValidationIssue[] = []
-    const pending: Promise<readonly ValidationIssue[]>[] = []
+    const scheduled: Promise<readonly ValidationIssue[]>[] = []
 
     for (const rule of this.#rules.values()) {
       for (const feature of features) {
@@ -90,7 +96,7 @@ export class BlaeuValidationRegistry implements ValidationRegistry {
           continue
         }
         if (!applies) continue
-        pending.push(this.#check(rule, feature))
+        scheduled.push(this.#check(rule, feature, ctx))
       }
     }
 
@@ -98,7 +104,7 @@ export class BlaeuValidationRegistry implements ValidationRegistry {
     // registry and running ten of them in series is ten times the latency for no
     // benefit. `#check` never rejects, so `Promise.all` cannot discard the issues
     // found by the rules that did complete.
-    for (const result of await Promise.all(pending)) issues.push(...result)
+    for (const result of await Promise.all(scheduled)) issues.push(...result)
     return issues
   }
 
@@ -144,9 +150,13 @@ export class BlaeuValidationRegistry implements ValidationRegistry {
     return commit.use(middleware, { id: 'core:validation', priority: COMMIT_PRIORITY })
   }
 
-  async #check(rule: ValidationRule, feature: BlaeuFeature): Promise<readonly ValidationIssue[]> {
+  async #check(
+    rule: ValidationRule,
+    feature: BlaeuFeature,
+    ctx: ValidationContext,
+  ): Promise<readonly ValidationIssue[]> {
     try {
-      return await rule.check(feature, this.#ctx)
+      return await rule.check(feature, ctx)
     } catch (err) {
       return [this.#threw(rule, feature, err)]
     }
