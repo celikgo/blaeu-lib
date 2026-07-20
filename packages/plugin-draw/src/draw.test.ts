@@ -266,6 +266,27 @@ describe('line and polygon', () => {
     expect(map.store.collection('default').size).toBe(1)
     expect(map.store.collection('default').all()[0]?.geometry.type).toBe('LineString')
   })
+
+  it('does not lose a click made while the previous shape is still committing', async () => {
+    const draw = map.plugin('draw')
+    draw.start('polygon')
+    map.test.click(A)
+    map.test.click(B)
+    map.test.click(C)
+    map.test.dblClick(C) // closes the triangle; complete() fires and its commit is now in flight
+
+    // A click for the NEXT shape, before that commit settles. It must begin a fresh shape — not
+    // be appended to the finished triangle's vertices and then wiped when complete() clears them
+    // on the far side of the await. (A real user finishing a parcel and immediately starting the
+    // next one hits exactly this window, wider still when a rule does a server round-trip.)
+    const D = offsetMetres(ANKARA, 80, 0)
+    map.test.click(D)
+    await map.test.flush()
+
+    // The triangle committed, and the first click of the next shape survived.
+    expect(map.store.collection('default').size).toBe(1)
+    expect(draw.vertices).toEqual([D])
+  })
 })
 
 describe('rectangle', () => {
@@ -500,7 +521,11 @@ describe('the snap handshake', () => {
 
     map.test.click(C)
     map.test.dblClick(C)
-    // The session clears its vertices and re-syncs snap only *after* the commit resolves.
+    // The session clears its vertices and re-syncs snap *synchronously*, before the commit is
+    // even awaited — so a click during the in-flight commit starts a fresh shape instead of being
+    // appended to the finished one and wiped. Asserting it here, before the flush, guards that
+    // ordering: moving the clear back below the await (reintroducing the lost-click race) fails.
+    expect(snap.inProgress).toEqual([])
     await map.test.flush()
     expect(snap.inProgress).toEqual([])
   })

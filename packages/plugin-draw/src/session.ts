@@ -206,9 +206,16 @@ export class DrawSession {
       return undefined
     }
 
-    // Out before the commit, and transient, so the rubber band never appears in the
-    // snapshot a history plugin would roll back to.
+    // Clear the in-progress state now, *before* the async commit — not after it resolves. The
+    // shape's geometry was already captured into `input` above, so this shape is done; and the
+    // commit may be slow (a rule doing a server round-trip). If the vertices lived on until the
+    // await settled, a click made while the commit was in flight would `addVertex` onto this
+    // finished shape and then be wiped by the clear on the far side — the user's first clicks of
+    // the next shape, silently lost. Cleared here, that click starts a fresh shape instead. The
+    // preview goes too, and transiently, so the rubber band never appears in a history snapshot.
     this.clearPreview()
+    this.#vertices = []
+    this.#syncSnap()
 
     const label = LABELS[mode]
 
@@ -219,9 +226,6 @@ export class DrawSession {
     const result = await this.#ctx.commands.commit(
       new AddFeaturesCommand(collection, [input], { label }),
     )
-
-    this.#vertices = []
-    this.#syncSnap()
 
     const created = result.value?.[0]
     if (!result.ok || created === undefined) {
