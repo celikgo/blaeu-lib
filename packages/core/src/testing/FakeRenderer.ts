@@ -8,6 +8,7 @@ import type {
   Renderer,
   RendererPointerEvent,
 } from '../types/renderer.js'
+import type { InteractionConfig } from '../types/config.js'
 
 /** MapLibre's tile size. Using the same one keeps zoom levels comparable with a real map. */
 const TILE_SIZE = 512
@@ -103,6 +104,8 @@ export class FakeRenderer implements Renderer {
   cursor = 'default'
   /** The last basemap handed to {@link setBasemap}, for a test asserting a theme swap reached the renderer. */
   basemap: string | Record<string, unknown> | undefined
+  /** The last config handed to {@link setInteraction}, for a test asserting the kernel wired it through. */
+  interaction: Partial<InteractionConfig> | undefined
   mounted = false
   destroyed = false
   container: HTMLElement | undefined
@@ -239,6 +242,10 @@ export class FakeRenderer implements Renderer {
     this.setBasemapCalls++
     this.basemap = style
     return Promise.resolve()
+  }
+
+  setInteraction(interaction: Partial<InteractionConfig>): void {
+    this.interaction = interaction
   }
 
   /* ===================================================================== */

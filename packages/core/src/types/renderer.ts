@@ -1,5 +1,6 @@
 import type { Bbox, Disposable, LngLat, ScreenPoint } from './common.js'
 import type { BlaeuFeature } from './feature.js'
+import type { InteractionConfig } from './config.js'
 
 export interface Camera {
   readonly center: LngLat
@@ -109,6 +110,18 @@ export interface Renderer {
    * camera must not move. Callers probe for the method rather than assuming it.
    */
   setBasemap?(style: string | Record<string, unknown>): Promise<void>
+
+  /**
+   * Hand the renderer the resolved interaction config — which of pan, scroll-zoom,
+   * double-click-zoom and keyboard navigation are live.
+   *
+   * Optional: a renderer with no built-in gesture handling (a fixed game board, a headless
+   * test double that only needs projection) has nothing to toggle. The kernel calls it once
+   * after mount and probes for the method rather than assuming it. `dragThreshold` travels in
+   * the config but is the interaction *pipeline's* notion of when a press becomes a drag, not
+   * the renderer's — an implementation should ignore it rather than invent an equivalent.
+   */
+  setInteraction?(interaction: Partial<InteractionConfig>): void
 
   /* --- camera --- */
   getCamera(): Camera

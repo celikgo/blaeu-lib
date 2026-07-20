@@ -117,6 +117,16 @@ export class BlaeuMap {
   async #init(options: BlaeuMapOptions, preset: Preset | undefined): Promise<void> {
     await this.renderer.mount(this.#container)
 
+    // Hand the renderer the resolved interaction config. Until here it was dead config —
+    // resolved, documented, and read by nothing — so a host that turned `scrollZoom` off (an
+    // embedded map on a scrolling page) or a preset that turned `doubleClickZoom` off (a
+    // double-click closes a ring, and must not also zoom the map out from under it) had no
+    // effect at all. This resolved config is the authoritative, renderer-agnostic source of
+    // truth: it is applied after mount and so overrides any construction-time seed a renderer
+    // was given (see MapLibreRendererOptions.interaction). Optional on the renderer: a board
+    // with no built-in gestures need not toggle.
+    this.renderer.setInteraction?.(this.config.interaction)
+
     // The store must reach the renderer before any plugin can draw. Wiring it here
     // rather than inside the store keeps the store renderer-agnostic — which is
     // what lets the test suite run against a store with no renderer at all.

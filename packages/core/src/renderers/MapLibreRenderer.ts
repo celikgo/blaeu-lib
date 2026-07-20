@@ -66,6 +66,12 @@ export interface MapLibreRendererOptions {
    * The map owner decides this, not the renderer: a cadastre preset turns
    * `doubleClickZoom` off because double-click closes a ring, and a game preset
    * leaves it on. All the renderer does is carry the decision across to MapLibre.
+   *
+   * For a renderer **managed by `BlaeuMap`, this is only a construction-time seed**: after mount
+   * the kernel applies its resolved `config.interaction` (from the host's `options.interaction`
+   * and the preset), which is the single, renderer-agnostic source of truth and takes
+   * precedence. Set gestures through `BlaeuMap`'s config, not here. This option is for driving a
+   * standalone `MapLibreRenderer` directly, without a `BlaeuMap` to resolve config for it.
    */
   readonly interaction?: Partial<InteractionConfig>
 

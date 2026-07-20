@@ -31,8 +31,23 @@ const { FakeMapLibreMap } = vi.hoisted(() => {
     setData: (data: unknown) => void
   }
 
+  /** One of maplibre's gesture handlers — enough of it for `applyInteraction` to toggle. */
+  class FakeGesture {
+    enabled = true
+    enable(): void {
+      this.enabled = true
+    }
+    disable(): void {
+      this.enabled = false
+    }
+  }
+
   class FakeMapLibreMap {
     readonly sources = new Map<string, FakeSource>()
+    readonly doubleClickZoom = new FakeGesture()
+    readonly dragPan = new FakeGesture()
+    readonly scrollZoom = new FakeGesture()
+    readonly keyboard = new FakeGesture()
     readonly layers = new Map<string, FakeLayer>()
     order: string[] = []
     readonly lastData = new Map<string, unknown>()
@@ -405,6 +420,48 @@ describe('MapLibreRenderer — shared tile sources are ref-counted', () => {
     renderer.removeLayer('b')
     renderer.removeSource('shared')
     expect(map.getSource('shared')).toBeUndefined()
+  })
+})
+
+describe('MapLibreRenderer — interaction config', () => {
+  it('toggles the named gesture handlers and leaves the rest alone', async () => {
+    const { renderer, map } = await mountRenderer()
+    expect(map.scrollZoom.enabled).toBe(true)
+    expect(map.dragPan.enabled).toBe(true)
+
+    renderer.setInteraction({ scrollZoom: false, doubleClickZoom: false })
+
+    // The two the config named are off...
+    expect(map.scrollZoom.enabled).toBe(false)
+    expect(map.doubleClickZoom.enabled).toBe(false)
+    // ...and the ones it did not mention are untouched, not silently reset.
+    expect(map.dragPan.enabled).toBe(true)
+    expect(map.keyboard.enabled).toBe(true)
+  })
+
+  it('re-enables a handler a previous config turned off', async () => {
+    const { renderer, map } = await mountRenderer()
+    renderer.setInteraction({ dragPan: false })
+    expect(map.dragPan.enabled).toBe(false)
+
+    // A later config with the gesture back on must actually call enable(), not just skip it —
+    // this is the preset-off then host-on path.
+    renderer.setInteraction({ dragPan: true })
+    expect(map.dragPan.enabled).toBe(true)
+  })
+
+  it('turns every gesture off when the config says so', async () => {
+    const { renderer, map } = await mountRenderer()
+    renderer.setInteraction({
+      doubleClickZoom: false,
+      dragPan: false,
+      scrollZoom: false,
+      keyboard: false,
+    })
+    expect(map.doubleClickZoom.enabled).toBe(false)
+    expect(map.dragPan.enabled).toBe(false)
+    expect(map.scrollZoom.enabled).toBe(false)
+    expect(map.keyboard.enabled).toBe(false)
   })
 })
 
