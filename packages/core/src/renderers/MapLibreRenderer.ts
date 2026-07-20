@@ -873,6 +873,9 @@ export class MapLibreRenderer implements Renderer {
       lngLat: [event.lngLat.lng, event.lngLat.lat],
       screen: { x: event.point.x, y: event.point.y },
       button: 'button' in original ? original.button : 0,
+      // The live button bitmask, so a drag tool can notice a move that arrives with the button
+      // already up (a release off the canvas). Absent on a TouchEvent, which has no equivalent.
+      ...('buttons' in original ? { buttons: (original as MouseEvent).buttons } : {}),
       modifiers: {
         shift: original.shiftKey,
         ctrl: original.ctrlKey,

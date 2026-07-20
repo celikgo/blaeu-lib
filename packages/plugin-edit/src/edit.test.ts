@@ -453,6 +453,67 @@ describe('editPlugin — vertex drag across the polygon (ring re-winding)', () =
   })
 })
 
+describe('editPlugin — a drag released off the canvas', () => {
+  // The audit high: a pointerup that lands outside the canvas is never delivered, so onPointerUp
+  // never fires and the gesture never ends — the geometry keeps chasing the cursor with the
+  // button up. The next move the canvas *does* see (on re-entry) carries `buttons === 0`, and the
+  // tools now treat that as the missed release.
+
+  it('ends a vertex drag on the first move that arrives with the button already up', async () => {
+    const map = await mapWithParcel()
+    map.plugin('edit').edit('p')
+
+    // Grab the NE corner; the gesture is now in flight and the kernel is latched onto the parcel.
+    map.test.pointerDown(cornerNear(map, 'p', NE))
+    map.test.pointerMove(offsetMetres(NE, 5, 5))
+    expect(map.tools.dragging.length).toBeGreaterThan(0)
+
+    // Released off-canvas: no pointerup reached us, and the next move has no button held.
+    map.test.pointerMove(offsetMetres(NE, 10, 10), undefined, 0)
+    expect(map.tools.dragging).toEqual([])
+
+    // And it stays ended — a further move does not resume the drag.
+    map.test.pointerMove(offsetMetres(NE, 20, 20))
+    expect(map.tools.dragging).toEqual([])
+
+    await map.destroy()
+  })
+
+  it('ends a transform gesture on the first move that arrives with the button already up', async () => {
+    const map = await mapWithParcel()
+    map.plugin('edit').edit('p')
+    map.tools.activate('edit:transform')
+
+    // Pointer-down inside the parcel starts a move gesture.
+    const from = offsetMetres(ANKARA, PARCEL_W / 2, PARCEL_H / 2)
+    map.test.pointerDown(from)
+    map.test.pointerMove(offsetMetres(from, 5, 0))
+    expect(map.tools.dragging.length).toBeGreaterThan(0)
+
+    // Released off-canvas.
+    map.test.pointerMove(offsetMetres(from, 10, 0), undefined, 0)
+    expect(map.tools.dragging).toEqual([])
+
+    await map.destroy()
+  })
+
+  it('clears the dragging latch when the tool is switched away mid-drag', async () => {
+    const map = await mapWithParcel()
+    map.plugin('edit').edit('p')
+
+    map.test.pointerDown(cornerNear(map, 'p', NE))
+    map.test.pointerMove(offsetMetres(NE, 5, 5))
+    expect(map.tools.dragging.length).toBeGreaterThan(0)
+
+    // Switch tools mid-drag: the vertex tool deactivates and must not leave the kernel latched
+    // onto the parcel — the next tool would otherwise inherit a gesture it never began.
+    map.tools.activate('edit:transform')
+    expect(map.tools.dragging).toEqual([])
+
+    await map.destroy()
+  })
+})
+
 describe('editPlugin — coalescing', () => {
   it('merges a whole drag into one undo step, and only within one gesture', async () => {
     const map = await mapWithParcel()

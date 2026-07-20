@@ -98,9 +98,11 @@ export function vertexTool(ctx: PluginContext<unknown>, controller: EditControll
     },
 
     deactivate(): void {
-      // Commit any drag in flight rather than lose it when the tool is switched away.
+      // Commit any drag in flight rather than lose it when the tool is switched away — and clear
+      // the kernel's dragging flag, or it stays latched onto features the next tool never grabbed.
       drag = null
       active = null
+      ctx.tools.setDragging([])
       controller.commitGesture()
     },
 
@@ -143,6 +145,13 @@ export function vertexTool(ctx: PluginContext<unknown>, controller: EditControll
 
     onPointerMove(interaction): boolean {
       if (drag === null) return false
+      // A move that arrives with no button held means the release happened off the canvas, where
+      // the pointerup never reached us. End the drag here rather than let the vertex chase the
+      // cursor with the button up — the same net effect as a normal release.
+      if (interaction.buttons === 0) {
+        endDrag()
+        return true
+      }
       // `interaction.lngLat` is already snapped — the snap plugin rewrote it in the
       // interaction pipeline before this tool ever saw the event. Do not go looking
       // for snapping here.

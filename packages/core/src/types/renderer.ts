@@ -55,7 +55,16 @@ export interface RendererPointerEvent {
   readonly kind: 'pointerdown' | 'pointermove' | 'pointerup' | 'click' | 'dblclick'
   readonly lngLat: LngLat
   readonly screen: ScreenPoint
+  /** Which button changed for this event (0 = primary). */
   readonly button: number
+  /**
+   * The bitmask of buttons **currently held** (0 = none), as on a DOM MouseEvent. A
+   * `pointermove` that arrives with `buttons === 0` means the button was released where the
+   * canvas could not see it — off-canvas — so no `pointerup` was delivered. A drag tool watches
+   * for it to end a gesture that would otherwise chase the cursor forever. Undefined for a touch
+   * stream, which has no button bitmask (and whose `touchend` fires even off the canvas).
+   */
+  readonly buttons?: number
   readonly modifiers: {
     readonly shift: boolean
     readonly ctrl: boolean

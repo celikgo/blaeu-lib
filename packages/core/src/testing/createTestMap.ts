@@ -45,7 +45,8 @@ export interface TestFacade {
   project(lngLat: LngLat): ScreenPoint
   unproject(point: ScreenPoint): LngLat
 
-  pointerMove(lngLat: LngLat, modifiers?: Modifiers): void
+  /** `buttons` is the live button bitmask (0 = released). Omit for "not tracked". */
+  pointerMove(lngLat: LngLat, modifiers?: Modifiers, buttons?: number): void
   pointerDown(lngLat: LngLat, modifiers?: Modifiers): void
   pointerUp(lngLat: LngLat, modifiers?: Modifiers): void
   click(lngLat: LngLat, modifiers?: Modifiers): void
@@ -152,8 +153,8 @@ class TestFacadeImpl implements TestFacade {
     return this.renderer.unproject(point)
   }
 
-  pointerMove(lngLat: LngLat, modifiers?: Modifiers): void {
-    this.#pointer('pointermove', lngLat, modifiers)
+  pointerMove(lngLat: LngLat, modifiers?: Modifiers, buttons?: number): void {
+    this.#pointer('pointermove', lngLat, modifiers, 0, buttons)
   }
 
   pointerDown(lngLat: LngLat, modifiers?: Modifiers): void {
@@ -255,12 +256,14 @@ class TestFacadeImpl implements TestFacade {
     lngLat: LngLat,
     modifiers?: Modifiers,
     button = 0,
+    buttons?: number,
   ): void {
     this.#lastLngLat = lngLat
     this.renderer.emitPointer({
       kind,
       lngLat,
       button,
+      ...(buttons !== undefined ? { buttons } : {}),
       ...(modifiers !== undefined ? { modifiers } : {}),
     })
   }

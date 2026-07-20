@@ -245,6 +245,7 @@ export class BlaeuMap {
         return crs.working.forward(lngLat)
       },
       screen: event.screen,
+      ...(event.buttons !== undefined ? { buttons: event.buttons } : {}),
       rawLngLat: event.lngLat,
       snap: undefined,
       // Whatever the active tool said it has hold of. Middleware reads this to avoid

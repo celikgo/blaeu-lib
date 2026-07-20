@@ -41,6 +41,14 @@ export interface InteractionContext {
   /** Untouched screen position. Middleware must not rewrite this — it's the ground truth. */
   readonly screen: ScreenPoint
 
+  /**
+   * The bitmask of buttons currently held (0 = none), as on a DOM MouseEvent — undefined for a
+   * touch stream. A drag tool checks it on `pointermove`: `buttons === 0` means the button was
+   * released off-canvas, where no `pointerup` could reach it, so the gesture must end here rather
+   * than let the geometry follow the cursor with the button up.
+   */
+  readonly buttons?: number
+
   /** The original, *unmodified* geographic position, before any middleware ran. */
   readonly rawLngLat: LngLat
 

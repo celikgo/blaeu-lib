@@ -116,6 +116,16 @@ export function transformTool(ctx: PluginContext<unknown>, controller: EditContr
     return x >= bounds.min[0] && x <= bounds.max[0] && y >= bounds.min[1] && y <= bounds.max[1]
   }
 
+  /** Release: commit the gesture's net transform once, validated, as one undo step. */
+  const endGesture = (): void => {
+    gesture = null
+    ctx.tools.setDragging([])
+    controller.commitGesture()
+    // Re-derive the box from where the features actually ended up, so the next gesture
+    // starts from the truth rather than from the box we last drew.
+    gizmo()
+  }
+
   return {
     id: 'edit:transform',
     cursor: 'move',
@@ -126,8 +136,10 @@ export function transformTool(ctx: PluginContext<unknown>, controller: EditContr
 
     deactivate(): void {
       // Commit any transform in flight rather than abandon it as an uncommitted,
-      // unvalidated preview when the tool is switched away — the same as the vertex tool.
+      // unvalidated preview when the tool is switched away — the same as the vertex tool. Clear
+      // the dragging flag too, or the next tool inherits a gesture's latched features.
       gesture = null
+      ctx.tools.setDragging([])
       controller.commitGesture()
       controller.handles.setGuide(undefined)
       controller.setHandleRenderer(undefined)
@@ -171,6 +183,12 @@ export function transformTool(ctx: PluginContext<unknown>, controller: EditContr
 
     onPointerMove(interaction): boolean {
       if (gesture === null) return false
+      // Released off the canvas, where the pointerup could not reach us: end the transform here
+      // rather than let the shape keep tracking the cursor with the button up.
+      if (interaction.buttons === 0) {
+        endGesture()
+        return true
+      }
       const { mode, transform, pivot, anchor } = gesture
       const current = controller.plane.forward(interaction.lngLat)
       // The features the gesture grabbed, not whatever is selected now — and each
@@ -204,13 +222,7 @@ export function transformTool(ctx: PluginContext<unknown>, controller: EditContr
 
     onPointerUp(): boolean {
       if (gesture === null) return false
-      gesture = null
-      ctx.tools.setDragging([])
-      // Release: commit the gesture's net transform once, validated, as one undo step.
-      controller.commitGesture()
-      // Re-derive the box from where the features actually ended up, so the next
-      // gesture starts from the truth rather than from the box we last drew.
-      gizmo()
+      endGesture()
       return true
     },
 

@@ -55,6 +55,8 @@ export interface FakePointerEventInit {
   readonly lngLat?: LngLat
   readonly screen?: ScreenPoint
   readonly button?: number
+  /** The live button bitmask (0 = none held). Omit for the browser-like default of "not tracked". */
+  readonly buttons?: number
   readonly modifiers?: Partial<RendererPointerEvent['modifiers']>
 }
 
@@ -413,6 +415,7 @@ export class FakeRenderer implements Renderer {
       lngLat,
       screen: init.screen ?? this.project(lngLat),
       button: init.button ?? 0,
+      ...(init.buttons !== undefined ? { buttons: init.buttons } : {}),
       modifiers: {
         shift: init.modifiers?.shift ?? false,
         ctrl: init.modifiers?.ctrl ?? false,
