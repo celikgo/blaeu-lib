@@ -5,10 +5,10 @@
  * The cut itself is `EditController.split`, which refuses a line that does not fully
  * cross the parcel rather than producing a "split" that changed nothing.
  *
- * The tool *catches* that refusal and reports it, where the API method throws. That
- * asymmetry is deliberate: a script calling `edit.split()` wants an exception it can
- * handle, while a surveyor who drew a bad line wants a message and their line still
- * on screen — not a stack trace out of a pointer handler.
+ * The tool *catches* that refusal and reports it, where the API method rejects. That
+ * asymmetry is deliberate: a script calling `edit.split()` wants a rejected promise it
+ * can `await`, while a surveyor who drew a bad line wants a message and their line still
+ * on screen — not an unhandled rejection out of a pointer handler.
  */
 
 import type { FeatureId, LineString, LngLat, PluginContext, Tool } from '@blaeu/core'
@@ -17,6 +17,20 @@ import type { EditController } from '../controller.js'
 export function splitTool(ctx: PluginContext<unknown>, controller: EditController): Tool {
   let points: LngLat[] = []
   let target: FeatureId | null = null
+  // A cut runs the async commit pipeline, and the reset that used to debounce a repeated
+  // finish() (Enter key-repeat, Enter-then-double-click) now happens only when it settles.
+  // `committing` blocks a second finish() so one gesture is one cut, not a concurrent pair
+  // against an already-removed parcel. `session` is bumped whenever the drawing is abandoned or
+  // the tool is (de)activated — the single tool instance outlives every activation — so a cut
+  // still in flight from a previous session neither blocks a fresh one nor, when it finally
+  // settles, wipes the fresh cut off the screen. Its settle callbacks no-op unless still current.
+  let session = 0
+  let committing = false
+
+  const newSession = (): void => {
+    session += 1
+    committing = false
+  }
 
   const preview = (): void => {
     if (points.length < 2) {
@@ -47,18 +61,34 @@ export function splitTool(ctx: PluginContext<unknown>, controller: EditControlle
       )
       return
     }
+    if (committing) return
 
-    try {
-      controller.split(id, line)
-      reset()
-      target = null
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err))
-      // Surfaced as an event, not thrown: the host app's error toast listens to
-      // `map:error`, and a refused cut is exactly what it exists to show.
-      ctx.events.emit('map:error', { error, source: 'edit:split' })
-      ctx.log.error(error.message)
-    }
+    // `split()` is async — it runs the commit pipeline. A tool handler stays synchronous, so
+    // fire it and act on the settled promise rather than `await`-ing it. Clear the cut only
+    // once it lands; on a refusal, surface the message as a `map:error` and leave the line on
+    // screen to be adjusted. A synchronous `try/catch` here would be dead code — an async call
+    // never throws synchronously, it rejects — so the refusal would escape unhandled and the
+    // reset would run before the cut was even attempted. The `mine === session` check makes a
+    // late settle a no-op once the tool has moved on to a new drawing.
+    committing = true
+    const mine = session
+    void controller.split(id, line).then(
+      () => {
+        if (mine !== session) return
+        committing = false
+        reset()
+        target = null
+      },
+      (err: unknown) => {
+        if (mine !== session) return
+        committing = false
+        const error = err instanceof Error ? err : new Error(String(err))
+        // Surfaced as an event, not thrown: the host app's error toast listens to
+        // `map:error`, and a refused cut is exactly what it exists to show.
+        ctx.events.emit('map:error', { error, source: 'edit:split' })
+        ctx.log.error(error.message)
+      },
+    )
   }
 
   return {
@@ -69,12 +99,14 @@ export function splitTool(ctx: PluginContext<unknown>, controller: EditControlle
       // Keep whatever guide we draw, and make sure vertex handles are not left over
       // from the previous tool — a cut line drawn through a thicket of handles is
       // impossible to see.
+      newSession()
       controller.setHandleRenderer(() => controller.handles.set([]))
       target = controller.targets()[0] ?? null
       reset()
     },
 
     deactivate(): void {
+      newSession()
       reset()
       target = null
       controller.setHandleRenderer(undefined)
@@ -107,6 +139,7 @@ export function splitTool(ctx: PluginContext<unknown>, controller: EditControlle
         return true
       }
       if (interaction.key === 'Escape') {
+        newSession()
         reset()
         return true
       }

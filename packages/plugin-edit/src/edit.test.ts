@@ -827,6 +827,127 @@ describe('editPlugin — split', () => {
   })
 })
 
+describe('editPlugin — split/merge tools surface an async refusal', () => {
+  it('a refused cut through the split tool emits map:error and keeps the line on screen', async () => {
+    const map = await mapWithParcel()
+    const errors: Array<{ source?: string }> = []
+    map.events.on('map:error', (e) => errors.push(e.payload as { source?: string }))
+
+    map.tools.activate('edit:split')
+    // A cut that lies entirely inside the parcel never crosses its boundary, so the split is
+    // refused. The first click, landing on the parcel, also adopts it as the target.
+    map.test.click(offsetMetres(SW, 10, 10))
+    map.test.click(offsetMetres(SW, 40, 30))
+    map.test.dblClick(offsetMetres(SW, 40, 30))
+    // split() is async (it runs the commit pipeline). The refusal must reach the tool's handler
+    // as a map:error, not escape as an unhandled promise rejection past a dead sync try/catch.
+    await map.test.flush()
+
+    expect(errors).toHaveLength(1)
+    expect(errors[0]?.source).toBe('edit:split')
+    // And the cut line is still on screen — the docstring's promise — because the reset now
+    // runs only on success, not synchronously before the async cut is even attempted.
+    expect(map.store.collection('edit:guides').all()).toHaveLength(1)
+    await map.destroy()
+  })
+
+  it('a refused merge through the merge tool emits map:error, not an unhandled rejection', async () => {
+    // Two parcels ~70 m apart: they share no edge, so the merge is refused for non-contiguity.
+    const far = offsetMetres(SW, 120, 0)
+    const rectAt = (origin: LngLat): Polygon => ({
+      type: 'Polygon',
+      coordinates: [
+        [
+          [...origin],
+          [...offsetMetres(origin, 50, 0)],
+          [...offsetMetres(origin, 50, 40)],
+          [...offsetMetres(origin, 0, 40)],
+          [...origin],
+        ],
+      ],
+    })
+    const map = await createTestMap({
+      plugins: [editPlugin()],
+      features: {
+        parcels: [
+          { id: 'a', geometry: rectAt(SW), properties: {} },
+          { id: 'b', geometry: rectAt(far), properties: {} },
+        ],
+      },
+    })
+    const errors: Array<{ source?: string }> = []
+    map.events.on('map:error', (e) => errors.push(e.payload as { source?: string }))
+
+    map.tools.activate('edit:merge')
+    map.test.click(offsetMetres(SW, 25, 20)) // inside parcel a
+    map.test.click(offsetMetres(far, 25, 20)) // inside parcel b
+    map.test.dblClick(offsetMetres(far, 25, 20))
+    await map.test.flush()
+
+    expect(errors).toHaveLength(1)
+    expect(errors[0]?.source).toBe('edit:merge')
+    // Neither parcel was consumed — the refused merge changed nothing.
+    expect(map.store.collection('parcels').size).toBe(2)
+    await map.destroy()
+  })
+
+  it('debounces a repeated finish() on the split tool into a single cut', async () => {
+    const map = await mapWithParcel()
+    const errors: unknown[] = []
+    map.events.on('map:error', () => errors.push(1))
+
+    map.tools.activate('edit:split')
+    map.test.click(offsetMetres(SW, 10, 10))
+    map.test.click(offsetMetres(SW, 40, 30))
+    // Two finishes back-to-back, before the async cut settles: the reset that used to make the
+    // second a no-op now runs only once the first lands, so the in-flight guard is the only
+    // thing stopping a concurrent second cut. Exactly one cut is attempted → exactly one error.
+    map.test.dblClick(offsetMetres(SW, 40, 30))
+    map.test.dblClick(offsetMetres(SW, 40, 30))
+    await map.test.flush()
+
+    expect(errors).toHaveLength(1)
+    await map.destroy()
+  })
+
+  it('debounces a repeated finish() on the merge tool into a single union', async () => {
+    const far = offsetMetres(SW, 120, 0)
+    const rectAt = (origin: LngLat): Polygon => ({
+      type: 'Polygon',
+      coordinates: [
+        [
+          [...origin],
+          [...offsetMetres(origin, 50, 0)],
+          [...offsetMetres(origin, 50, 40)],
+          [...offsetMetres(origin, 0, 40)],
+          [...origin],
+        ],
+      ],
+    })
+    const map = await createTestMap({
+      plugins: [editPlugin()],
+      features: {
+        parcels: [
+          { id: 'a', geometry: rectAt(SW), properties: {} },
+          { id: 'b', geometry: rectAt(far), properties: {} },
+        ],
+      },
+    })
+    const errors: unknown[] = []
+    map.events.on('map:error', () => errors.push(1))
+
+    map.tools.activate('edit:merge')
+    map.test.click(offsetMetres(SW, 25, 20))
+    map.test.click(offsetMetres(far, 25, 20))
+    map.test.dblClick(offsetMetres(far, 25, 20))
+    map.test.dblClick(offsetMetres(far, 25, 20))
+    await map.test.flush()
+
+    expect(errors).toHaveLength(1)
+    await map.destroy()
+  })
+})
+
 describe('editPlugin — merge', () => {
   it('unions two contiguous parcels into one', async () => {
     const map = await createTestMap({

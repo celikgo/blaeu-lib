@@ -45,13 +45,17 @@ export interface EditApi {
   /**
    * Cut a polygon with a line, in one undo step.
    *
-   * Throws — rather than producing garbage — when the line does not fully cross the
-   * feature. `line` is in 4326, like everything else that crosses the API.
+   * Async — it runs the commit pipeline — and the returned promise **rejects** (rather than
+   * producing garbage) when the line does not fully cross the feature or a rule vetoes a half.
+   * `await` it to handle a refusal. `line` is in 4326, like everything else that crosses the API.
    */
-  split(id: FeatureId, line: LineString): void
+  split(id: FeatureId, line: LineString): Promise<void>
 
-  /** Union contiguous polygons into one, in one undo step. Throws if they are not contiguous. */
-  merge(ids: readonly FeatureId[]): void
+  /**
+   * Union contiguous polygons into one, in one undo step. Async; the returned promise rejects
+   * if they are not contiguous or a rule vetoes the union.
+   */
+  merge(ids: readonly FeatureId[]): Promise<void>
 
   /** Rotate about `pivot`, degrees clockwise. Default pivot: the centre of the selection's bounding box. */
   rotate(ids: readonly FeatureId[], degrees: number, pivot?: LngLat): void

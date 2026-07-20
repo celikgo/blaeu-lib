@@ -14,6 +14,17 @@ import type { EditController } from '../controller.js'
 
 export function mergeTool(ctx: PluginContext<unknown>, controller: EditController): Tool {
   let picked: FeatureId[] = []
+  // A union runs the async commit pipeline; see the split tool for the reasoning. `merging`
+  // debounces a repeated finish() into a single union, and `session` — bumped when the pick set
+  // is abandoned or the tool is (de)activated — invalidates a union still in flight from a
+  // previous session so it neither blocks a fresh one nor clears the fresh picks on settling.
+  let session = 0
+  let merging = false
+
+  const newSession = (): void => {
+    session += 1
+    merging = false
+  }
 
   const finish = (): void => {
     if (picked.length < 2) {
@@ -22,15 +33,27 @@ export function mergeTool(ctx: PluginContext<unknown>, controller: EditControlle
       )
       return
     }
+    if (merging) return
 
-    try {
-      controller.merge(picked)
-      picked = []
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err))
-      ctx.events.emit('map:error', { error, source: 'edit:merge' })
-      ctx.log.error(error.message)
-    }
+    // Async, like the split tool: act on the settled promise so a refused (non-contiguous)
+    // merge surfaces as a `map:error` rather than escaping a dead sync `try/catch` as an
+    // unhandled rejection, and the picks are cleared only once the union actually lands.
+    merging = true
+    const mine = session
+    void controller.merge(picked).then(
+      () => {
+        if (mine !== session) return
+        merging = false
+        picked = []
+      },
+      (err: unknown) => {
+        if (mine !== session) return
+        merging = false
+        const error = err instanceof Error ? err : new Error(String(err))
+        ctx.events.emit('map:error', { error, source: 'edit:merge' })
+        ctx.log.error(error.message)
+      },
+    )
   }
 
   return {
@@ -38,11 +61,13 @@ export function mergeTool(ctx: PluginContext<unknown>, controller: EditControlle
     cursor: 'pointer',
 
     activate(): void {
+      newSession()
       controller.setHandleRenderer(() => controller.handles.set([]))
       picked = [...controller.targets()]
     },
 
     deactivate(): void {
+      newSession()
       picked = []
       controller.setHandleRenderer(undefined)
     },
@@ -71,6 +96,7 @@ export function mergeTool(ctx: PluginContext<unknown>, controller: EditControlle
         return true
       }
       if (interaction.key === 'Escape') {
+        newSession()
         picked = []
         return true
       }
