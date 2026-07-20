@@ -288,11 +288,22 @@ export function noGapsWithNeighbours(options: GapRuleOptions = {}): ValidationRu
       const subject = prepare(feature.geometry, plane)
       if (!subject) return []
 
+      // Prepare every candidate once, and keep the union of them all: the ground already claimed
+      // by *some* parcel. A gap is *unclaimed* ground, so the void below is measured against this,
+      // not just against the pair — otherwise the diagonal pair of a 4-way corner reports the
+      // ground the *other* two parcels stand on as a void (a false gap on every real corner),
+      // because a pairwise A∪B cannot see them. Subtracting `claimed` suppresses that while still
+      // reporting a genuine unclaimed wedge where those other parcels are absent.
+      const neighbours: { readonly feature: BlaeuFeature; readonly geometry: JstsGeometry }[] = []
+      for (const candidate of candidateNeighbours(feature, ctx, searchDistance)) {
+        const geometry = prepare(candidate.geometry, plane)
+        if (geometry) neighbours.push({ feature: candidate, geometry })
+      }
+      const claimed = neighbours.reduce((all, n) => union(all, n.geometry), subject)
+
       const issues: ValidationIssue[] = []
-      for (const neighbour of candidateNeighbours(feature, ctx, searchDistance)) {
+      for (const { feature: neighbour, geometry: other } of neighbours) {
         if (isMirrorOfCoCommitted(feature, neighbour, ctx)) continue
-        const other = prepare(neighbour.geometry, plane)
-        if (!other) continue
 
         const shared = intersection(subject, other)
 
@@ -314,8 +325,9 @@ export function noGapsWithNeighbours(options: GapRuleOptions = {}): ValidationRu
         const merged = union(subject, other)
         const between = intersection(buffer(subject, maxGapWidth), buffer(other, maxGapWidth))
         // Clipped to the hull, which trims the buffers' end caps — the round bulges that
-        // stick out past the parcels' extent, and would otherwise be counted as gap area.
-        const voids = difference(intersection(between, convexHull(merged)), merged)
+        // stick out past the parcels' extent — then measured against *all* claimed ground, so a
+        // 4-way corner's void (filled by the other two parcels) is not counted as a gap.
+        const voids = difference(intersection(between, convexHull(merged)), claimed)
 
         for (const gap of components(voids)) {
           const area = gap.getArea()

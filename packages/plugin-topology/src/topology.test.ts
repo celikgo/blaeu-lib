@@ -104,6 +104,33 @@ function gappedParcels(gapMetres: number): readonly [FeatureInput, FeatureInput]
 }
 
 /**
+ * Four 50×40 parcels tiling a 2×2 block that meet at one central corner — a normal 4-way
+ * cadastral corner. Every shared vertex comes from the same `offsetMetres(ANKARA, …)` call (east
+ * offsets never change the latitude, so a corner is one point however it is reached), so the four
+ * tile exactly: the `sw`/`ne` and `se`/`nw` diagonals touch at a single point, not along an edge.
+ */
+function fourCornerParcels(): readonly FeatureInput[] {
+  const p = (east: number, north: number): [number, number] => {
+    const [lng, lat] = offsetMetres(ANKARA, east, north)
+    return [lng, lat]
+  }
+  const rect = (id: string, corners: readonly [number, number][]): FeatureInput => ({
+    id,
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[corners[0]!, corners[1]!, corners[2]!, corners[3]!, corners[0]!]],
+    },
+    properties: {},
+  })
+  return [
+    rect('sw', [p(0, 0), p(50, 0), p(50, 40), p(0, 40)]),
+    rect('se', [p(50, 0), p(100, 0), p(100, 40), p(50, 40)]),
+    rect('nw', [p(0, 40), p(50, 40), p(50, 80), p(0, 80)]),
+    rect('ne', [p(50, 40), p(100, 40), p(100, 80), p(50, 80)]),
+  ]
+}
+
+/**
  * A map whose working CRS is a real cadastral plane.
  *
  * The kernel's default is EPSG:3857 (Web Mercator), where a metre is not a metre: at
@@ -433,6 +460,40 @@ describe('noGapsWithNeighbours', () => {
     // lane, and reporting it as a defect would be noise on every street in the layer.
     const issues = await map.plugin('topology').validate(['parcel-left'])
     expect(issues.filter((i) => i.rule === RULE_IDS.gap)).toEqual([])
+    await map.destroy()
+  })
+
+  it('invents no gap where four parcels meet at a corner', async () => {
+    const map = await cadastreMap({
+      plugins: [topologyPlugin()],
+      features: { parcels: [...fourCornerParcels()] },
+    })
+    // `sw` shares real edges with `se` and `nw`, and touches `ne` at only the central corner.
+    // That point is not a gap: the ground the pairwise check would call a void between sw and ne
+    // is where se and nw actually sit. Before the fix this was reported on every 4-way corner.
+    const issues = await map.plugin('topology').validate(['sw'])
+    expect(issues.filter((i) => i.rule === RULE_IDS.gap)).toEqual([])
+
+    // And the whole tidy block is clean end to end — no overlaps, no slivers, nothing.
+    expect(await map.plugin('topology').validate()).toEqual([])
+    await map.destroy()
+  })
+
+  it('still reports an unclaimed gap where two parcels pin at a corner and nothing fills it', async () => {
+    // The sw/ne diagonal *alone*: se and nw are absent, so the ground at the shared corner is
+    // genuinely unclaimed. Unlike the 4-way corner, this is a real gap the rule must surface — a
+    // sliver of no-man's-land between two adjacent parcels. The corner-void is subtracted only
+    // where another parcel actually claims it, and here nothing does, so it stands. (A blanket
+    // "skip every point-touch" would silently swallow this.)
+    const block = fourCornerParcels()
+    const sw = block.find((p) => p.id === 'sw')!
+    const ne = block.find((p) => p.id === 'ne')!
+    const map = await cadastreMap({ plugins: [topologyPlugin()], features: { parcels: [sw, ne] } })
+
+    const issues = await map.plugin('topology').validate(['sw'])
+    const gap = issues.find((i) => i.rule === RULE_IDS.gap)
+    expect(gap).toBeDefined()
+    expect(gap?.data?.['neighbour']).toBe('ne')
     await map.destroy()
   })
 })
