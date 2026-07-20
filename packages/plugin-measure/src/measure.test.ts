@@ -508,6 +508,31 @@ describe('the three tests every plugin owes', () => {
 
     await map.destroy()
   })
+
+  it('4. keeps two maps separate when one plugin instance is installed on both', async () => {
+    // The idiom is `plugins: [measurePlugin()]` — a fresh instance per map — but nothing stops a
+    // host reusing one object (or a preset that holds one) across two maps. When it does, the
+    // plugin's per-map state must stay separate. A single closure variable held only the *last*
+    // map's session, so a lifecycle call on one map reached the other's — tearing map A down
+    // cancelled map B's live measurement.
+    const shared = measurePlugin()
+    const opts = { config: { crs: { working: TM30 } }, camera: { center: ANKARA, zoom: 17 } }
+    const mapA = await createTestMap({ plugins: [shared], ...opts })
+    const mapB = await createTestMap({ plugins: [shared], ...opts })
+
+    // A half-drawn measurement on B: a live draft in flight.
+    mapB.tools.activate('measure:distance')
+    mapB.test.click(SW)
+    mapB.test.pointerMove(SE)
+    expect(mapB.store.collection(DRAFT_COLLECTION).size).toBeGreaterThan(0)
+
+    // Tear map A down. Its teardown must cancel A's own session, not B's.
+    await mapA.destroy()
+
+    // B's live draft is untouched.
+    expect(mapB.store.collection(DRAFT_COLLECTION).size).toBeGreaterThan(0)
+    await mapB.destroy()
+  })
 })
 
 /* ========================================================================= */

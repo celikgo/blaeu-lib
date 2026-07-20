@@ -46,7 +46,11 @@ export function measurePlugin(
   options: MeasureOptions = {},
 ): BlaeuPlugin<MeasureApi, MeasureOptions> {
   const resolved = resolveOptions(options)
-  let session: MeasureSession | undefined
+  // Per-map state, keyed by context — see the note in plugin-snap. A single closure variable
+  // would let a second map's `setup` clobber the first's session, so disabling or destroying one
+  // map would cancel (and leak) the other's. The per-`setup` `current` below — used by the API
+  // and the relabel handlers — is already per-map; this is what makes disable/destroy find it too.
+  const sessions = new WeakMap<object, MeasureSession>()
 
   return {
     id: 'measure',
@@ -62,7 +66,7 @@ export function measurePlugin(
     setup(ctx): MeasureApi {
       const env: MeasureEnv = { crs: ctx.crs, i18n: ctx.i18n, options: resolved }
       const current = new MeasureSession(ctx, env)
-      session = current
+      sessions.set(ctx, current)
 
       ctx.disposables.add(ctx.i18n.register('en', en))
       ctx.disposables.add(ctx.i18n.register('tr', tr))
@@ -122,7 +126,7 @@ export function measurePlugin(
      * to find their numbers still there.
      */
     disable(ctx): void {
-      session?.cancel()
+      sessions.get(ctx)?.cancel()
       const active = ctx.tools.active
       if (active !== null && Object.values(TOOL_IDS).includes(active)) ctx.tools.deactivate()
     },
@@ -132,8 +136,8 @@ export function measurePlugin(
       // bundles. What it cannot take is the *data*: collections are not disposables, and
       // leaving four of them behind — full of measurement geometry nothing will ever
       // render again — is exactly the kind of leak the teardown test exists to catch.
-      session?.cancel()
-      session = undefined
+      sessions.get(ctx)?.cancel()
+      sessions.delete(ctx)
       for (const collection of COLLECTIONS) ctx.store.removeCollection(collection)
     },
   }

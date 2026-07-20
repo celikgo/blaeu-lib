@@ -178,6 +178,30 @@ describe('the three tests every plugin owes', () => {
     expect(changes).toBe(0)
     await map.destroy()
   })
+
+  it('does not cross-wire two maps built from the same plugin instance', async () => {
+    // One plugin object on two maps: each map's engine must be its own. A single closure variable
+    // held only the *last* map's engine, so disabling snap on A actually put B's engine to sleep,
+    // leaving A snapping when the host had turned it off.
+    const shared = snapPlugin()
+    const mapA = await createTestMap({ plugins: [shared], features: { parcels: PARCELS } })
+    const mapB = await createTestMap({ plugins: [shared], features: { parcels: PARCELS } })
+
+    const seenA = probe(mapA)
+    const cornerA = corners(mapA)[0]!
+
+    // Snapping works on A to begin with.
+    mapA.test.pointerMove(offsetPx(mapA, cornerA, 4, 0))
+    expect(seenA.last?.snap).toBeDefined()
+
+    // Turn it off on A. A must stop snapping; pre-fix, disable(ctxA) slept B's engine instead.
+    mapA.plugins.disable('snap')
+    mapA.test.pointerMove(offsetPx(mapA, cornerA, 4, 0))
+    expect(seenA.last?.snap).toBeUndefined()
+
+    await mapA.destroy()
+    await mapB.destroy()
+  })
 })
 
 /* ========================================================================= */

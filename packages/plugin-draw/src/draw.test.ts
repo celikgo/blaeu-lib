@@ -123,6 +123,28 @@ describe('the three tests every plugin owes', () => {
 
     expect(map.store.snapshot()).toEqual(before)
   })
+
+  it('keeps two maps separate when one plugin instance is installed on both', async () => {
+    // One draw plugin object on two maps: each map's session must be its own. A single closure
+    // variable held only the last map's, so disabling draw on one map cancelled the other's
+    // in-progress shape.
+    const shared = drawPlugin()
+    const first = await createTestMap({ plugins: [shared] })
+    const second = await createTestMap({ plugins: [shared] })
+
+    // A shape in progress on the second map.
+    second.plugin('draw').start('polygon')
+    second.test.click(A)
+    second.test.click(B)
+    expect(second.plugin('draw').vertices).toHaveLength(2)
+
+    // Disable draw on the first map — it must cancel the first map's session, not the second's.
+    first.plugins.disable('draw')
+    expect(second.plugin('draw').vertices).toHaveLength(2)
+
+    await first.destroy()
+    await second.destroy()
+  })
 })
 
 /* ------------------------------------------------------------------------- */

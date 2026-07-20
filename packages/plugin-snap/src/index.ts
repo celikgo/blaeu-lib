@@ -56,9 +56,13 @@ export {
  * Hold **Alt** to suppress it for one event, as every CAD package on earth does.
  */
 export function snapPlugin(options: SnapOptions = {}): BlaeuPlugin<SnapApi, SnapOptions> {
-  // Bound to this plugin *instance*, which is bound to one map: `snapPlugin()` is
-  // called once per installation, by the user or by `normalisePluginSpec`.
-  let engine: SnapEngine | undefined
+  // Per-map state, keyed by context. `snapPlugin()` is usually called once per installation, but
+  // nothing stops a host reusing one plugin object across two maps (or reusing a preset that holds
+  // one), and a single closure variable would then let the second map's `setup` clobber the
+  // first's engine — so toggling snap on map A would silently drive map B, and map A's engine
+  // would leak. Keying by context keeps each map's engine its own; a destroyed map's engine is
+  // collectable once its context is. Same pattern as plugin-select.
+  const engines = new WeakMap<object, SnapEngine>()
 
   return {
     id: 'snap',
@@ -81,25 +85,26 @@ export function snapPlugin(options: SnapOptions = {}): BlaeuPlugin<SnapApi, Snap
       ctx.disposables.add(ctx.i18n.register('en', snapMessagesEn))
       ctx.disposables.add(ctx.i18n.register('tr', snapMessagesTr))
 
-      engine = new SnapEngine(ctx, resolveOptions(merged))
+      const engine = new SnapEngine(ctx, resolveOptions(merged))
       engine.install()
+      engines.set(ctx, engine)
       return engine.api
     },
 
     /** Also called once, immediately after `setup` — so it must restore state, not force it on. */
-    enable(): void {
-      engine?.wake()
+    enable(ctx): void {
+      engines.get(ctx)?.wake()
     },
 
     /** Dormant, not destroyed: providers, tolerance and exclusions survive a toggle. */
-    disable(): void {
-      engine?.sleep()
+    disable(ctx): void {
+      engines.get(ctx)?.sleep()
     },
 
-    destroy(): void {
+    destroy(ctx): void {
       // `ctx.disposables` takes the middleware, the layer, the source and the message
       // bundles. Only the reference is ours to drop.
-      engine = undefined
+      engines.delete(ctx)
     },
   }
 }

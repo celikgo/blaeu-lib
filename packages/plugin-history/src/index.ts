@@ -40,7 +40,10 @@ declare module '@blaeu/core' {
 export function historyPlugin(
   options: HistoryOptions = {},
 ): BlaeuPlugin<HistoryApi, HistoryOptions> {
-  let stack: HistoryStack | undefined
+  // Per-map state, keyed by context (see plugin-select). One plugin object installed on two maps
+  // must not let the second map's `setup` clobber the first's stack — otherwise toggling history
+  // on one map would start or stop recording on the other, silently dropping its undo entries.
+  const stacks = new WeakMap<object, HistoryStack>()
 
   return {
     id: 'history',
@@ -59,7 +62,7 @@ export function historyPlugin(
       // `_apply` is declared only on the concrete `BlaeuCommandBus`. Reaching it
       // through `ctx.map` is the sanctioned escape hatch and needs no cast.
       const history = new HistoryStack(ctx.map.commands, ctx.events, resolved, ctx.log)
-      stack = history
+      stacks.set(ctx, history)
 
       ctx.disposables.add(
         // The third argument is the one that matters: it tells us whether this command was
@@ -88,12 +91,12 @@ export function historyPlugin(
 
     // Dormant, not amnesiac (see the lifecycle contract on BlaeuPlugin): a user who
     // toggles history off and on again has not asked us to forget what they did.
-    enable() {
-      stack?.setRecording(true)
+    enable(ctx) {
+      stacks.get(ctx)?.setRecording(true)
     },
 
-    disable() {
-      stack?.setRecording(false)
+    disable(ctx) {
+      stacks.get(ctx)?.setRecording(false)
     },
   }
 }

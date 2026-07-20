@@ -101,7 +101,10 @@ declare module '@blaeu/core' {
 }
 
 export function drawPlugin(options: DrawOptions = {}): BlaeuPlugin<DrawApi, DrawOptions> {
-  let session: DrawSession | undefined
+  // Per-map state, keyed by context (see plugin-select). One plugin object installed on two maps
+  // must not let the second map's `setup` clobber the first's session — otherwise disabling draw
+  // on one map would cancel the other's in-progress shape.
+  const sessions = new WeakMap<object, DrawSession>()
 
   return {
     id: 'draw',
@@ -123,7 +126,7 @@ export function drawPlugin(options: DrawOptions = {}): BlaeuPlugin<DrawApi, Draw
       // wins, because the preset is the later, more specific word.
       const resolved = resolveOptions({ ...options, ...(ctx.options ?? {}) })
       const active = new DrawSession(ctx, resolved)
-      session = active
+      sessions.set(ctx, active)
 
       // Declared up front rather than on first use: the renderer creates a source per
       // collection, and a source that appears halfway through the first gesture appears
@@ -200,7 +203,7 @@ export function drawPlugin(options: DrawOptions = {}): BlaeuPlugin<DrawApi, Draw
     disable(ctx): void {
       const activeTool = ctx.tools.active
       if (activeTool !== null && activeTool.startsWith('draw:')) ctx.tools.deactivate()
-      session?.cancel('the draw plugin was disabled')
+      sessions.get(ctx)?.cancel('the draw plugin was disabled')
     },
   }
 }

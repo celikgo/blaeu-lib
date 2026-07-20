@@ -107,6 +107,26 @@ describe('the three tests every plugin owes', () => {
     expect(history.redo()).toBe(true)
     expect(map.store.snapshot()).not.toEqual(before)
   })
+
+  it('keeps two maps separate when one plugin instance is installed on both', async () => {
+    // One history plugin object on two maps: each map's stack must be its own. A single closure
+    // variable held only the last map's, so toggling recording on one map started or stopped it
+    // on the other — silently dropping the other map's undo entries.
+    const shared = historyPlugin({ keyboard: false })
+    const opts = { plugins: [shared], features: { parcels: [parcelFixture('seed-1')] } }
+    const first = await createTestMap(opts)
+    const second = await createTestMap(opts)
+
+    // Turn recording off on the first map. It must stop the first map, not the second.
+    first.plugins.disable('history')
+
+    // An edit on the second map is still recorded there.
+    await second.commands.commit(new AddFeaturesCommand('parcels', [newParcel(1)]))
+    expect(second.plugin('history').canUndo).toBe(true)
+
+    await first.destroy()
+    await second.destroy()
+  })
 })
 
 /* ========================================================================= */
