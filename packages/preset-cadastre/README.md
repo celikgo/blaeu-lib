@@ -149,7 +149,7 @@ import { minParcelArea } from '@blaeu/plugin-topology'
 import { cadastrePreset } from '@blaeu/preset-cadastre'
 
 export const izmirPreset = composePresets(
-  cadastrePreset({ crs: 'EPSG:5255' }), // the national base, Izmir's belt
+  cadastrePreset({ crs: 'EPSG:5253' }), // the national base, İzmir's belt (TUREF/TM27)
   definePreset({
     id: 'izmir',
     plugins: [[snapPlugin, { tolerance: 8 }]], // merged into the base's snap entry,

@@ -134,7 +134,7 @@ const izmir = composePresets(
   definePreset({
     id: 'izmir',
     plugins: [[snapPlugin, { tolerance: 8 }]], // retuned, not re-declared
-    config: { crs: { working: 'EPSG:5255' } }, // deep-merged: precision/display survive
+    config: { crs: { working: 'EPSG:5253' } }, // İzmir's belt (TUREF/TM27); deep-merged: precision/display survive
     layers: [{ id: 'kentsel-donusum', type: 'vector', source: 'donusum' }], // appended
     validation: [planNotuRequired({ severity: 'warning' })], // appended
     i18n: { tr: { 'urban.zoning.K': 'Konut (İZBB)' } }, // merged per key

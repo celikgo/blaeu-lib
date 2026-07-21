@@ -92,7 +92,7 @@ import { cadastrePreset } from '@blaeu/preset-cadastre'
 
 const map = await createBlaeuMap({
   container: '#map',
-  preset: cadastrePreset({ crs: 'EPSG:5255', locale: 'tr' }), // İzmir belt
+  preset: cadastrePreset({ crs: 'EPSG:5253', locale: 'tr' }), // İzmir belt (TUREF/TM27, 27°E)
 })
 map.tools.activate('draw:polygon')
 ```
@@ -399,7 +399,7 @@ import { snapPlugin } from '@blaeu/plugin-snap'
 import { minParcelArea } from '@blaeu/plugin-topology'
 
 const izmir = composePresets(
-  cadastrePreset({ crs: 'EPSG:5255' }), // national base
+  cadastrePreset({ crs: 'EPSG:5253' }), // national base, on İzmir's belt (TUREF/TM27)
   definePreset({
     id: 'izmir',
     plugins: [[snapPlugin, { tolerance: 8 }]], // retunes the base's snap; keeps its provider list

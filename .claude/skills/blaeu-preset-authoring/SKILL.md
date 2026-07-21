@@ -72,7 +72,7 @@ customises a national preset without forking it:
 
 ```ts
 const izmirPreset = composePresets(
-  cadastrePreset({ crs: 'EPSG:5255' }), // national base
+  cadastrePreset({ crs: 'EPSG:5253' }), // national base, on İzmir's belt (TUREF/TM27)
   definePreset({
     id: 'izmir',
     validation: [minParcelArea({ min: 250 })], // appended to the base's rules

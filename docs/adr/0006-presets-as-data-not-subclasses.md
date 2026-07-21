@@ -49,7 +49,7 @@ point — **composable**:
 
 ```ts
 const izmir = composePresets(
-  cadastrePreset({ crs: 'EPSG:5255' }),
+  cadastrePreset({ crs: 'EPSG:5253' }), // İzmir's belt (TUREF/TM27)
   definePreset({
     id: 'izmir',
     plugins: [[snapPlugin, { tolerance: 8 }]], // retunes; does not re-declare
