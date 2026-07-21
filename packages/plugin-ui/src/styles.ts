@@ -76,6 +76,10 @@ ${s} .bl-ui-toolbar {
   padding: 2px;
   gap: 2px;
 }
+/* Without this the class's display:flex beats the UA [hidden] rule, so an empty
+   toolbar the control marks hidden shows anyway — a bare pill with nothing in it.
+   The measure/snap/issues panels below already carry the same guard. */
+${s} .bl-ui-toolbar[hidden] { display: none; }
 
 ${s} .bl-ui-button {
   display: inline-flex;

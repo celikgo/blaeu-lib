@@ -280,6 +280,77 @@ describe('uiPlugin', () => {
       await map.destroy()
     })
 
+    it('restores focus to the tab stop — the arrow-selected button — after a re-render', async () => {
+      const map = await createTestMap({
+        plugins: [uiPlugin(), strangerPlugin('stranger:a')],
+      })
+      // Focus only lands on elements that are in the document.
+      document.body.appendChild(container(map))
+      map.tools.register('stranger:b', inertTool())
+      map.events.emit('plugin:registered', { id: 'other' })
+
+      const list = buttons(map)
+      expect(list.length).toBe(2)
+
+      // A keyboard user arrow-keys the roving tab stop off the first tool onto the second, then
+      // presses Enter to activate it. Activation fires tool:activated, which redraws the toolbar
+      // and replaces every button. Focus must return to the *second* button — the one that owns
+      // the tab stop — not snap back to the first, and above all not drop to <body>, which would
+      // eject the user to the top of the document on every activation. A single-button toolbar
+      // cannot tell "restore the tab stop" apart from "restore index 0", so this uses two.
+      list[0]!.focus()
+      list[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+      expect(document.activeElement).toBe(list[1])
+
+      map.tools.activate('stranger:b')
+
+      const active = document.activeElement as HTMLElement
+      expect(active).not.toBe(document.body)
+      expect(active.classList.contains('bl-ui-button')).toBe(true)
+      expect(active.dataset['fxId']).toBe('stranger:b') // the tab stop, not list[0]
+      expect(active.tabIndex).toBe(0) // and it still owns the single tab stop
+
+      await map.destroy()
+    })
+
+    it('does not steal focus into the toolbar on a re-render when it never held it', async () => {
+      const map = await createTestMap({
+        plugins: [uiPlugin(), strangerPlugin('stranger:hex-paint')],
+      })
+      document.body.appendChild(container(map))
+
+      // A text input elsewhere on the page owns focus; the toolbar does not.
+      const elsewhere = document.createElement('input')
+      document.body.appendChild(elsewhere)
+      elsewhere.focus()
+      expect(document.activeElement).toBe(elsewhere)
+
+      // The tools change under the user's feet. Restoring focus is only correct when the
+      // toolbar held it to begin with — otherwise a background redraw yanks the caret out
+      // of whatever the user was typing in.
+      map.tools.activate('stranger:hex-paint')
+
+      expect(document.activeElement).toBe(elsewhere)
+
+      elsewhere.remove()
+      await map.destroy()
+    })
+
+    it('an empty toolbar is not merely marked hidden but actually hidden', async () => {
+      // #14: `.bl-ui-toolbar { display: flex }` outweighs the UA `[hidden]` rule, so without an
+      // explicit override the empty toolbar the control marks `hidden` still paints — a bare pill
+      // with nothing in it. jsdom cascades author styles, so the computed display is the real test.
+      const map = await createTestMap({ plugins: [uiPlugin()] })
+      document.body.appendChild(container(map))
+
+      const toolbar = ui(map).root.querySelector<HTMLElement>('.bl-ui-toolbar[role="toolbar"]')!
+      expect(buttons(map).length).toBe(0) // precondition: nothing to show
+      expect(toolbar.hidden).toBe(true)
+      expect(getComputedStyle(toolbar).display).toBe('none')
+
+      await map.destroy()
+    })
+
     it('keeps a custom button and does not duplicate its tool', async () => {
       const map = await createTestMap({
         plugins: [uiPlugin(), strangerPlugin('stranger:hex-paint')],

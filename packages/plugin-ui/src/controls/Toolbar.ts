@@ -66,6 +66,13 @@ function renderButtons(ctx: ControlContext, element: HTMLElement, focusIndex: nu
   const model = ctx.toolbarModel
   const list = model.buttons
 
+  // A keyboard user tabs to a tool and presses Enter to activate it — which changes the toolbar
+  // model and re-renders this control, replacing the very button they are standing on. Note
+  // whether focus was inside the toolbar *before* the rebuild, so it can be handed back to the
+  // tab-stop button afterwards rather than dropped to <body>, which ejects the user to the top of
+  // the document on every activation.
+  const hadFocus = element.contains(element.ownerDocument.activeElement)
+
   // Rebuilding the children drops the DOM listeners with them; the disposables
   // added below would otherwise pile up on every re-render, which — with a locale
   // switch and a tool change per second — is a leak with a slow fuse.
@@ -82,7 +89,11 @@ function renderButtons(ctx: ControlContext, element: HTMLElement, focusIndex: nu
   const index = Math.min(Math.max(focusIndex, 0), list.length - 1)
 
   list.forEach((spec, i) => {
-    element.appendChild(renderButton(ctx, spec, i === index))
+    const node = renderButton(ctx, spec, i === index)
+    element.appendChild(node)
+    // Restore keyboard focus to the tab stop after the rebuild, but only if the toolbar held it
+    // to begin with — never steal focus from elsewhere on the page just because the tools changed.
+    if (hadFocus && i === index) node.focus()
   })
 
   return index
