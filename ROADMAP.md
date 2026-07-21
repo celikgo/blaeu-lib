@@ -7,7 +7,7 @@ need an ADR before a line is written.
 Nothing here is a promise of a date. It is a statement of intent and of sequence, which is
 the more useful thing to publish.
 
-## Before anything else: close the two edges we already know about
+## Before anything else: close the edge we already know about
 
 **Browser-mode tests for `MapLibreRenderer`.** The suite (500+ tests) runs against
 `FakeRenderer`, which proves the renderer seam is real but leaves exactly one surface
@@ -17,12 +17,8 @@ we call MapLibre correctly — not asserting on MapLibre's internal source JSON,
 testing MapLibre — is the highest-value test we have not written. It is first because
 everything below it makes the renderer seam matter more.
 
-**A commit path that owns its own pipeline run.** `Command.execute()` is synchronous and the
-commit pipeline is async, so `commands.dispatch()` does not run the pipeline; a write that
-must be validated runs `await map.commit.run(ctx)` first and dispatches only if it survived
-(see ADR 0004). That works and is honest, but it is a footgun for anyone who assumes
-`dispatch()` validates. The likely shape is an explicit `dispatchAsync()` that owns the run.
-It is a contract change, so it gets an ADR.
+_(The other edge listed here — a commit path that owns its own pipeline run — has shipped as
+`commands.commit()`; see [ADR 0009](./docs/adr/0009-commit-commands.md).)_
 
 ## v2
 
