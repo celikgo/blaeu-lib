@@ -329,7 +329,7 @@ describe('BlaeuFeatureStore — the write path', () => {
       const before = store.snapshot()
 
       const updated: BlaeuFeature[] = []
-      events.on('feature:updated', (event) => updated.push(...event.features))
+      events.on('feature:updated', (event) => updated.push(...event.payload.features))
       const changes: StoreChange[] = []
       store.onChange((change) => changes.push(change))
 

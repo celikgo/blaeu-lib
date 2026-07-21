@@ -662,8 +662,6 @@ describe('procedural generation', () => {
    */
   it('validates what a generator produced, with the same rule that guards a click', async () => {
     const map = await gameMap({ bounds: [-256, -256, 256, 256] })
-    const issues = vi.fn()
-    map.events.on('validation:issues', issues)
 
     map.plugin('game-entity').onGenerate(({ world }) => [
       {

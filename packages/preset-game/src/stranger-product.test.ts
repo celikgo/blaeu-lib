@@ -124,7 +124,7 @@ function createDepthBandLayerType(
  * tool in the product — including my sounding tool, which contains not one line
  * about snapping — lands exactly on the buoy.
  */
-function createBuoyProvider(store: TestMap['store']): SnapProvider {
+function createBuoyProvider(store: PluginContext<unknown>['store']): SnapProvider {
   return {
     id: 'hydro:buoy',
     // Above vertex (100): in a harbour a buoy outranks any old polygon corner.
@@ -139,7 +139,7 @@ function createBuoyProvider(store: TestMap['store']): SnapProvider {
         .all()
         .flatMap((buoy): SnapCandidate[] => {
           if (buoy.geometry.type !== 'Point') return []
-          const at = buoy.geometry.coordinates as LngLat
+          const at = buoy.geometry.coordinates as unknown as LngLat
           const px = ctx.project(at)
           const distancePx = Math.hypot(px.x - cursor.x, px.y - cursor.y)
           if (distancePx > tolerancePx) return []
@@ -150,7 +150,7 @@ function createBuoyProvider(store: TestMap['store']): SnapProvider {
               distancePx,
               priority: 150,
               feature: buoy.id,
-              hint: `Buoy ${String(buoy.properties.name ?? '')}`,
+              hint: `Buoy ${String(buoy.properties['name'] ?? '')}`,
             },
           ]
         })
@@ -168,9 +168,9 @@ function maxDepthRule(): ValidationRule {
   return {
     id: 'hydro:max-depth',
     severity: 'error',
-    appliesTo: (f) => typeof f.properties.depth === 'number',
+    appliesTo: (f) => typeof f.properties['depth'] === 'number',
     check(feature: BlaeuFeature): readonly ValidationIssue[] {
-      const depth = feature.properties.depth as number
+      const depth = feature.properties['depth'] as number
       if (depth <= MAX_DEPTH_M) return []
       return [
         {
@@ -360,7 +360,7 @@ describe('a stranger builds HydroChart without touching packages/core', () => {
 
     const drawn = map.test.renderer.sources.get(SOUNDINGS) ?? []
     expect(drawn).toHaveLength(1)
-    expect(drawn[0]!.properties.depth).toBe(37)
+    expect(drawn[0]!.properties['depth']).toBe(37)
 
     map.destroy()
   })
@@ -378,7 +378,7 @@ describe('a stranger builds HydroChart without touching packages/core', () => {
     const snapped = map.store.collection(SOUNDINGS).all()
     expect(snapped).toHaveLength(1)
     // The tool contains no snapping code. It landed on the buoy anyway.
-    const at = (snapped[0]!.geometry as { coordinates: LngLat }).coordinates
+    const at = (snapped[0]!.geometry as unknown as { coordinates: LngLat }).coordinates
     expectWithinMetres(at, BUOY, 0.01)
 
     // And the snap engine reports MY kind, which core does not define.
@@ -391,7 +391,7 @@ describe('a stranger builds HydroChart without touching packages/core', () => {
 
     const all = map.store.collection(SOUNDINGS).all()
     expect(all).toHaveLength(2)
-    const unsnapped = all[1]!.geometry as { coordinates: LngLat }
+    const unsnapped = all[1]!.geometry as unknown as { coordinates: LngLat }
     expect(map.crs.distance(unsnapped.coordinates, BUOY)).toBeGreaterThan(1)
 
     map.destroy()
@@ -525,8 +525,8 @@ describe('a stranger builds HydroChart without touching packages/core', () => {
     ).toThrow(/unknown layer type/)
 
     const after = map.debug.snapshot()
-    expect(after.listeners).toBeLessThanOrEqual(before.listeners)
-    expect(after.middleware).toBeLessThanOrEqual(before.middleware)
+    expect(after['listeners']).toBeLessThanOrEqual(before['listeners']!)
+    expect(after['middleware']).toBeLessThanOrEqual(before['middleware']!)
 
     map.destroy()
   })

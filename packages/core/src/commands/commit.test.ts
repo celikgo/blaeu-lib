@@ -84,7 +84,7 @@ describe('the commit pipeline runs on the write path', () => {
     // whose symptom is "I fixed the parcel and now it says it already exists".
     expect(map.store.snapshot()).toEqual(before)
     expect(added).toHaveLength(0)
-    expect(map.debug.snapshot().features).toBe(0)
+    expect(map.debug.snapshot()['features']).toBe(0)
 
     map.destroy()
   })

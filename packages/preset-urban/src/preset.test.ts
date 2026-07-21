@@ -208,7 +208,9 @@ describe('urbanPlanningPreset — options', () => {
     const preset = urbanPlanningPreset({ zoningCategories: categories, defaultCategory: 'YA' })
 
     const fill = preset.layers?.[0]
-    expect(fill?.style?.fill?.color).toEqual([
+    // The zoning layer ships a static style object, not a theme function.
+    const style = fill?.style
+    expect(typeof style === 'object' ? style.fill?.color : undefined).toEqual([
       'match',
       ['get', 'zoning'],
       'TUR',

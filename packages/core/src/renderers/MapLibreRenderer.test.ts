@@ -96,7 +96,7 @@ const { FakeMapLibreMap } = vi.hoisted(() => {
     addSource(id: string, def: Record<string, unknown>): void {
       if (this.sources.has(id)) throw new Error(`fake maplibre: source "${id}" already exists`)
       this.sources.set(id, {
-        type: String(def.type),
+        type: String(def['type']),
         def,
         setData: (data: unknown) => this.lastData.set(id, data),
       })

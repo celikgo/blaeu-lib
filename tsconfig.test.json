@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // Type-checks the whole monorepo *including* `*.test.ts`. The build configs
+  // (`packages/*/tsconfig.json`) exclude tests so they never emit into `dist`, which also
+  // means `tsc --build` never checks them — a type error in a test used to pass both
+  // typecheck and vitest (esbuild strips types at runtime). `npm run typecheck:tests` runs
+  // this, no emit, against package *source* (paths resolve `@blaeu/*` to src), so a broken
+  // test is caught in CI. Examples have their own gate (`typecheck:examples`).
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false
+  },
+  // Both roots vitest discovers tests from (`test.include` in vitest.config.ts), so no file
+  // vitest runs can escape this check — even a future `packages/*/test/` suite.
+  "include": ["packages/*/src/**/*", "packages/*/test/**/*"]
+}
