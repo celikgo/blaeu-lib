@@ -100,7 +100,9 @@ than an explicit one you can test.
   asked to do_ can undo approximately; only a command that captures _what the store actually
   did_ — the minted ids, the stamped meta — can undo exactly. Getting this wrong produces a
   bug that surfaces three actions later, which is why the round-trip test is mandatory.
-- **Bad, and open.** `execute()` is synchronous while the commit pipeline is async, so
-  `dispatch()` does not run the commit pipeline itself. Today a write that must be validated
-  runs `await map.commit.run(ctx)` first and dispatches only if it survived. That is a real
-  ergonomic wart; see ADR 0004 and the roadmap.
+- **Resolved.** `execute()` is synchronous while the commit pipeline is async, so `dispatch()`
+  does not run the pipeline — and this section used to call that an open ergonomic wart, with a
+  validated write having to run `await map.commit.run(ctx)` by hand first and dispatch only if it
+  survived. That workaround is gone: a durable write now goes through `commands.commit()`, which
+  runs the pipeline and applies the write in one call, and `dispatch()` refuses a `CommitCommand`
+  outright. See [ADR 0009](./0009-commit-commands.md).

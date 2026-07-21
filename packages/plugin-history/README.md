@@ -31,10 +31,12 @@ history.undoLabel // → 'Move vertex' — feed it straight to the menu item
 ```
 
 Undo already works at this point for _every_ plugin on the map, because they all
-mutate through the bus:
+mutate through the bus. A durable write is a `commit` — `dispatch` is for transient
+scaffolding only and refuses a feature-writing command, at compile time and at
+runtime both:
 
 ```ts
-map.commands.dispatch(new AddFeaturesCommand('parcels', [{ geometry }]))
+await map.commands.commit(new AddFeaturesCommand('parcels', [{ geometry }]))
 history.undo() // the parcel is gone, byte for byte as before
 ```
 

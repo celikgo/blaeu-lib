@@ -460,13 +460,14 @@ A library honest about its edges is worth more than one that is not, so:
   rather than aspirational — but it means `MapLibreRenderer` itself is verified by reading
   and by hand. A browser-mode Vitest run against a real WebGL context is the highest-value
   test we have not written.
-- **The commit pipeline is not automatically run by `commands.dispatch()`.** Commands are
-  synchronous; the commit pipeline is async. Today, a write that must be validated runs
-  `await map.commit.run(ctx)` first and dispatches only if it was not rejected — which is
-  what `preset-game`'s entity placement does, and it is the pattern to copy. Making
-  `dispatch` async would make every tool's click handler async; making the pipeline sync
-  would forbid a server-side check. Resolving that properly (probably a `dispatchAsync`)
-  is on the roadmap and is a contract change, so it will get an ADR.
+- **Durable writes are async; interaction writes are not.** A write that must be validated
+  goes through `await commands.commit(cmd)`, which runs the async commit pipeline and applies
+  the write only if nothing rejected — `preset-game`'s entity placement is the reference.
+  Transient scaffolding (previews, handles) uses the synchronous `commands.dispatch(cmd)`,
+  which skips the pipeline and refuses a feature-writing command outright. That asymmetry is
+  deliberate — making `dispatch` async would make every tool's click handler async; making the
+  pipeline sync would forbid a server-side check — so a tool fires the commit without awaiting
+  it and reacts to the resulting event. See ADR 0009.
 - **No React (or Vue, or Svelte) binding.** `@blaeu/plugin-ui` is framework-free DOM on
   purpose, and every subscription returns a `Disposable` that maps cleanly onto an effect
   cleanup — but there is no `@blaeu/react` package yet.

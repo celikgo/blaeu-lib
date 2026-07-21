@@ -310,15 +310,22 @@ The rubber-band preview is cleared here, _before_ the transaction, and its comma
 ### 3.2 The command bus
 
 ```ts
-const result = ctx.commands.transaction(label, () => {
-  const dispatched = ctx.commands.dispatch(new AddFeaturesCommand(collection, [input], { label }))
-  if (!dispatched.ok)
-    throw new Error(dispatched.rejectedReason ?? 'the command bus rejected the shape')
-  created = dispatched.value?.[0]
-})
+// `commit`, not `dispatch`: this is the write that makes the shape real, so it is the
+// write the product's rules get to refuse. `dispatch` is the transient-scaffolding path
+// (the rubber-band preview above) and refuses a feature-writing command outright.
+const result = await ctx.commands.commit(new AddFeaturesCommand(collection, [input], { label }))
+
+const created = result.value?.[0]
+if (!result.ok || created === undefined) {
+  this.cancel(result.rejectedReason ?? 'the commit pipeline rejected the shape')
+  return undefined
+}
 ```
 
-`BlaeuCommandBus.dispatch()`:
+Both entry points funnel into the same execute step — `commit()` first runs the command
+through the async pipeline (§3.3) and applies it only if nothing rejected; `dispatch()` skips
+the pipeline and is for transient scaffolding, refusing a `CommitCommand` at compile time
+(`intent?: never`) and at runtime both. Once a command reaches its execute step the bus:
 
 1. `emitCancellable('before:command:execute', { command })`. **A veto here costs nothing to
    clean up** — the store has not been touched. This is where a permission check or a
@@ -341,6 +348,7 @@ const result = ctx.commands.transaction(label, () => {
   readonly operation: 'add' | 'update' | 'remove',
   features: BlaeuFeature[],              // mutable — rewrite them
   readonly previous: readonly BlaeuFeature[],
+  readonly crs: CrsService,              // the map's *live* working plane, for survey-grade maths
   readonly command: Command | undefined,
   reject(reason: string): void,
   readonly rejected: boolean,
@@ -363,26 +371,24 @@ Two things register there today:
   disagrees with the boundary is the single most common source of a cadastral dispute, and
   the cheapest way never to have one is to make the field un-typeable.
 
-**Where it runs, honestly.** `Command.execute()` is synchronous and the pipeline is async,
-so `dispatch()` does not run the pipeline itself. A write that must be validated runs the
-pipeline explicitly _before_ dispatching, and dispatches only if it survived —
-`preset-game`'s `EntitySession.place()` is the reference implementation:
+**Where it runs.** `Command.execute()` is synchronous and the pipeline is async, so
+`dispatch()` deliberately does _not_ run the pipeline — it is the transient-scaffolding path
+(previews, handles), and it refuses a feature-writing `CommitCommand` at compile time
+(`intent?: never`) and at runtime both. A durable write goes through `commands.commit()`,
+which runs the pipeline and then applies the write only if nothing rejected — one call,
+validated:
 
 ```ts
-const commit = createCommitContext([feature])
-await ctx.commit.run(commit)
-if (commit.rejected) return [] // nothing was ever written
-
-ctx.commands.transaction(label, () => {
-  for (const [collection, features] of groupByCollection(commit.features)) {
-    ctx.commands.dispatch(new AddFeaturesCommand(collection, features, { label }))
-  }
-})
+const result = await ctx.commands.commit(new AddFeaturesCommand(collection, [input], { label }))
+if (!result.ok) return [] // rejected in the pipeline; nothing was ever written
 ```
 
-This is a genuine sharp edge in the kernel, not a subtlety we are proud of; it is called out
-in the README's limitations and on the roadmap. The seam and the semantics are right; the
-ergonomics are not, and fixing them is a contract change that will get its own ADR.
+`preset-game`'s `EntitySession.place()` is the reference. It _used to_ hand-roll a
+`CommitContext` and call `ctx.commit.run()` itself, back when the kernel never ran the pipeline
+on the write path at all — that hole is closed. A placement's generators run _inside_ the same
+commit, as middleware, so the building and the crates it spawns are validated together, land
+together and undo together; the appended features come back through `AddFeaturesCommand.adopt()`,
+each routed to the collection its own `meta` names. See ADR 0009 for the contract.
 
 ### 3.4 The store writes, and announces
 
@@ -477,7 +483,7 @@ You want to add X → register a Y.
 | Add a new kind of snap target                       | `SnapProvider`          | `ctx.tryPlugin('snap')?.addProvider()`  | Your targets appear in every tool that snaps, including future ones      |
 | Add a whole new rendering category                  | `LayerTypeDef`          | `ctx.layers.registerType(def)`          | `map.layers.add({ type: 'your-type' })` — deck.gl, heatmap, tile-grid    |
 | Add an interactive mode                             | `Tool`                  | `ctx.tools.register(id, tool)`          | Exclusive activation, cursor, post-pipeline events                       |
-| Make something undoable                             | `Command`               | `ctx.commands.dispatch(cmd)`            | Cross-plugin undo/redo, transactions, coalescing — free                  |
+| Make a durable edit undoable                        | `CommitCommand`         | `ctx.commands.commit(cmd)`              | Cross-plugin undo/redo, transactions, validation — free                  |
 | Block a write on a domain rule                      | `ValidationRule`        | `ctx.validation.add(rule)`              | Runs last in the commit pipeline; `error` blocks, `warning` annotates    |
 | Add a coordinate system                             | `ProjectedCrs` spec     | `ctx.crs.register(spec)`                | Every planar facility (snap, grid, area, topology) works in it unchanged |
 | Add UI chrome                                       | `Control`               | `map.plugin('ui').addControl(c, pos)`   | Themed, localised, torn down with the plugin                             |
