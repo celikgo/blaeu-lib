@@ -97,11 +97,20 @@ export function gameMapPreset(options: GameOptions = {}): Preset {
       // intersection) are meaningless on a tile map and would fight the grid for
       // the pointer — so they are simply not enabled. Same plugin as cadastre;
       // opposite configuration.
+      //
+      // The built-in `grid` provider is a *square* lattice in the working CRS, so it
+      // belongs to a square world only. On a hex world the hex-centre provider that
+      // `tileGridPlugin` registers owns snapping; installing the square grid beside it
+      // would fight it for the pointer at the same priority-10 floor — the closer of the
+      // two lattices wins per event, so the indicator, the draw tool and a placed entity
+      // all land on square intersections a hex world has no cells at. So a hex world
+      // enables no built-in provider (the plugin must still install, for tileGridPlugin
+      // to add its provider into it).
       [
         snapPlugin,
         {
           tolerance: o.snapTolerance,
-          providers: ['grid'],
+          providers: o.gridType === 'hex' ? [] : ['grid'],
           gridSize: o.gridSize,
         },
       ],

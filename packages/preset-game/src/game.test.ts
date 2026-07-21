@@ -220,6 +220,61 @@ describe('grid snapping, as interaction middleware', () => {
     // The configured precision is the tightest honest tolerance here.
     expectWorldClose(worldPositionOf(world, placed[0]!), centre, 0.001)
   })
+
+  /**
+   * The hex-world snap must be hex-*only*. This is the test the entity path above cannot
+   * be: `place()` re-snaps through `world.snap`, which is hex-aware, so it lands on a hex
+   * centre even if the interaction pipeline wrongly snapped to a square intersection first
+   * — hiding the bug. The probe reads `interaction.lngLat` straight from the middleware, so
+   * it sees which lattice actually won. If the preset installs the built-in square `grid`
+   * provider on a hex world, it wins at distance 0 on any square corner and the tool sees
+   * a point a hex world has no cell at.
+   */
+  it('never snaps a tool to a square intersection on a hex world', async () => {
+    // A generous tolerance so the nearest hex centre is comfortably in reach from a square
+    // corner: the discriminator is *which* lattice wins, not whether anything snaps.
+    const map = await gameMap({
+      gridType: 'hex',
+      bounds: [-256, -256, 256, 256],
+      snapTolerance: 40,
+    })
+    const world = map.plugin('game-world')
+
+    // Dead on a square-grid intersection (96 = 3·32) that is not a hex centre.
+    const square: WorldXY = [96, 96]
+    const hex = world.snap(square)
+    // Guard the test itself: the two lattices must actually disagree here, or it proves nothing.
+    expect(Math.hypot(hex[0] - square[0], hex[1] - square[1])).toBeGreaterThan(2)
+
+    const seen: LngLat[] = []
+    map.tools.register('stranger:probe', {
+      id: 'stranger:probe',
+      activate(): void {},
+      deactivate(): void {},
+      onClick(interaction): boolean {
+        seen.push(interaction.lngLat)
+        return true
+      },
+    } satisfies Tool)
+    map.tools.activate('stranger:probe')
+
+    map.test.click(at(world, square))
+
+    expect(seen).toHaveLength(1)
+    // The tool sees the nearest hex centre, not the square corner it clicked.
+    expectWorldClose(world.toWorld(seen[0]!), hex, 0.01)
+  })
+
+  it('registers the hex-centre provider and no square grid provider on a hex world', async () => {
+    const map = await gameMap({ gridType: 'hex', bounds: [-256, -256, 256, 256] })
+
+    const ids = map
+      .plugin('snap')
+      .providers()
+      .map((p) => p.id)
+    expect(ids).toContain('hex-centre')
+    expect(ids).not.toContain('grid')
+  })
 })
 
 function expectWorldClose(actual: WorldXY, expected: WorldXY, tolerance = 1e-6): void {

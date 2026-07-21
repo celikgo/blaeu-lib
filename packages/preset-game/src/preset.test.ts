@@ -144,6 +144,16 @@ describe('gameMapPreset — shape', () => {
     expect(snap['tolerance']).toBe(16)
   })
 
+  it('drops the built-in square grid provider on a hex world', () => {
+    // The built-in `grid` provider is a *square* lattice; on a hex world the hex-centre
+    // provider tileGridPlugin registers owns snapping, and the square one would fight it
+    // for the pointer at the same priority. So a hex world installs no built-in provider.
+    const hex = optionsFor(gameMapPreset({ gridSize: 64, gridType: 'hex' }), 'snap')
+    expect(hex['providers']).toEqual([])
+    // The plugin is still installed — it must be, for tileGridPlugin to register into it.
+    expect(pluginIds(gameMapPreset({ gridType: 'hex' }))).toContain('snap')
+  })
+
   /**
    * `working` must be absent, and that absence is load-bearing.
    *
