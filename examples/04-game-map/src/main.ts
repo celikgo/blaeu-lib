@@ -251,10 +251,11 @@ function deleteSelection(): void {
   if (ids.length === 0) return
 
   // One command, therefore one undo step — and the history plugin has never heard of
-  // entities, zones, or this page. It knows only that a `Command` was dispatched and
+  // entities, zones, or this page. It knows only that a `Command` was committed and
   // that a `Command` can be undone. That is the whole of why undo works across
-  // plugins that have never heard of each other.
-  map.commands.dispatch(new RemoveFeaturesCommand(ids, { label: `Delete ${ids.length}` }))
+  // plugins that have never heard of each other. A durable delete is a `commit`, fired
+  // and forgotten so this handler stays sync.
+  void map.commands.commit(new RemoveFeaturesCommand(ids, { label: `Delete ${ids.length}` }))
   select.clear()
 }
 

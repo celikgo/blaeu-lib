@@ -234,7 +234,7 @@ function seedZones(): readonly FeatureInput[] {
  * The history is then cleared: the plan as it loads is the floor, not a step the user
  * can accidentally Ctrl-Z their way underneath.
  */
-map.commands.dispatch(new AddFeaturesCommand(COLLECTION, seedZones(), { label: 'Load plan' }))
+await map.commands.commit(new AddFeaturesCommand(COLLECTION, seedZones(), { label: 'Load plan' }))
 map.plugin('history').clear()
 map.renderer.fitBounds(boundsOf(map.store.collection(COLLECTION).all()), { padding: 64 })
 
@@ -281,7 +281,8 @@ button('edit-zone').addEventListener('click', () => {
 button('delete-zone').addEventListener('click', () => {
   const ids = [...select.selected]
   if (ids.length === 0) return
-  map.commands.dispatch(new RemoveFeaturesCommand(ids, { label: 'Delete zone' }))
+  // Durable delete, so `commit`; fire-and-forget so the handler stays sync.
+  void map.commands.commit(new RemoveFeaturesCommand(ids, { label: 'Delete zone' }))
   select.clear()
 })
 
@@ -453,8 +454,11 @@ function renderField(field: AttributeField, feature: BlaeuFeature): HTMLElement 
 
 /** Every attribute edit is a command, so every attribute edit is undoable. There is no other write path. */
 function write(id: FeatureId, patch: Record<string, Json | undefined>, label: string): void {
-  const result = map.commands.dispatch(new SetPropertiesCommand([id], patch, { label }))
-  if (!result.ok) status(`Rejected: ${result.rejectedReason ?? 'a commit middleware vetoed it'}`)
+  // Durable attribute edit, so `commit`; fire-and-forget so the caller stays sync, and
+  // report a veto when the pipeline lands.
+  void map.commands.commit(new SetPropertiesCommand([id], patch, { label })).then((result) => {
+    if (!result.ok) status(`Rejected: ${result.rejectedReason ?? 'a commit middleware vetoed it'}`)
+  })
 }
 
 /* ================================================================== *

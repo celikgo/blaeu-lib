@@ -310,7 +310,10 @@ export function createAttributePanel(map: BlaeuMap): AttributePanel {
       // but a command per keystroke is still a command per keystroke.)
       input.addEventListener('change', () => {
         const next = input.value.trim()
-        map.commands.dispatch(
+        // A durable attribute change, so `commit` (not `dispatch`) — it runs the pipeline
+        // and is undoable. Fire-and-forget: the handler stays sync and the map updates on
+        // the resulting store event.
+        void map.commands.commit(
           new SetPropertiesCommand(
             [feature.id],
             // `undefined` *removes* the key, which is what a cleared field means —

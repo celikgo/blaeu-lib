@@ -21,17 +21,11 @@
  *    exports it.
  *
  * ────────────────────────────────────────────────────────────────────────────────
- * ⚠ **DX friction, stated plainly** — the kernel does not itself route
- * `commands.dispatch()` through the commit pipeline. `BlaeuCommandBus.dispatch` is
- * synchronous and the pipeline is async, so nothing in `packages/core` calls
- * `commit.run()`. That means a preset's commit middleware — including its validation
- * rules and its derived area — only runs if the *application* runs it. So this file
- * runs it, once, in one place, and everything that writes goes through here.
- *
- * That is a real seam a host app has to know about, and `preset-game` works around it
- * the same way (see `entity.ts`). The right fix lives in the kernel: an async
- * `commands.commit(command)` that walks the pipeline and then dispatches. Until then,
- * this module *is* the pattern — and it is short, which is the consolation.
+ * The write path is `commands.commit()` — async, because the pipeline may ask a server.
+ * It runs every commit middleware (the validation rules *and* the derived area) and
+ * writes only if nothing rejected, so a validated add is a single `await`. That is what
+ * `commitAdd` below does. `reconcile` runs the pipeline by hand — `map.commit.run()` — for
+ * the different job of re-deriving a value over features that are *already* in the store.
  * ────────────────────────────────────────────────────────────────────────────────
  */
 
@@ -42,6 +36,7 @@ import {
   type Command,
   type CommandContext,
   type CommitContext,
+  type CrsService,
   type FeatureProperties,
   type BlaeuFeature,
   type BlaeuMap,
@@ -57,6 +52,7 @@ function createCommitContext(
   operation: CommitContext['operation'],
   features: readonly BlaeuFeature[],
   previous: readonly BlaeuFeature[],
+  crs: CrsService,
 ): CommitContext {
   let rejected = false
   let reason: string | undefined
@@ -68,6 +64,8 @@ function createCommitContext(
     // `yuzolcumu`, and whatever survives to the end of the pipeline is what lands.
     features: [...features],
     previous,
+    // The live working plane, so the derived area is computed in metres on the right belt.
+    crs,
     command: undefined,
     reject(next: string): void {
       // First reason wins — it is the one closest to the cause.
@@ -129,37 +127,28 @@ export async function commitAdd(
   features: readonly BlaeuFeature[],
   label: string,
 ): Promise<CommitResult> {
-  const ctx = createCommitContext('add', features, [])
-  await map.commit.run(ctx)
+  // `commands.commit()` runs the whole commit pipeline — every validation rule and the
+  // derived-area middleware — and writes only if nothing rejected, as one undo step
+  // (however many parcels this was, the surveyor did one thing, so Ctrl+Z undoes one).
+  const result = await map.commands.commit(new AddFeaturesCommand(collection, features, { label }))
 
-  if (ctx.rejected) {
-    return { ok: false, reason: ctx.rejectReason, features: [] }
+  if (!result.ok) {
+    // On rejection nothing is written: no feature, no history entry, nothing to undo. The
+    // `validation:failed` event has already fired with the issues, which is how the built-in
+    // issue panel fills itself without this function telling it anything.
+    return { ok: false, reason: result.rejectedReason, features: [] }
   }
-
-  const written: BlaeuFeature[] = []
-  // One transaction: however many parcels this was, the surveyor did one thing, so
-  // Ctrl+Z undoes one thing.
-  const result = map.commands.transaction(label, () => {
-    const dispatched = map.commands.dispatch(
-      new AddFeaturesCommand(collection, ctx.features, { label }),
-    )
-    if (!dispatched.ok) throw new Error(dispatched.rejectedReason ?? 'komut reddedildi')
-    written.push(...(dispatched.value ?? []))
-  })
-
-  if (!result.ok) return { ok: false, reason: result.rejectedReason, features: [] }
-  return { ok: true, reason: undefined, features: written }
+  return { ok: true, reason: undefined, features: result.value ?? [] }
 }
 
 /**
  * Re-run the pipeline over features that have *already* changed, and write back
  * whatever it derived.
  *
- * This exists because of the same gap as above, seen from the other side. When the
- * edit plugin moves a shared corner it dispatches its own `MoveVerticesCommand`
- * straight to the bus — correctly; it is a geometry edit — and the commit pipeline
- * never sees it. So after a drag the geometry is new and `yuzolcumu` is stale, which
- * for a *derived* field is the one thing that must never happen.
+ * A defensive re-derive over parcels that are *already* in the store. An edit committed
+ * through the pipeline re-derives its own `yuzolcumu` already; this is the belt-and-braces
+ * guard for a value drifting some other way, because for a *derived* field a stale number
+ * is the one thing that must never happen.
  *
  * We therefore re-derive and stamp. Two details are load-bearing:
  *
@@ -181,7 +170,7 @@ export async function reconcile(
 ): Promise<string | undefined> {
   if (features.length === 0) return undefined
 
-  const ctx = createCommitContext('update', features, features)
+  const ctx = createCommitContext('update', features, features, map.crs)
   await map.commit.run(ctx)
 
   const changed = ctx.features.filter((next) => {

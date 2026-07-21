@@ -16,6 +16,7 @@
     "build": "npm run build --workspaces --if-present",
     "dev": "npm run dev --workspaces --if-present",
     "typecheck": "tsc --build --pretty",
+    "typecheck:examples": "for d in examples/*/; do tsc -p \"${d}tsconfig.json\" --noEmit || exit 1; done",
     "typecheck:watch": "tsc --build --watch",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -26,7 +27,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "clean": "rm -rf packages/*/dist packages/*/.tsbuild packages/*/*.tsbuildinfo tsconfig.tsbuildinfo examples/*/dist",
-    "verify": "npm run lint:boundaries && npm run typecheck && npm run lint && npm run test && npm run build",
+    "verify": "npm run lint:boundaries && npm run typecheck && npm run typecheck:examples && npm run lint && npm run test && npm run build",
     "scaffold": "node scripts/scaffold-packages.mjs"
   },
   "devDependencies": {
