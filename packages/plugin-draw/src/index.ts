@@ -176,6 +176,14 @@ export function drawPlugin(options: DrawOptions = {}): BlaeuPlugin<DrawApi, Draw
           ctx.tools.activate(`draw:${mode}`)
         },
         cancel(): void {
+          // The tool first, then the session. `active.cancel()` clears the session's vertices
+          // and preview and announces `draw:cancel`, but a single-gesture tool also holds an
+          // anchor in its own closure (the rectangle's `origin`, the circle's `centre`,
+          // freehand's `tracing`) that the session cannot reach. Without `abort()` the pending
+          // `pointerup` still committed the shape — a feature written *after* the application
+          // was told the drawing had been abandoned.
+          const mode = active.mode
+          if (mode !== null) tools.get(mode)?.abort()
           active.cancel('cancelled by the application')
         },
         finish(): void {

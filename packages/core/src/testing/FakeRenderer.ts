@@ -6,6 +6,7 @@ import type {
   CameraOptions,
   LayerStyle,
   Renderer,
+  RendererKeyEvent,
   RendererPointerEvent,
 } from '../types/renderer.js'
 import type { InteractionConfig } from '../types/config.js'
@@ -119,6 +120,9 @@ export class FakeRenderer implements Renderer {
   #camera: Camera
   #resolve: FeatureResolver | undefined
   #pointerHandlers: ((event: RendererPointerEvent) => void)[] = []
+  #keyHandlers: ((event: RendererKeyEvent) => void)[] = []
+  /** Where the last emitted pointer was, so a key press can be positioned like a real one. */
+  #lastPointerLngLat: LngLat | undefined
   #cameraHandlers: ((camera: Camera, moving: boolean) => void)[] = []
 
   constructor(options: FakeRendererOptions = {}) {
@@ -391,6 +395,16 @@ export class FakeRenderer implements Renderer {
     }
   }
 
+  onKey(handler: (event: RendererKeyEvent) => void): Disposable {
+    this.#keyHandlers.push(handler)
+    return {
+      dispose: () => {
+        const i = this.#keyHandlers.indexOf(handler)
+        if (i >= 0) this.#keyHandlers.splice(i, 1)
+      },
+    }
+  }
+
   onCamera(handler: (camera: Camera, moving: boolean) => void): Disposable {
     this.#cameraHandlers.push(handler)
     return {
@@ -425,7 +439,39 @@ export class FakeRenderer implements Renderer {
       originalEvent: syntheticEvent(init.kind),
     }
 
+    this.#lastPointerLngLat = event.lngLat
     for (const handler of [...this.#pointerHandlers]) handler(event)
+    return event
+  }
+
+  /**
+   * Synthesise a key press, positioned where the pointer last was — which is what a real
+   * renderer reports, because a key event carries no position of its own.
+   *
+   * `at` overrides that for a test that wants to be explicit; with no pointer ever emitted and
+   * no override, it falls back to the camera centre.
+   */
+  emitKey(
+    key: string,
+    modifiers?: FakePointerEventInit['modifiers'],
+    at?: LngLat,
+  ): RendererKeyEvent {
+    const lngLat = at ?? this.#lastPointerLngLat ?? this.getCamera().center
+    const event: RendererKeyEvent = {
+      kind: 'keydown',
+      key,
+      lngLat,
+      screen: this.project(lngLat),
+      modifiers: {
+        shift: modifiers?.shift ?? false,
+        ctrl: modifiers?.ctrl ?? false,
+        alt: modifiers?.alt ?? false,
+        meta: modifiers?.meta ?? false,
+      },
+      originalEvent: syntheticEvent('keydown', key),
+    }
+
+    for (const handler of [...this.#keyHandlers]) handler(event)
     return event
   }
 
@@ -467,6 +513,7 @@ export class FakeRenderer implements Renderer {
     this.destroyed = true
     this.mounted = false
     this.#pointerHandlers = []
+    this.#keyHandlers = []
     this.#cameraHandlers = []
     this.#resolve = undefined
     this.sources.clear()
@@ -626,9 +673,21 @@ function inBox(
   return p.x >= box.minX && p.x <= box.maxX && p.y >= box.minY && p.y <= box.maxY
 }
 
-function syntheticEvent(type: string): Event {
-  if (typeof Event === 'function') return new Event(type)
+function syntheticEvent(type: string, key?: string): Event {
+  if (typeof Event === 'function') {
+    const event = new Event(type)
+    // The kernel reads `ctx.key`, not the DOM event — but a tool reaching for the original
+    // event should find the key on it rather than `undefined`, as it would on a real
+    // `KeyboardEvent`.
+    if (key !== undefined) Object.defineProperty(event, 'key', { value: key, enumerable: true })
+    return event
+  }
   // Older runtimes with no DOM `Event` global. Nothing in the kernel does more than
   // pass this through to a tool, so a structural stand-in is enough.
-  return { type, preventDefault: () => {}, stopPropagation: () => {} } as unknown as Event
+  return {
+    type,
+    ...(key !== undefined ? { key } : {}),
+    preventDefault: () => {},
+    stopPropagation: () => {},
+  } as unknown as Event
 }

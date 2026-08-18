@@ -42,6 +42,10 @@ export function sequenceTool(session: DrawSession, mode: 'line' | 'polygon'): Dr
 
     finish,
 
+    // Every vertex of a line or ring lives in the session, which the caller cancels — so
+    // there is no closure anchor here to clear.
+    abort: () => {},
+
     onClick(ctx: InteractionContext): boolean {
       const point = ctx.lngLat
 

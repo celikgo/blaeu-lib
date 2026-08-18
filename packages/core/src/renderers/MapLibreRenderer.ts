@@ -23,6 +23,7 @@ import type {
   CameraOptions,
   LayerStyle,
   Renderer,
+  RendererKeyEvent,
   RendererPointerEvent,
 } from '../types/renderer.js'
 
@@ -210,6 +211,22 @@ export class MapLibreRenderer implements Renderer {
   /** Held so a `setCursor` issued before `mount()` is not silently lost. */
   #cursor = ''
   #lastTap: { at: number; x: number; y: number } | undefined
+  readonly #keyHandlers = new Set<(event: RendererKeyEvent) => void>()
+  /**
+   * Where the pointer last was, in screen pixels — mouse or touch.
+   *
+   * A key press has no position of its own, but `InteractionContext` promises every tool a
+   * `lngLat`. This is the honest answer to "where is the user pointing?" at the moment they
+   * pressed Escape.
+   */
+  #lastPointerScreen: { x: number; y: number } | undefined
+  /**
+   * Where the last single-finger touch was, in screen pixels.
+   *
+   * Kept solely so `touchcancel` — which carries no usable position — can end the gesture at
+   * the place the finger actually was. See {@link MapLibreRenderer.onTouchCancel}.
+   */
+  #lastTouch: { x: number; y: number } | undefined
   #destroyed = false
 
   constructor(options: MapLibreRendererOptions = {}) {
@@ -795,6 +812,11 @@ export class MapLibreRenderer implements Renderer {
     return { dispose: () => this.#pointerHandlers.delete(handler) }
   }
 
+  onKey(handler: (event: RendererKeyEvent) => void): Disposable {
+    this.#keyHandlers.add(handler)
+    return { dispose: () => this.#keyHandlers.delete(handler) }
+  }
+
   onCamera(handler: (camera: Camera, moving: boolean) => void): Disposable {
     this.#cameraHandlers.add(handler)
     return { dispose: () => this.#cameraHandlers.delete(handler) }
@@ -812,8 +834,14 @@ export class MapLibreRenderer implements Renderer {
       ['touchmove', (e: MapTouchEvent) => this.#onTouch('pointermove', e)],
       ['touchend', (e: MapTouchEvent) => this.#onTouch('pointerup', e)],
       // A cancelled touch (a notification slides in, the browser takes the gesture)
-      // must still end the gesture, or a draw tool stays stuck mid-drag forever.
-      ['touchcancel', (e: MapTouchEvent) => this.#onTouch('pointerup', e)],
+      // must still end the gesture, or a draw tool stays stuck mid-drag forever — but it
+      // must not end it *somewhere*. See `#onTouchCancel`.
+      ['touchcancel', (e: MapTouchEvent) => this.#onTouchCancel(e)],
+
+      // The keyboard channel. MapLibre delegates `keydown` from the canvas container, so this
+      // arrives only when the map surface has focus — which is the right scope: Escape while
+      // the user is typing in a sidebar input must not cancel their drawing.
+      ['keydown', (e: { originalEvent: KeyboardEvent }) => this.#onKeyDown(e.originalEvent)],
 
       ['move', () => this.#dispatchCamera(true)],
       ['moveend', () => this.#dispatchCamera(false)],
@@ -841,11 +869,7 @@ export class MapLibreRenderer implements Renderer {
       this.#lastTap = undefined
       return
     }
-    // `touchcancel` can arrive with no touches at all, in which case MapLibre's
-    // centroid maths produces NaN — and a NaN coordinate renders as "nothing there"
-    // rather than as an error, which is the worst way to fail.
-    if (!Number.isFinite(event.point.x) || !Number.isFinite(event.point.y)) return
-
+    this.#lastTouch = event.point
     this.#dispatchPointer(kind, event)
     if (kind !== 'pointerup') return
 
@@ -862,6 +886,55 @@ export class MapLibreRenderer implements Renderer {
     } else {
       this.#lastTap = { at: now, x: event.point.x, y: event.point.y }
     }
+  }
+
+  /**
+   * End a gesture the browser took away — at the last place the finger actually was.
+   *
+   * `touchcancel` fires when the OS or browser seizes the gesture: a notification slides in, an
+   * incoming call, the edge-swipe navigation gesture. The tools still need the `pointerup` they
+   * are waiting for, or a rectangle stays anchored and the next tap completes a shape the user
+   * abandoned minutes ago.
+   *
+   * But the event carries no usable position, and forwarding it as an ordinary touch was
+   * worse than dropping it. maplibre builds `points` from `originalEvent.touches` for every
+   * type except `touchend`, and folds them with `reduce(…, new Point(0, 0))`. An empty touch
+   * list therefore does not yield `NaN` — it yields a perfectly **finite `Point(0, 0)`**, the
+   * top-left corner of the viewport. So the `Number.isFinite` guard that used to sit in
+   * `#onTouch` could never fire, and its comment was wrong for this version of maplibre. The
+   * observable failure: `tools/rectangle.ts` reads `ctx.lngLat` on pointer-up, so a
+   * notification arriving mid-drag committed a rectangle stretched to the map's corner.
+   * `circle.ts` and `freehand.ts` read the same field.
+   *
+   * Replaying the last real touch position is the honest answer. The finger was there a frame
+   * ago; a gesture that ends where it last was is the same thing a `touchend` would have
+   * reported, and it keeps every tool on the ordinary code path rather than needing a
+   * cancel-specific branch. If no touch was ever seen, there is no gesture to end.
+   */
+  #onTouchCancel(event: MapTouchEvent): void {
+    if (this.#destroyed) return
+    const at = this.#lastTouch
+    this.#lastTap = undefined
+    if (at === undefined) return
+    this.#lastTouch = undefined
+
+    const lngLat = this.#requireMap('touchcancel').unproject([at.x, at.y])
+    this.#emitPointer({
+      kind: 'pointerup',
+      lngLat: [lngLat.lng, lngLat.lat],
+      screen: { x: at.x, y: at.y },
+      button: 0,
+      // The real TouchEvent the browser handed us. It carries no usable position — that is the
+      // whole problem — but a listener inspecting `originalEvent.type` should see the truth
+      // (`touchcancel`), not a fabricated `touchend`.
+      modifiers: {
+        shift: event.originalEvent.shiftKey,
+        ctrl: event.originalEvent.ctrlKey,
+        alt: event.originalEvent.altKey,
+        meta: event.originalEvent.metaKey,
+      },
+      originalEvent: event.originalEvent,
+    })
   }
 
   #dispatchPointer(kind: RendererPointerEvent['kind'], event: MapMouseEvent | MapTouchEvent): void {
@@ -885,6 +958,12 @@ export class MapLibreRenderer implements Renderer {
       originalEvent: original,
     }
 
+    this.#lastPointerScreen = normalised.screen
+    this.#emitPointer(normalised)
+  }
+
+  /** The handler fan-out, shared by the pointer stream and the synthesised touch-cancel. */
+  #emitPointer(normalised: RendererPointerEvent): void {
     // Snapshot: a tool that deactivates itself on `dblclick` disposes its own
     // subscription mid-dispatch, and mutating the set under iteration would skip
     // whichever handler happened to be next.
@@ -894,7 +973,51 @@ export class MapLibreRenderer implements Renderer {
       } catch (err) {
         // One broken tool must not wedge the pointer stream for every other
         // listener — and must not leave MapLibre's own handlers half-run.
-        console.error(`[blaeu] pointer handler threw on "${kind}":`, err)
+        console.error(`[blaeu] pointer handler threw on "${normalised.kind}":`, err)
+      }
+    }
+  }
+
+  /**
+   * Turn a DOM key press into the kernel's `keydown`, positioned where the pointer last was.
+   *
+   * The position matters because `InteractionContext` promises every tool a `lngLat` and the
+   * interaction pipeline's middleware reads it. The last pointer position is the honest answer,
+   * and it is what `map.test.key()` has always used; with no pointer seen yet, the map centre is
+   * the only defensible fallback.
+   */
+  #onKeyDown(original: KeyboardEvent): void {
+    if (this.#destroyed || this.#keyHandlers.size === 0) return
+    const map = this.#map
+    if (!map) return
+
+    const screen = this.#lastPointerScreen ?? {
+      x: map.getCanvas().clientWidth / 2,
+      y: map.getCanvas().clientHeight / 2,
+    }
+    const lngLat = map.unproject([screen.x, screen.y])
+
+    const event: RendererKeyEvent = {
+      kind: 'keydown',
+      key: original.key,
+      lngLat: [lngLat.lng, lngLat.lat],
+      screen,
+      modifiers: {
+        shift: original.shiftKey,
+        ctrl: original.ctrlKey,
+        alt: original.altKey,
+        meta: original.metaKey,
+      },
+      originalEvent: original,
+    }
+
+    // Snapshot, for the same reason the pointer fan-out snapshots: a tool that deactivates
+    // itself on Escape disposes its own subscription mid-dispatch.
+    for (const handler of [...this.#keyHandlers]) {
+      try {
+        handler(event)
+      } catch (err) {
+        console.error(`[blaeu] key handler threw on "${original.key}":`, err)
       }
     }
   }
@@ -930,6 +1053,7 @@ export class MapLibreRenderer implements Renderer {
     this.#unbind?.()
     this.#unbind = undefined
     this.#pointerHandlers.clear()
+    this.#keyHandlers.clear()
     this.#cameraHandlers.clear()
     this.#layers.clear()
     this.#sources.clear()

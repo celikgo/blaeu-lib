@@ -36,6 +36,10 @@ export function freehandTool(session: DrawSession): DrawTool {
 
     finish: () => {},
 
+    abort: () => {
+      tracing = false
+    },
+
     onPointerDown(ctx: InteractionContext): boolean {
       tracing = true
       session.addVertex(ctx.lngLat)

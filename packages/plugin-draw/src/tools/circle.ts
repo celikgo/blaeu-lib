@@ -45,6 +45,10 @@ export function circleTool(session: DrawSession): DrawTool {
 
     finish: () => {},
 
+    abort: () => {
+      centre = null
+    },
+
     onPointerDown(ctx: InteractionContext): boolean {
       centre = ctx.lngLat
       session.addVertex(centre)
