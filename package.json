@@ -2,7 +2,7 @@
   "name": "blaeu-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "Blaeu — an extensible geospatial kernel. Plugin-first, preset-driven, MapLibre-powered.",
+  "description": "Blaeu \u2014 an extensible geospatial kernel. Plugin-first, preset-driven, MapLibre-powered.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -28,8 +28,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "clean": "rm -rf packages/*/dist packages/*/.tsbuild packages/*/*.tsbuildinfo tsconfig.tsbuildinfo examples/*/dist",
-    "verify": "npm run lint:boundaries && npm run typecheck && npm run typecheck:examples && npm run typecheck:tests && npm run lint && npm run test && npm run build",
-    "scaffold": "node scripts/scaffold-packages.mjs"
+    "verify": "npm run scaffold:check && npm run lint:boundaries && npm run typecheck && npm run typecheck:examples && npm run typecheck:tests && npm run lint && npm run test && npm run build",
+    "scaffold": "node scripts/scaffold-packages.mjs",
+    "scaffold:check": "node scripts/scaffold-packages.mjs --check"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
