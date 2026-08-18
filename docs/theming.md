@@ -138,6 +138,9 @@ the flat basemap from your `canvas`, and returns a complete, self-consistent the
 
 ```ts
 import { buildTheme } from '@blaeu/core'
+import type { BlaeuMap } from '@blaeu/core'
+
+declare const map: BlaeuMap
 
 const brand = buildTheme({
   id: 'acme',

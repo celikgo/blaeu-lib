@@ -25,7 +25,7 @@ map.events.on('select:changed', (e) => {
   console.log(e.payload.added, e.payload.removed, e.payload.selected.size)
 })
 
-select.selectByFilter((f) => f.properties.ada === '1234')
+select.selectByFilter((f) => f.properties['ada'] === '1234')
 console.log(map.crs.area(select.features[0]!.geometry))
 ```
 

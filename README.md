@@ -104,6 +104,7 @@ _warnings_, because a planner dragging a commercial zone across a residential on
 what it looks like is doing their job.
 
 ```ts
+import { createBlaeuMap } from '@blaeu/core'
 import { urbanPlanningPreset } from '@blaeu/preset-urban'
 
 const map = await createBlaeuMap({
@@ -124,6 +125,7 @@ not carry JSTS at all). The world is a plane in arbitrary units, registered thro
 generation is commit middleware — the same seam cadastre uses for topology validation.
 
 ```ts
+import { createBlaeuMap } from '@blaeu/core'
 import { gameMapPreset } from '@blaeu/preset-game'
 
 const map = await createBlaeuMap({

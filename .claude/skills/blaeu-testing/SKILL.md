@@ -15,7 +15,9 @@ preset, the store, the pipelines, undo/redo — tests in milliseconds with no GP
 ## The harness
 
 ```ts
-import { createTestMap } from '@blaeu/core/testing'
+import { createTestMap, parcelFixture } from '@blaeu/core/testing'
+import { drawPlugin } from '@blaeu/plugin-draw'
+import { snapPlugin } from '@blaeu/plugin-snap'
 
 const map = await createTestMap({
   plugins: [drawPlugin(), snapPlugin({ tolerance: 10 })],
@@ -54,15 +56,20 @@ it('draws without the snap plugin present', async () => {
 **2. Teardown.** Removing a plugin leaks nothing.
 
 ```ts
+import { expect, it } from 'vitest'
+import { createTestMap } from '@blaeu/core/testing'
+import { drawPlugin } from '@blaeu/plugin-draw'
+
 it('leaks nothing on removal', async () => {
   const map = await createTestMap({ plugins: [drawPlugin()] })
   await map.remove('draw')
+  // Exactly the keys `BlaeuMap.debug.snapshot()` returns. Asserting a key it does not
+  // return — `sources`, `rafHandles` — fails `toMatchObject` on a plugin that leaks nothing.
   expect(map.debug.snapshot()).toMatchObject({
     listeners: 0,
-    sources: 0,
-    layers: 0,
     middleware: 0,
-    rafHandles: 0,
+    layers: 0,
+    plugins: 0,
   })
 })
 ```
@@ -70,9 +77,21 @@ it('leaks nothing on removal', async () => {
 **3. Undo round-trip.** This is the one that catches real bugs.
 
 ```ts
+import { expect, it } from 'vitest'
+import { MoveVerticesCommand } from '@blaeu/plugin-edit'
+import type { BlaeuMap, LngLat, VertexRef } from '@blaeu/core'
+
+declare const map: BlaeuMap
+declare const id: string
+
 it('round-trips every command', async () => {
+  // `(refs, from, to)` — a vertex is addressed by a `VertexRef`, not by loose numbers.
+  const ref: VertexRef = { feature: id, part: 0, ring: 0, index: 2 }
+  const from: LngLat = [32.85, 39.93]
+  const to: LngLat = [32.9, 39.9]
+
   const before = map.store.snapshot()
-  map.commands.dispatch(new MoveVerticesCommand(id, 0, 2, [32.9, 39.9]))
+  map.commands.dispatch(new MoveVerticesCommand([ref], from, to))
   expect(map.store.snapshot()).not.toEqual(before)
   map.plugin('history').undo()
   expect(map.store.snapshot()).toEqual(before) // deep equality, no tolerance

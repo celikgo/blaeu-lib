@@ -20,7 +20,7 @@ import { topologyPlugin } from '@blaeu/plugin-topology'
 
 const map = await createBlaeuMap({
   container: '#map',
-  config: { crs: { working: 'EPSG:5254' } }, // TUREF / TM30 — a real cadastral plane
+  crs: { working: 'EPSG:5254' }, // TUREF / TM30 — a real cadastral plane
   plugins: [topologyPlugin({ tolerance: 0.001 })],
 })
 
@@ -118,8 +118,10 @@ import {
   noSlivers,
   topologyMessages,
 } from '@blaeu/plugin-topology'
+import { definePreset } from '@blaeu/core'
 
 export const cadastre = definePreset({
+  id: 'cadastre-topology',
   validation: [
     noSelfIntersection(), // error
     noOverlapWithNeighbours({ severity: 'error' }),

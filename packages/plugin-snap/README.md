@@ -34,8 +34,10 @@ const map = await createBlaeuMap({
   ],
 })
 
+const readout = document.querySelector('#snap-readout')!
+
 map.events.on('snap:changed', (e) => {
-  status.textContent = e.payload.result?.candidate.hint ?? ''
+  readout.textContent = e.payload.result?.candidate.hint ?? ''
 })
 ```
 

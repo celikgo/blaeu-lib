@@ -69,6 +69,7 @@ whole library run headless in tests against `FakeRenderer`, with no GPU:
 
 ```ts
 import { createTestMap } from '@blaeu/core/testing'
+import { drawPlugin } from '@blaeu/plugin-draw'
 
 const map = await createTestMap({ plugins: [drawPlugin()] })
 map.test.click([32.85, 39.93])

@@ -140,6 +140,11 @@ Use a **metric** tolerance, never a decimal-places one:
 
 ```ts
 import { expectWithinMetres } from '@blaeu/core/testing'
+import type { LngLat } from '@blaeu/core'
+
+declare const actual: LngLat
+declare const expected: LngLat
+
 expectWithinMetres(actual, expected, 0.001) // 1 mm
 ```
 
