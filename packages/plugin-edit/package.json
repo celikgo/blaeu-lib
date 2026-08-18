@@ -1,6 +1,6 @@
 {
   "name": "@blaeu/plugin-edit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Editing: vertex editing, move, rotate, scale, split, merge — with topological awareness.",
   "license": "MIT",
   "type": "module",
@@ -41,10 +41,10 @@
     "jsts": "^2.12.1"
   },
   "peerDependencies": {
-    "@blaeu/core": "^0.1.0"
+    "@blaeu/core": "^0.1.1"
   },
   "devDependencies": {
-    "@blaeu/core": "^0.1.0"
+    "@blaeu/core": "^0.1.1"
   },
   "publishConfig": {
     "access": "public"

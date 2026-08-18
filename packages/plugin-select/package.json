@@ -1,6 +1,6 @@
 {
   "name": "@blaeu/plugin-select",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Selection: single, multi, box, lasso.",
   "license": "MIT",
   "type": "module",
@@ -42,10 +42,10 @@
     "@turf/helpers": "^7.3.5"
   },
   "peerDependencies": {
-    "@blaeu/core": "^0.1.0"
+    "@blaeu/core": "^0.1.1"
   },
   "devDependencies": {
-    "@blaeu/core": "^0.1.0"
+    "@blaeu/core": "^0.1.1"
   },
   "publishConfig": {
     "access": "public"

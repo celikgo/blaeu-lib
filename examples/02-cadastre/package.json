@@ -1,7 +1,7 @@
 {
   "name": "@blaeu/example-02-cadastre",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Cadastre / parcel editing: topological editing of shared boundaries in TUREF/TM30, in Turkish.",
   "type": "module",
   "scripts": {
@@ -9,15 +9,15 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@blaeu/core": "^0.1.0",
-    "@blaeu/plugin-draw": "^0.1.0",
-    "@blaeu/plugin-edit": "^0.1.0",
-    "@blaeu/plugin-history": "^0.1.0",
-    "@blaeu/plugin-select": "^0.1.0",
-    "@blaeu/plugin-snap": "^0.1.0",
-    "@blaeu/plugin-topology": "^0.1.0",
-    "@blaeu/plugin-ui": "^0.1.0",
-    "@blaeu/preset-cadastre": "^0.1.0",
+    "@blaeu/core": "^0.1.1",
+    "@blaeu/plugin-draw": "^0.1.1",
+    "@blaeu/plugin-edit": "^0.1.1",
+    "@blaeu/plugin-history": "^0.1.1",
+    "@blaeu/plugin-select": "^0.1.1",
+    "@blaeu/plugin-snap": "^0.1.1",
+    "@blaeu/plugin-topology": "^0.1.1",
+    "@blaeu/plugin-ui": "^0.1.1",
+    "@blaeu/preset-cadastre": "^0.1.1",
     "maplibre-gl": "^5.6.0"
   },
   "devDependencies": {
