@@ -41,5 +41,15 @@ export default defineConfig({
       include: ['packages/*/src/**/*.ts'],
       exclude: ['**/*.test.ts', '**/testing/**', '**/index.ts', '**/*.d.ts'],
     },
+    // `vitest bench` does not read the `exclude` above — it discovers through
+    // `benchmark.include`, whose default (`**/*.{bench,benchmark}.*`) also matches compiled
+    // output. The package tsconfigs exclude `*.test.ts` but not `*.bench.ts`, so after
+    // `npm run typecheck` the benchmark exists twice: `packages/core/src/store/store.bench.ts`
+    // and `packages/core/.tsbuild/store/store.bench.js`. Both ran — doubling a run that already
+    // takes tens of seconds, and printing two summaries that disagree with each other. Scoping
+    // discovery to source is the fix that survives a stray build directory.
+    benchmark: {
+      include: ['packages/*/src/**/*.bench.ts'],
+    },
   },
 })
