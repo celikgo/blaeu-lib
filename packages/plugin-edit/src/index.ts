@@ -44,6 +44,17 @@ export {
 } from './handles.js'
 
 /**
+ * Per-map controller, keyed by the plugin context.
+ *
+ * The same plugin object can be installed on two maps (a shared plugin array, a preset reused
+ * across maps), so a factory-level `let controller` would have the second map's `setup` clobber
+ * the first's — and every lifecycle hook would then drive the wrong map. `ctx` is the stable
+ * per-install identity `PluginManager` hands back to `enable`/`disable`/`destroy`, which is why
+ * it is the key. Same pattern as plugin-select, snap, measure, draw and history.
+ */
+const controllers = new WeakMap<object, EditController>()
+
+/**
  * Registers the `edit:*` tools and returns the editing API.
  *
  * ```ts
@@ -92,6 +103,7 @@ export function editPlugin(options: EditOptions = {}): BlaeuPlugin<EditApi, Edit
       ctx.disposables.add(ctx.i18n.register('tr', tr))
 
       const controller = new EditController(ctx, resolved)
+      controllers.set(ctx, controller)
       controller.handles.install()
 
       ctx.disposables.add(ctx.tools.register('edit:vertex', vertexTool(ctx, controller)))
@@ -116,11 +128,30 @@ export function editPlugin(options: EditOptions = {}): BlaeuPlugin<EditApi, Edit
       return createApi(controller)
     },
 
+    /**
+     * Dormant, not destroyed: the session ends and the handles go away, but the tools
+     * stay registered and the options survive — re-enabling must not require the host
+     * app to re-install anything.
+     *
+     * All three steps are load-bearing, and the first two were missing. `stop()` alone ended
+     * the *session* and left `edit:vertex` **active**, so the next pointerdown ran the vertex
+     * tool's own handler, which calls `controller.edit(featureAt(...))` — re-activating the
+     * tool and re-entering editing. A corner drag then moved stored geometry after
+     * `plugin:disabled` had already fired. Deactivating the tool closes the front door;
+     * `setEnabled(false)` closes it from the inside too, so a host that re-activates
+     * `edit:vertex` by hand still gets a refusal rather than a working editor.
+     *
+     * `plugin-draw` and `plugin-measure` both deactivate; edit was the outlier.
+     */
     disable(ctx): void {
-      // Dormant, not destroyed: the session ends and the handles go away, but the tools
-      // stay registered and the options survive — re-enabling must not require the host
-      // app to re-install anything.
-      ctx.tryPlugin('edit')?.stop()
+      const active = ctx.tools.active
+      if (active !== null && active.startsWith('edit:')) ctx.tools.deactivate()
+      controllers.get(ctx)?.setEnabled(false)
+    },
+
+    /** Re-permit editing. The tools never went away, so there is nothing to re-register. */
+    enable(ctx): void {
+      controllers.get(ctx)?.setEnabled(true)
     },
   }
 }

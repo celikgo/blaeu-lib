@@ -105,6 +105,17 @@ export class EditController {
   #renderHandles: (() => void) | undefined
   /** The interactive edit being previewed, awaiting its single commit on release. */
   #pending: PendingEdit | undefined
+  /**
+   * Whether the plugin is currently enabled.
+   *
+   * The gate lives on the controller rather than only in the plugin's `disable` hook because
+   * deactivating the tool is not sufficient on its own: `edit()` *re-activates* `edit:vertex`,
+   * and the vertex tool's own pointer handler calls `controller.edit(featureAt(...))`. So a
+   * single click on a disabled plugin used to walk straight back in through the front door and
+   * turn editing on again. A host building a read-only viewer mode out of `plugins.disable`
+   * needs this to be a refusal, not a tidy-up.
+   */
+  #enabled = true
 
   constructor(ctx: PluginContext<unknown>, options: ResolvedEditOptions) {
     this.#ctx = ctx
@@ -129,7 +140,26 @@ export class EditController {
   /* Session                                                               */
   /* ===================================================================== */
 
+  get enabled(): boolean {
+    return this.#enabled
+  }
+
+  /**
+   * @internal Driven by the plugin's `enable`/`disable` hooks. Disabling also ends the session,
+   * so the handles go with it; the tools stay registered, because dormant is not destroyed.
+   */
+  setEnabled(enabled: boolean): void {
+    if (this.#enabled === enabled) return
+    this.#enabled = enabled
+    if (!enabled) this.stop()
+  }
+
   edit(id: FeatureId): void {
+    // A disabled plugin does not edit. Silent rather than throwing: the common caller is the
+    // vertex tool's own pointer handler reacting to a click on the map, and a click on a
+    // read-only map is an ordinary thing for a user to do, not an application error.
+    if (!this.#enabled) return
+
     const feature = this.#require(id)
     if (feature.meta.locked === true) {
       throw new Error(
