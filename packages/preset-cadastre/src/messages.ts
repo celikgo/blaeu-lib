@@ -45,6 +45,8 @@ export const tr: Messages = {
   'cadastre.attr.type': '{feature}: {field} alanı {expected} türünde olmalı.',
   'cadastre.attr.pattern': '{feature}: {field} değeri "{value}" beklenen biçimde değil.',
   'cadastre.attr.tooLong': '{feature}: {field} en çok {max} karakter olabilir.',
+  'cadastre.geometryType':
+    '{feature}: parsel geometrisi {type} — parsel Polygon veya MultiPolygon olmalı.',
   'cadastre.crs.outOfBelt': '{feature} çalışma dilimi dışında — {belt} dilimine ait.',
   'cadastre.crs.outOfBeltUnknown': '{feature} çalışma diliminin geçerlilik alanı dışında.',
 
@@ -102,6 +104,8 @@ export const en: Messages = {
   'cadastre.attr.type': '{feature}: {field} must be a {expected}.',
   'cadastre.attr.pattern': '{feature}: {field} value "{value}" is not in the expected format.',
   'cadastre.attr.tooLong': '{feature}: {field} may be at most {max} characters.',
+  'cadastre.geometryType':
+    '{feature}: a parcel cannot be a {type} — it must be a Polygon or MultiPolygon.',
   'cadastre.crs.outOfBelt': '{feature} is outside the working CRS belt — it belongs in {belt}.',
   'cadastre.crs.outOfBeltUnknown': "{feature} falls outside the working CRS's validity extent.",
 

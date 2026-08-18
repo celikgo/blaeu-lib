@@ -63,8 +63,25 @@ export function deriveAreaMiddleware(options: DeriveAreaOptions): CommitMiddlewa
   }
 }
 
+/**
+ * Has this geometry any area to derive?
+ *
+ * Sees through a `GeometryCollection` for the same reason the topology plugin's predicate does:
+ * a converter that wraps a parcel's rings in a collection would otherwise have its
+ * `yüzölçümü` quietly not derived, and a parcel stored with no area is the failure this whole
+ * middleware exists to prevent. `ctx.crs.area()` already sums a collection's members and scores
+ * the non-areal ones zero, so the number that comes back is the polygon area either way.
+ */
 function isPolygonal(geometry: Geometry): boolean {
-  return geometry.type === 'Polygon' || geometry.type === 'MultiPolygon'
+  switch (geometry.type) {
+    case 'Polygon':
+    case 'MultiPolygon':
+      return true
+    case 'GeometryCollection':
+      return geometry.geometries.some(isPolygonal)
+    default:
+      return false
+  }
 }
 
 function withProperty(feature: BlaeuFeature, property: string, value: number): BlaeuFeature {

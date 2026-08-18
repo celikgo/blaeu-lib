@@ -40,7 +40,14 @@ export type {
 export { parcelSchema, parcelAttributesRule, AREA_PROPERTY, ATTRIBUTE_RULE_ID } from './schema.js'
 
 /** The severities — the preset's real contribution. Reuse them, or replace them. */
-export { cadastreValidation, inCollection } from './validation.js'
+export {
+  cadastreValidation,
+  inCollection,
+  outOfBeltRule,
+  parcelGeometryTypeRule,
+  OUT_OF_BELT_RULE_ID,
+  PARCEL_GEOMETRY_RULE_ID,
+} from './validation.js'
 
 export { cadastreLayers, PARCEL_LAYER, BUILDING_LAYER, PARCEL_LABEL_LAYER } from './layers.js'
 export type { CadastreLayerOptions } from './layers.js'

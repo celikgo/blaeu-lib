@@ -364,6 +364,16 @@ export class SetPropertiesCommand implements CommitCommand<readonly BlaeuFeature
   }
 }
 
+/**
+ * Feature properties come from imported GeoJSON, so `patch` can carry any string key —
+ * including `__proto__`, which is not an ordinary key. `next['__proto__'] = value` does not
+ * create an own property: it runs the inherited setter and *replaces the object's prototype*,
+ * so the property silently fails to appear, and the resulting object no longer behaves like a
+ * plain record. `Object.defineProperty` writes the own data property that was actually meant.
+ *
+ * The spread on the line below is already safe — spreading copies own properties — so this is
+ * the only step that needed it.
+ */
 function applyPatch(
   properties: FeatureProperties,
   patch: Readonly<FeatureProperties>,
@@ -371,7 +381,14 @@ function applyPatch(
   const next: FeatureProperties = { ...properties }
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) delete next[key]
-    else next[key] = value
+    else if (key === '__proto__') {
+      Object.defineProperty(next, key, {
+        value,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      })
+    } else next[key] = value
   }
   return next
 }

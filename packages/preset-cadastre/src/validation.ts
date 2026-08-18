@@ -144,6 +144,53 @@ export function inCollection(rule: ValidationRule, collection: CollectionId): Va
   }
 }
 
+export const PARCEL_GEOMETRY_RULE_ID = 'cadastre.geometryType'
+
+/**
+ * A parcel is a Polygon or a MultiPolygon. Nothing else is land.
+ *
+ * The topology rules now see *through* a `GeometryCollection` — they flatten it and judge its
+ * polygonal members — so a GC parcel is no longer unvalidated. But "we can measure it" is not
+ * the same as "it is a parcel", and this is the tier where that judgement belongs: a parcel
+ * whose geometry is a collection has no single boundary, so `sınırlandırma` is undefined for
+ * it, and the vertex tool cannot edit it at all (core's `eachVertex` deliberately declines to
+ * address a collection's members, because `VertexRef` has no way to name one). Storing one is
+ * therefore a dead end that looks fine on screen.
+ *
+ * `error`, not `warning`: the fix is mechanical — flatten to a MultiPolygon on import — and
+ * the alternative is a parcel that cannot be edited and whose boundary cannot be described.
+ * A non-areal geometry in the parcel collection is reported by the same rule and for the same
+ * reason.
+ */
+export function parcelGeometryTypeRule(
+  options: { readonly severity?: Severity; readonly collection?: CollectionId } = {},
+): ValidationRule {
+  const severity: Severity = options.severity ?? 'error'
+  const collection = options.collection
+
+  return {
+    id: PARCEL_GEOMETRY_RULE_ID,
+    severity,
+    appliesTo: (feature) => collection === undefined || feature.meta.collection === collection,
+    check(feature, ctx): readonly ValidationIssue[] {
+      const type = feature.geometry.type
+      if (type === 'Polygon' || type === 'MultiPolygon') return []
+
+      const at = firstPosition(feature.geometry)
+      return [
+        {
+          rule: PARCEL_GEOMETRY_RULE_ID,
+          severity,
+          message: ctx.t('cadastre.geometryType', { feature: feature.id, type }),
+          feature: feature.id,
+          ...(at !== undefined ? { at } : {}),
+          data: { type },
+        },
+      ]
+    },
+  }
+}
+
 /**
  * The severities are the preset's entire contribution here — the topology plugin
  * knows *how* to find an overlap, and has no opinion about what one means.
@@ -194,6 +241,10 @@ export function cadastreValidation(options: ResolvedCadastreOptions): readonly V
     // A parcel drawn in the wrong TM belt: always advisory, never blocking (a cross-belt
     // dataset must stay storable), and it names the belt to switch the working CRS to.
     outOfBeltRule({ severity: 'warning', collection: parcels }),
+
+    // A parcel must be a Polygon or MultiPolygon. Blocking, because the alternative is a
+    // parcel the vertex tool cannot edit and whose boundary cannot be described.
+    parcelGeometryTypeRule({ severity: 'error', collection: parcels }),
   ]
 
   if (options.attributeSeverity !== 'off') {
