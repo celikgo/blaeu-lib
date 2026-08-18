@@ -117,3 +117,39 @@ garbage. Two such refs existed, and both are re-anchored to _coordinates_ rather
 Both are the same lesson the main decision teaches, one layer out: a ring index is only stable
 _within_ a gesture that does not rewind; the moment a rewind can intervene, address the corner
 by where it is, not by where it sits in the array.
+
+## Amendment (2026-08-18) — cardinality is part of the same contract
+
+The original decision made `rewind: false` skip the **winding** step and nothing else. That was
+half the fix, because re-winding is not the only thing that renumbers a ring. `normaliseRing`
+also calls `dedupeConsecutive`, and it called it unconditionally, _ahead_ of the guarded
+reverse:
+
+```ts
+const quantised = ring.map((p) => quantisePosition(p, crs))
+const open = dedupeConsecutive(quantised) // ← ran on previews too
+```
+
+So a preview preserved ring **order** and not ring **cardinality**. Drag a corner onto the one
+next to it and the pair collapses mid-gesture: the ring shortens, every index past the
+collapse point shifts down by one, and every later frame of that drag moves the wrong corner —
+the identical failure this ADR was written to prevent, reached by the other door.
+
+This is not a pointer accident, it is what the shipped preset makes easy. `preset-cadastre` runs
+snap at 12 px with `topological: true`, and `setDragging` excludes only the feature being
+dragged, so a neighbour's coincident corner is a live snap target sitting right next to your
+own. Aiming 0.3 m short of it collapsed a four-corner parcel to three, and one undo was the only
+signal.
+
+**`rewind: false` now means "preserve order and cardinality":** neither `dedupeConsecutive` nor
+the reverse runs. `normaliseLine` takes the same flag, because a LineString is edited by the same
+positional-index tool and has the same exposure.
+
+The durable commit still dedupes, so nothing with a duplicated corner is ever _stored_. A drag
+that ends on a collapsed pair therefore resolves once, at the commit, with the gesture over —
+instead of silently mid-drag. If the collapse takes the ring below three distinct corners, the
+commit refuses it and the edit reverts, which is the honest outcome and strictly better than
+quietly storing a shape the surveyor did not draw.
+
+Pinned by `packages/core/src/hostile-input.test.ts` ("a transient preview keeps its vertex
+count"), confirmed to fail against the unconditional `dedupeConsecutive`.

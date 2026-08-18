@@ -89,13 +89,24 @@ export function ringSignedArea2(ring: readonly Position[]): number {
  * Normalises one ring: quantise → dedupe → wind → close.
  *
  * @param exterior exterior rings are counter-clockwise, holes clockwise (RFC 7946 §3.1.6).
- * @param rewind when `false`, the winding step is skipped and the ring's coordinate
- *   **order is preserved**. This exists for one caller — a transient edit *preview* (see
- *   ADR 0011). During a vertex drag the tool addresses corners by positional index, and
- *   silently reversing a ring the instant its winding flips (a triangle's apex crossing
- *   its base) would leave those indices pointing at the wrong corners for every later
- *   frame of the gesture. Ingest and the durable commit both leave this `true`, so every
- *   *stored* feature that survives a gesture is still wound RFC 7946.
+ * @param rewind when `false`, the ring's coordinate **order and cardinality are both
+ *   preserved**: neither the winding step nor the consecutive-duplicate step runs. This
+ *   exists for one caller — a transient edit *preview* (see ADR 0011). During a vertex drag
+ *   the tool addresses corners by positional index, so anything that renumbers the ring
+ *   mid-gesture leaves those indices pointing at the wrong corners for every later frame.
+ *   There are two such things, and skipping only the first was a bug:
+ *
+ *   - **Re-winding.** A triangle's apex crossing its base flips the signed area, and the
+ *     ring reverses. (The original motivation for this flag.)
+ *   - **De-duplication.** Dragging a corner onto the one next to it — which the shipped
+ *     cadastre preset makes easy, snapping at 12 px with `topological: true` so a
+ *     neighbour's coincident corner is a live target — collapses the pair and shortens the
+ *     ring. Every later frame of that drag then moves the wrong corner.
+ *
+ *   Ingest and the durable commit both leave this `true`, so every *stored* feature is
+ *   wound RFC 7946 and free of duplicate corners. A preview that ends on a collapsed pair
+ *   is therefore resolved at commit, where the ring shortens once, in one place, with the
+ *   gesture over — instead of silently mid-drag.
  */
 export function normaliseRing(
   ring: readonly Position[],
@@ -105,7 +116,7 @@ export function normaliseRing(
   rewind = true,
 ): Position[] {
   const quantised = ring.map((p) => quantisePosition(p, crs))
-  const open = dedupeConsecutive(quantised)
+  const open = rewind ? dedupeConsecutive(quantised) : quantised
   // Work on the open ring so the closing vertex can't be mistaken for a corner.
   if (isRingClosed(open)) open.pop()
 
@@ -146,6 +157,18 @@ export function normaliseGeometry(
   where = 'geometry',
   rewind = true,
 ): Geometry {
+  // The gate has to reject a missing geometry itself. `Feature.geometry` is nullable in
+  // GeoJSON and `JSON.parse(text) as FeatureCollection` types a null one as a `Geometry`,
+  // so this arrives from real imports without a cast — and without this guard it reads
+  // `.type` off nothing and surfaces as a bare TypeError from deep inside a write pass.
+  if (geometry === null || geometry === undefined) {
+    throw new Error(
+      `[blaeu] ${where}: the geometry is ${geometry === null ? 'null' : 'missing'}. ` +
+        `GeoJSON allows a Feature with no geometry; BlaeuMap does not store one, because a ` +
+        `feature with no shape cannot be indexed, drawn, or clicked. Drop the feature instead.`,
+    )
+  }
+
   switch (geometry.type) {
     case 'Point':
       return { type: 'Point', coordinates: quantisePosition(geometry.coordinates, crs) }
@@ -158,14 +181,17 @@ export function normaliseGeometry(
       }
 
     case 'LineString':
-      return { type: 'LineString', coordinates: normaliseLine(geometry.coordinates, crs, where) }
+      return {
+        type: 'LineString',
+        coordinates: normaliseLine(geometry.coordinates, crs, where, rewind),
+      }
 
     case 'MultiLineString':
       if (geometry.coordinates.length === 0) throw emptyGeometry(where, 'MultiLineString', 'lines')
       return {
         type: 'MultiLineString',
         coordinates: geometry.coordinates.map((line, i) =>
-          normaliseLine(line, crs, `${where} part ${i}`),
+          normaliseLine(line, crs, `${where} part ${i}`, rewind),
         ),
       }
 
@@ -194,7 +220,38 @@ export function normaliseGeometry(
           normaliseGeometry(g, crs, `${where} member ${i}`, rewind),
         ),
       }
+
+    default:
+      throw unsupportedGeometry(where, geometry)
   }
+}
+
+/**
+ * The `default:` arm of the one geometry gate.
+ *
+ * `Geometry` is a closed union, so TypeScript proves the seven arms above are exhaustive and
+ * would happily let the switch fall off its end — returning `undefined` while still typed
+ * `Geometry`. That is not a hypothetical: `JSON.parse(text) as FeatureCollection` is how every
+ * import in this domain arrives, and a Leaflet.Draw `{"type":"Circle"}`, an Esri `"esriGeometryPolygon"`,
+ * or a lower-cased `"polygon"` from a hand-rolled DXF converter all satisfy that cast. Without
+ * this arm the feature is written with `geometry: undefined`, vanishes from the spatial index
+ * while `collection.size` still counts it, and exports as a Feature with no geometry member.
+ *
+ * The `never` parameter is the other half of the guard: add an eighth member to the union and
+ * this call stops compiling, so a new geometry type cannot be added without deciding what
+ * ingest does with it.
+ */
+function unsupportedGeometry(where: string, geometry: never): Error {
+  const type = (geometry as { readonly type?: unknown } | null)?.type
+  return new Error(
+    `[blaeu] ${where}: ${
+      typeof type === 'string'
+        ? `"${type}" is not a GeoJSON geometry type`
+        : 'this is not a geometry'
+    }. RFC 7946 allows Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon ` +
+      `and GeometryCollection, and the comparison is case-sensitive. Convert the shape before ` +
+      `handing it to the store — BlaeuMap will not guess at what was meant.`,
+  )
 }
 
 /**
@@ -211,15 +268,39 @@ function emptyGeometry(where: string, type: string, part: string): Error {
   )
 }
 
-function normaliseLine(line: readonly Position[], crs: Quantiser, where: string): Position[] {
-  const out = dedupeConsecutive(line.map((p) => quantisePosition(p, crs)))
-  if (out.length < 2) {
+/**
+ * A LineString is edited by the same positional-index vertex tool as a ring, so it takes the
+ * same `rewind` contract — there is no winding to preserve, but there is cardinality.
+ */
+function normaliseLine(
+  line: readonly Position[],
+  crs: Quantiser,
+  where: string,
+  rewind = true,
+): Position[] {
+  const quantised = line.map((p) => quantisePosition(p, crs))
+  const deduped = dedupeConsecutive(quantised)
+
+  // The count guard runs on the DEDUPED form even when cardinality is being preserved, and
+  // that asymmetry is deliberate. `normaliseRing` gets away with skipping dedupe under
+  // `rewind: false` because it has a *second* gate — `area2 === 0` rejects a ring whose corners
+  // have collapsed onto each other. A line has no area, so this count is its only gate; and
+  // counting the un-deduped array means `[A, A]` measures 2 and sails through.
+  //
+  // Letting it through is fail-open, not merely untidy: the preview writes a degenerate line to
+  // the store, and the *durable* commit then re-normalises with `rewind: true`, collapses it to
+  // one vertex, and throws — from outside any Command, so it escapes the pointerup handler
+  // instead of becoming a `map:error`, and unwinds through the renderer's event dispatch.
+  if (deduped.length < 2) {
     throw new Error(
-      `[blaeu] ${where}: line collapsed to ${out.length} distinct vertex(es) after snapping to the ` +
+      `[blaeu] ${where}: line collapsed to ${deduped.length} distinct vertex(es) after snapping to the ` +
         `precision grid. A LineString needs at least 2.`,
     )
   }
-  return out
+
+  // Past the gate, a preview still hands back every vertex it was given, so the vertex tool's
+  // positional refs stay valid for the rest of the gesture (ADR 0011).
+  return rewind ? deduped : quantised
 }
 
 function normalisePolygon(

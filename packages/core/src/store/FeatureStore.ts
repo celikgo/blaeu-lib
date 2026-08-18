@@ -15,7 +15,12 @@ import type {
 
 import { SpatialIndex } from './SpatialIndex.js'
 import { BlaeuTopologyIndex } from './TopologyIndex.js'
-import { bboxAround, distanceToGeometryMetres, normaliseGeometry } from '../utils/geometry.js'
+import {
+  bboxAround,
+  distanceToGeometryMetres,
+  geometryBbox,
+  normaliseGeometry,
+} from '../utils/geometry.js'
 import { createId } from '../utils/ids.js'
 
 /** Where `nearest()` starts looking when the caller sets no bound. Doubles until it finds something. */
@@ -279,7 +284,12 @@ export class BlaeuFeatureStore implements FeatureStore {
    * version features.
    */
   snapshot(): StoreSnapshot {
-    const collections: Record<CollectionId, readonly BlaeuFeature[]> = {}
+    // Null-prototype: a collection is named by the host application, and `restore()` reads this
+    // record back with `Object.entries`. A collection legitimately called "constructor" or
+    // "toString" would otherwise collide with an inherited member — and `collections['__proto__']
+    // = features` on a plain object does not create an own property at all, so that collection
+    // would vanish from the snapshot and be silently dropped by the next rollback.
+    const collections: Record<CollectionId, readonly BlaeuFeature[]> = Object.create(null)
     for (const id of [...this.#collections.keys()].sort()) {
       const collection = this.#collections.get(id)!
       if (collection.size === 0) continue
@@ -300,6 +310,33 @@ export class BlaeuFeatureStore implements FeatureStore {
    * parcel that the transaction just abandoned.
    */
   restore(snapshot: StoreSnapshot): void {
+    // Pre-flight, before a single byte is cleared.
+    //
+    // Everything below this point must not throw, and one thing in it can: `_reset` bulk-loads
+    // the R-tree, whose `toEntry` calls `geometryBbox`, which rejects a geometry it cannot
+    // measure. The clear happens first, so a throw part-way through the rebuild used to leave
+    // the store gutted — no features, no owners, no events — and this is the *rollback* path,
+    // so the state it destroys is the state a failed transaction was trying to get back to.
+    //
+    // Measuring every feature up front costs one extra pass over a snapshot on the rare
+    // rollback path, and buys the guarantee that `restore()` either fully succeeds or does
+    // nothing at all.
+    for (const [id, features] of Object.entries(snapshot.collections)) {
+      for (const feature of features) {
+        try {
+          geometryBbox(feature.geometry)
+        } catch (cause) {
+          throw new Error(
+            `[blaeu] cannot restore the store: feature "${feature.id}" in collection "${id}" has ` +
+              `a geometry that cannot be measured, so the spatial index would reject it half-way ` +
+              `through the rebuild. The store has been left exactly as it was. ` +
+              `Cause: ${cause instanceof Error ? cause.message : String(cause)}`,
+            { cause },
+          )
+        }
+      }
+    }
+
     const before = new Map<FeatureId, { feature: BlaeuFeature; collection: CollectionId }>()
     for (const [id, collection] of this.#collections) {
       for (const feature of collection.all()) before.set(feature.id, { feature, collection: id })
