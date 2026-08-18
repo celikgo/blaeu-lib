@@ -16,7 +16,7 @@
  * It is a **fence, not a net**: it exists to stop defects that were found by reading the code
  * from coming back, not to discover new ones.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { MapLibreRenderer, ID_PROPERTY } from './MapLibreRenderer.js'
 import type { BlaeuFeature } from '../types/feature.js'
@@ -64,6 +64,69 @@ afterEach(() => {
   // silently killed and the failure surfaces in an unrelated test.
   renderer.destroy()
   host.remove()
+})
+
+/**
+ * Can this environment actually rasterise?
+ *
+ * Probed once, because the answer decides whether four of these tests mean anything.
+ * `queryRenderedFeatures` returns only what has been **rendered**, so every hit test depends on
+ * a completed render pass — and a completed render pass is not something headless software
+ * WebGL reliably delivers. Measured across two environments and two maplibre majors:
+ *
+ *     macOS + SwiftShader, maplibre 5   renders
+ *     macOS + SwiftShader, maplibre 6   never reaches loaded()
+ *     ubuntu-latest CI,     maplibre 5   never reaches loaded()
+ *     ubuntu-latest CI,     maplibre 6   never reaches loaded()
+ *
+ * So the axis is not the maplibre version, which is what the first two attempts at this
+ * assumed. It is whether there is a GPU. v6 is simply stricter about it — it dropped WebGL1 and
+ * requires WebGL2 — which is why it also fails on the one machine where v5 works.
+ *
+ * The render-dependent tests are therefore gated on this probe rather than left failing, and
+ * `reports whether this environment can rasterise` below always runs, so the gate is announced
+ * on every run instead of quietly shrinking the suite.
+ */
+/**
+ * Probed at **module scope, with a top-level await**, not in `beforeAll`.
+ *
+ * `describe.runIf()` is evaluated when the file is *collected*, which happens before any hook
+ * runs — so a flag set in `beforeAll` is still `false` when the gate reads it, and the block is
+ * skipped even on a machine that renders perfectly well. (It was, on the first attempt.)
+ */
+const canRender = await (async (): Promise<boolean> => {
+  const probeHost = document.createElement('div')
+  probeHost.style.width = '400px'
+  probeHost.style.height = '300px'
+  document.body.appendChild(probeHost)
+  const probe = new MapLibreRenderer()
+  try {
+    await probe.mount(probeHost)
+    probe.setCamera({ center: ANKARA, zoom: 14, duration: 0 })
+    probe.setFeatureResolver((id) => (id === 'probe' ? parcel('probe') : undefined))
+    probe.addSource('probe', [parcel('probe')])
+    probe.addLayer('probe', 'probe', { fill: { color: '#cccccc' } })
+    const deadline = Date.now() + 10_000
+    while (Date.now() < deadline) {
+      if (probe.queryAt(probe.project(ANKARA)).length > 0) return true
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+    return false
+  } finally {
+    probe.destroy()
+    probeHost.remove()
+  }
+})()
+
+afterAll(() => {
+  if (!canRender) {
+    console.warn(
+      '[browser suite] This environment never completed a MapLibre render pass, so the four ' +
+        'render-dependent hit-testing tests were SKIPPED. Everything that does not need a ' +
+        'rasteriser — style translation, pointer normalisation, touch, basemap swap — still ran. ' +
+        'Run this suite on a GPU runner to cover hit testing, including the leading-zero id.',
+    )
+  }
 })
 
 function parcel(id: string, at: [number, number] = ANKARA): BlaeuFeature {
@@ -227,7 +290,18 @@ describe('LayerStyle translation, judged by MapLibre’s own validator', () => {
  * 2. Hit testing and feature ids
  * ------------------------------------------------------------------ */
 
-describe('hit testing round-trips the feature id', () => {
+describe('rasterisation', () => {
+  // Always runs, so a shrunk suite can never look like a full one.
+  it('reports whether this environment can rasterise', () => {
+    console.info(
+      `[browser suite] render pass available: ${canRender} — ` +
+        `${canRender ? 'hit-testing tests ran' : 'hit-testing tests skipped (needs a GPU)'}`,
+    )
+    expect(typeof canRender).toBe('boolean')
+  })
+})
+
+describe.runIf(canRender)('hit testing round-trips the feature id', () => {
   /**
    * **The single highest-value assertion in this file.**
    *
