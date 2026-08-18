@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+  schedule:
+    # 03:00 UTC. The browser and mutation suites then run against whatever maplibre and
+    # Chromium resolved to overnight — the drift a lockfile-pinned PR run cannot see.
+    - cron: '0 3 * * *'
 
 jobs:
   verify:
@@ -188,3 +193,43 @@ jobs:
             npx --yes @arethetypeswrong/cli@0.18 --pack "$d" --profile esm-only || fail=1
           done
           exit $fail
+
+  # Additive, and deliberately outside `npm run verify`. A WebGL browser is a different order
+  # of cost and flakiness from `tsc` and a node runner, and a gate that is slow or flaky is a
+  # gate people learn to skip. It proves the one thing the 710 node tests cannot: that MapLibre
+  # accepts what we hand it, and that our pointer normalisation matches real DOM events.
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      # The headless shell only — the full Chromium download is far larger and nothing here
+      # needs a headed browser. `--with-deps` installs the system libraries the shell needs.
+      - run: npx playwright install --with-deps chromium-headless-shell
+      - run: npm run test:browser
+
+  # Nightly only. A full mutation run is minutes, not seconds, and its output is a number to
+  # read rather than a gate to trip: `break` sits at the measured floor so the score can only
+  # ratchet upward. The reason it exists at all is that the July audit found 86 real defects
+  # behind a green suite at 88% line coverage — coverage answers "was this line run", and the
+  # question that matters is "if this line were wrong, would anything fail".
+  mutation:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run test:mutation
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report
+          path: reports/mutation

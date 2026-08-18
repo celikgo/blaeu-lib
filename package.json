@@ -33,22 +33,29 @@
     "scaffold:check": "node scripts/scaffold-packages.mjs --check",
     "changeset": "changeset",
     "release": "npm run verify && changeset publish",
-    "check:docs": "node scripts/check-doc-fences.mjs"
+    "check:docs": "node scripts/check-doc-fences.mjs",
+    "test:browser": "vitest run --config vitest.browser.config.ts",
+    "bench": "vitest bench --run",
+    "test:mutation": "stryker run"
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.1",
     "@eslint/js": "^9.17.0",
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/vitest-runner": "^10.0.0",
     "@types/geojson": "^7946.0.15",
     "@types/node": "^22.10.2",
-    "@vitest/coverage-v8": "^2.1.8",
+    "@vitest/browser": "^3.2.7",
+    "@vitest/coverage-v8": "^3.2.7",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
     "jsdom": "^25.0.1",
+    "playwright": "^1.62.1",
     "prettier": "^3.4.2",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.1",
     "vite": "^6.0.5",
-    "vitest": "^2.1.8"
+    "vitest": "^3.2.7"
   }
 }
