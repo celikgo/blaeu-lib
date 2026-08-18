@@ -33,6 +33,12 @@ export function rectangleTool(session: DrawSession): DrawTool {
     // releasing the pointer does not already finish.
     finish: () => {},
 
+    // The anchor the session cannot see. Without this, `DrawApi.cancel()` emitted
+    // `draw:cancel` and the pending pointerup still committed the rectangle.
+    abort: () => {
+      origin = null
+    },
+
     onPointerDown(ctx: InteractionContext): boolean {
       origin = ctx.lngLat
       // Recorded as a vertex so `DrawApi.vertices` and the snap engine's in-progress set

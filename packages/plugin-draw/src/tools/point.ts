@@ -21,6 +21,10 @@ export function pointTool(session: DrawSession): DrawTool {
     // Nothing is ever "in progress" for a point: the click that starts it also ends it.
     finish: () => {},
 
+    // A point is committed on the click that makes it — there is never a gesture in flight
+    // for a cancel to catch, so this tool holds nothing of its own to abandon.
+    abort: () => {},
+
     onClick(ctx: InteractionContext): boolean {
       void session.complete({ type: 'Point', coordinates: [...ctx.lngLat] })
       return true
