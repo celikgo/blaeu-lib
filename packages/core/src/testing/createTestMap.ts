@@ -208,19 +208,15 @@ class TestFacadeImpl implements TestFacade {
   /**
    * A keydown, delivered where the kernel would deliver one.
    *
-   * The `Renderer` contract has no keyboard channel — `RendererPointerEvent` has no
-   * `keydown` kind — yet `InteractionContext` has both a `'keydown'` kind and a
-   * `key` field, and every tool has an `onKeyDown`. So the harness builds the
-   * context itself and walks it through the *real* interaction pipeline before
-   * handing it to the *real* active tool. That keeps "press Escape to cancel the
-   * ring" testable today; when the renderer grows an `onKey`, this method becomes a
-   * one-line call into it and no test changes.
+   * This used to build the `InteractionContext` itself and walk it into the pipeline by hand,
+   * because the `Renderer` contract had no keyboard channel — the kernel declared a `'keydown'`
+   * kind and every tool implemented `onKeyDown`, but nothing ever produced one. The renderer
+   * has grown `onKey`, so this is now the one-line call the old comment promised, and it goes
+   * through `BlaeuMap`'s real wiring: the same interaction pipeline and the same
+   * `dispatchToTool` a click takes. No test changed.
    */
   key(key: string, modifiers?: Modifiers): void {
-    const ctx = this.#keyContext(key, modifiers)
-    this.map.interaction.run(ctx)
-    if (ctx.consumed) return
-    this.map.tools.activeTool?.onKeyDown?.(ctx)
+    this.renderer.emitKey(key, modifiers, this.#lastLngLat)
   }
 
   camera(camera: Partial<Camera>, moving = false): void {
@@ -266,52 +262,6 @@ class TestFacadeImpl implements TestFacade {
       ...(buttons !== undefined ? { buttons } : {}),
       ...(modifiers !== undefined ? { modifiers } : {}),
     })
-  }
-
-  #keyContext(key: string, modifiers?: Modifiers): InteractionContext {
-    const map = this.map
-    const renderer = this.renderer
-    const rawLngLat = this.#lastLngLat
-    const screen = renderer.project(rawLngLat)
-    let lngLat = rawLngLat
-    let consumed = false
-
-    return {
-      kind: 'keydown',
-      get lngLat() {
-        return lngLat
-      },
-      set lngLat(value) {
-        lngLat = value
-      },
-      // Derived, exactly as the kernel derives it — a cached `xy` that a middleware
-      // forgot to update puts a vertex a metre from where the user meant it.
-      get xy() {
-        return map.crs.working.forward(lngLat)
-      },
-      screen,
-      rawLngLat,
-      snap: undefined,
-      // The kernel populates this from the active tool; a synthetic keydown carries
-      // whatever the tool currently has hold of, exactly as a real one would.
-      dragging: this.map.tools.dragging,
-      key,
-      button: -1,
-      modifiers: {
-        shift: modifiers?.shift ?? false,
-        ctrl: modifiers?.ctrl ?? false,
-        alt: modifiers?.alt ?? false,
-        meta: modifiers?.meta ?? false,
-      },
-      hits: () => renderer.queryAt(screen),
-      consume: () => {
-        consumed = true
-      },
-      get consumed() {
-        return consumed
-      },
-      originalEvent: syntheticKeyEvent(key),
-    }
   }
 }
 
@@ -452,20 +402,4 @@ function createStubElement(width = 0, height = 0): HTMLElement {
   }
 
   return element as unknown as HTMLElement
-}
-
-function syntheticKeyEvent(key: string): Event {
-  if (typeof Event === 'function') {
-    const event = new Event('keydown')
-    // The kernel reads `ctx.key`, not the DOM event — but a tool reaching for the
-    // original event should still find the key on it rather than `undefined`.
-    Object.defineProperty(event, 'key', { value: key, enumerable: true })
-    return event
-  }
-  return {
-    type: 'keydown',
-    key,
-    preventDefault: () => {},
-    stopPropagation: () => {},
-  } as unknown as Event
 }

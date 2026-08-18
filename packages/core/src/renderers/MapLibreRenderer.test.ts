@@ -89,8 +89,16 @@ const { FakeMapLibreMap } = vi.hoisted(() => {
     emit(type: string, event: unknown = {}): void {
       for (const listener of [...(this.listeners.get(type) ?? [])]) listener(event)
     }
-    getCanvas(): { style: Record<string, string> } {
-      return { style: {} }
+    getCanvas(): { style: Record<string, string>; clientWidth: number; clientHeight: number } {
+      return { style: {}, clientWidth: 800, clientHeight: 600 }
+    }
+    /**
+     * A linear stand-in for the real projection. Exact values do not matter to these tests —
+     * what matters is that a screen point round-trips to *some* stable lng/lat, so a synthesised
+     * event (touch-cancel, keydown) can be asserted on by position.
+     */
+    unproject(point: [number, number]): { lng: number; lat: number } {
+      return { lng: point[0] / 1000, lat: point[1] / 1000 }
     }
 
     addSource(id: string, def: Record<string, unknown>): void {
@@ -532,6 +540,190 @@ describe('MapLibreRenderer — maplibre v4 (map.on returns the map, not a Subscr
     } finally {
       FakeMapLibreMap.nextLoaded = true
     }
+  })
+})
+
+describe('touchcancel ends the gesture where the finger was', () => {
+  /**
+   * `touchcancel` used to be bound straight to `#onTouch('pointerup', …)`, guarded by a
+   * `Number.isFinite` check on `event.point`. The guard could never fire: maplibre builds
+   * `points` from `originalEvent.touches` for every type but `touchend` and folds them with
+   * `reduce(…, new Point(0, 0))`, so an empty touch list yields a *finite* `Point(0, 0)` — the
+   * top-left corner of the viewport. `tools/rectangle.ts` reads `ctx.lngLat` on pointer-up, so a
+   * notification arriving mid-drag committed a rectangle stretched to the map's corner.
+   */
+  const touch = (x: number, y: number) => ({
+    point: { x, y },
+    lngLat: { lng: x / 1000, lat: y / 1000 },
+    points: [{ x, y }],
+    originalEvent: {
+      shiftKey: false,
+      ctrlKey: false,
+      altKey: false,
+      metaKey: false,
+      type: 'touch',
+    },
+  })
+
+  it('replays the last touch position rather than the viewport origin', async () => {
+    const { renderer, map } = await mountRenderer()
+    const seen: { kind: string; screen: { x: number; y: number } }[] = []
+    renderer.onPointer((e) => seen.push({ kind: e.kind, screen: e.screen }))
+
+    map.emit('touchstart', touch(300, 200))
+    map.emit('touchmove', touch(340, 260))
+    // No position on this one — that is the whole point.
+    map.emit('touchcancel', {
+      originalEvent: {
+        shiftKey: false,
+        ctrlKey: false,
+        altKey: false,
+        metaKey: false,
+        type: 'touchcancel',
+      },
+    })
+
+    const last = seen.at(-1)!
+    expect(last.kind).toBe('pointerup')
+    expect(last.screen).toEqual({ x: 340, y: 260 })
+    // Explicitly not the corner the old path reported.
+    expect(last.screen).not.toEqual({ x: 0, y: 0 })
+    renderer.destroy()
+  })
+
+  it('still ends the gesture, so a tool is never left anchored', async () => {
+    const { renderer, map } = await mountRenderer()
+    const kinds: string[] = []
+    renderer.onPointer((e) => kinds.push(e.kind))
+
+    map.emit('touchstart', touch(100, 100))
+    map.emit('touchcancel', {
+      originalEvent: {
+        shiftKey: false,
+        ctrlKey: false,
+        altKey: false,
+        metaKey: false,
+        type: 'touchcancel',
+      },
+    })
+
+    expect(kinds).toEqual(['pointerdown', 'pointerup'])
+    renderer.destroy()
+  })
+
+  it('emits nothing when no touch was ever seen', async () => {
+    const { renderer, map } = await mountRenderer()
+    const kinds: string[] = []
+    renderer.onPointer((e) => kinds.push(e.kind))
+
+    map.emit('touchcancel', {
+      originalEvent: {
+        shiftKey: false,
+        ctrlKey: false,
+        altKey: false,
+        metaKey: false,
+        type: 'touchcancel',
+      },
+    })
+
+    // There is no gesture to end, and inventing a pointerup at the origin is the bug.
+    expect(kinds).toEqual([])
+    renderer.destroy()
+  })
+
+  it('carries the real touchcancel as originalEvent, not a fabricated touchend', async () => {
+    const { renderer, map } = await mountRenderer()
+    const seen: Event[] = []
+    renderer.onPointer((e) => seen.push(e.originalEvent))
+
+    map.emit('touchstart', touch(50, 60))
+    map.emit('touchcancel', {
+      originalEvent: {
+        shiftKey: false,
+        ctrlKey: false,
+        altKey: false,
+        metaKey: false,
+        type: 'touchcancel',
+      },
+    })
+
+    expect((seen.at(-1) as unknown as { type: string }).type).toBe('touchcancel')
+    renderer.destroy()
+  })
+})
+
+describe('the keyboard channel', () => {
+  const keyEvent = (key: string) => ({
+    originalEvent: { key, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false },
+  })
+
+  it('reports a key press to onKey subscribers', async () => {
+    const { renderer, map } = await mountRenderer()
+    const keys: string[] = []
+    renderer.onKey((e) => keys.push(e.key))
+
+    map.emit('keydown', keyEvent('Escape'))
+    expect(keys).toEqual(['Escape'])
+    renderer.destroy()
+  })
+
+  it('positions the key press where the pointer last was', async () => {
+    const { renderer, map } = await mountRenderer()
+    let screen: { x: number; y: number } | undefined
+    renderer.onKey((e) => {
+      screen = e.screen
+    })
+
+    map.emit('mousemove', {
+      point: { x: 420, y: 310 },
+      lngLat: { lng: 0.42, lat: 0.31 },
+      originalEvent: {
+        button: 0,
+        buttons: 0,
+        shiftKey: false,
+        ctrlKey: false,
+        altKey: false,
+        metaKey: false,
+      },
+    })
+    map.emit('keydown', keyEvent('Backspace'))
+
+    // A key event has no position of its own; `InteractionContext` still promises tools one.
+    expect(screen).toEqual({ x: 420, y: 310 })
+    renderer.destroy()
+  })
+
+  it('falls back to the canvas centre before any pointer has moved', async () => {
+    const { renderer, map } = await mountRenderer()
+    let screen: { x: number; y: number } | undefined
+    renderer.onKey((e) => {
+      screen = e.screen
+    })
+
+    map.emit('keydown', keyEvent('Escape'))
+    expect(screen).toEqual({ x: 400, y: 300 })
+    renderer.destroy()
+  })
+
+  it('does not deliver a key press to pointer subscribers', async () => {
+    const { renderer, map } = await mountRenderer()
+    const kinds: string[] = []
+    renderer.onPointer((e) => kinds.push(e.kind))
+
+    map.emit('keydown', keyEvent('Escape'))
+    // A key is not a pointer. Widening RendererPointerEvent would have made this false.
+    expect(kinds).toEqual([])
+    renderer.destroy()
+  })
+
+  it('unbinds its listeners on destroy', async () => {
+    const { renderer, map } = await mountRenderer()
+    const keys: string[] = []
+    renderer.onKey((e) => keys.push(e.key))
+
+    renderer.destroy()
+    map.emit('keydown', keyEvent('Escape'))
+    expect(keys).toEqual([])
   })
 })
 

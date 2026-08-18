@@ -75,6 +75,35 @@ export interface RendererPointerEvent {
 }
 
 /**
+ * A key press, delivered where the pointer last was.
+ *
+ * Separate from {@link RendererPointerEvent} rather than a sixth `kind` on it, because a key
+ * press has no button and no button bitmask, and widening the pointer event would make every
+ * existing `onPointer` consumer start receiving something that is not a pointer.
+ *
+ * It still carries a position, and that is not padding: `InteractionContext` guarantees tools a
+ * `lngLat`/`xy` on every event, the interaction pipeline's middleware reads them, and a tool
+ * handling Backspace legitimately wants to know where the cursor is. The renderer supplies the
+ * last place the pointer actually was — the same answer a `pointermove` would have given a
+ * frame earlier.
+ */
+export interface RendererKeyEvent {
+  readonly kind: 'keydown'
+  /** The `KeyboardEvent.key` value: `'Escape'`, `'Backspace'`, `'a'`. */
+  readonly key: string
+  /** Where the pointer last was. Falls back to the map centre if it has never moved. */
+  readonly lngLat: LngLat
+  readonly screen: ScreenPoint
+  readonly modifiers: {
+    readonly shift: boolean
+    readonly ctrl: boolean
+    readonly alt: boolean
+    readonly meta: boolean
+  }
+  readonly originalEvent: Event
+}
+
+/**
  * The rendering abstraction.
  *
  * MapLibre is the only implementation we ship, and it's the right default. But
@@ -144,6 +173,23 @@ export interface Renderer {
   /* --- events --- */
   onPointer(handler: (event: RendererPointerEvent) => void): Disposable
   onCamera(handler: (camera: Camera, moving: boolean) => void): Disposable
+
+  /**
+   * Key presses on the map surface.
+   *
+   * **Optional**, like {@link setBasemap} and {@link setInteraction}: a renderer with no focusable
+   * surface — a headless export target, a server-side canvas — has no keyboard to report, and
+   * the kernel probes for the method rather than assuming it.
+   *
+   * Until this existed, the keyboard was a channel the kernel *declared* and nothing filled.
+   * `InteractionContext` has had a `'keydown'` kind and a `key` field since the beginning,
+   * `dispatchToTool` has always routed it, and ten tools across five packages implement
+   * `onKeyDown` — but no renderer ever produced one, so Escape-to-cancel and Backspace-to-undo-a-
+   * vertex worked only under `map.test.key()`, which built the context itself and walked it into
+   * the pipeline by hand. Three READMEs documented the behaviour, and `plugin-history` gave up
+   * and bound its own DOM listener.
+   */
+  onKey?(handler: (event: RendererKeyEvent) => void): Disposable
 
   setCursor(cursor: string): void
 

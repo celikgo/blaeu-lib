@@ -3,7 +3,7 @@ import type { BlaeuMapOptions, ResolvedConfig } from './types/config.js'
 import type { BlaeuPlugin, BlaeuPluginRegistry, PluginContext } from './types/plugin.js'
 import type { Preset } from './types/preset.js'
 import type { Theme } from './types/theme.js'
-import type { Renderer, RendererPointerEvent } from './types/renderer.js'
+import type { Renderer, RendererKeyEvent, RendererPointerEvent } from './types/renderer.js'
 import type { InteractionContext } from './types/pipeline.js'
 import type { Tool } from './types/extensions.js'
 
@@ -208,17 +208,80 @@ export class BlaeuMap {
    * about.
    */
   #wireInteraction(): Disposable {
-    return this.renderer.onPointer((event: RendererPointerEvent) => {
-      if (this.#destroyed) return
-
-      const ctx = this.#normalise(event)
+    const run = (ctx: InteractionContext): void => {
       this.interaction.run(ctx)
       if (ctx.consumed) return
 
       const tool = this.tools.activeTool
       if (!tool) return
       dispatchToTool(tool, ctx)
+    }
+
+    const pointer = this.renderer.onPointer((event: RendererPointerEvent) => {
+      if (this.#destroyed) return
+      run(this.#normalise(event))
     })
+
+    // The keyboard is an *optional* renderer capability — a headless export target has no
+    // focusable surface — so probe for it, exactly as the kernel probes for `setBasemap` and
+    // `setInteraction`. Where it exists, a key press goes through the same interaction pipeline
+    // and the same `dispatchToTool` as a click, which is what makes a tool's `onKeyDown` a real
+    // handler rather than one only `map.test.key()` could reach.
+    const key = this.renderer.onKey?.((event: RendererKeyEvent) => {
+      if (this.#destroyed) return
+      run(this.#normaliseKey(event))
+    })
+
+    return {
+      dispose: () => {
+        pointer.dispose()
+        key?.dispose()
+      },
+    }
+  }
+
+  /**
+   * A key press, as an `InteractionContext`.
+   *
+   * Deliberately built from the same shape as {@link BlaeuMap.normalise} rather than sharing its
+   * body: a key event has no `button` and no `buttons`, and faking a `button: 0` on it would let
+   * a tool branch on a button nobody pressed.
+   */
+  #normaliseKey(event: RendererKeyEvent): InteractionContext {
+    const crs = this.crs
+    let consumed = false
+    let lngLat = event.lngLat
+
+    return {
+      kind: 'keydown',
+      key: event.key,
+      get lngLat() {
+        return lngLat
+      },
+      set lngLat(value) {
+        lngLat = value
+      },
+      get xy() {
+        return crs.working.forward(lngLat)
+      },
+      screen: event.screen,
+      rawLngLat: event.lngLat,
+      snap: undefined,
+      dragging: this.tools.dragging,
+      // -1, not 0: no button was pressed, and 0 means the *primary* button. A tool branching
+      // on `button === 0` must not think a key press was a left click. (The test harness has
+      // always reported -1 for a synthetic keydown; this keeps the real path identical.)
+      button: -1,
+      modifiers: event.modifiers,
+      hits: () => this.renderer.queryAt(event.screen),
+      consume: () => {
+        consumed = true
+      },
+      get consumed() {
+        return consumed
+      },
+      originalEvent: event.originalEvent,
+    }
   }
 
   #normalise(event: RendererPointerEvent): InteractionContext {
