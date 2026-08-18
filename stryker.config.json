@@ -4,7 +4,7 @@
     "Mutation testing for the kernel's load-bearing maths.",
     "",
     "Coverage answers 'was this line run', which is the wrong question. The July audit found 86",
-    "real defects behind a green suite at 88% coverage — that gap IS the signature of",
+    "real defects behind a green suite at 88% coverage \u2014 that gap IS the signature of",
     "coverage-measured testing. Mutation testing asks the right question: if this line were",
     "wrong, would anything fail? The kill rate is the only objective number this repository has",
     "for the strength of its assertions, and it is the honest way to re-derive the lost",
@@ -17,7 +17,22 @@
     "browser suite.",
     "",
     "Thresholds are a ratchet, not an aspiration. `break` sits at the current measured floor so",
-    "the number can only go up; raise it when a run beats it."
+    "the number can only go up; raise it when a run beats it.",
+    "",
+    "BASELINE, 2026-08-18, first full run: 65.50% overall \u2014 1214 killed, 543 survived, 105 with",
+    "no coverage at all, over 1877 mutants. The distribution is the finding, not the average:",
+    "  SpatialIndex.ts     34.62%   the R-tree behind query() and nearest() \u2014 the pointer path",
+    "  FeatureStore.ts     54.50%   the single source of truth for all geometry",
+    "  builtins.ts         61.54%   CrsService.ts 63.29%   rasterLayerType.ts 66.18%",
+    "  vectorLayerType.ts  70.59%   CommandBus.ts 72.58%   planar.ts 74.31%",
+    "  LayerManager.ts     74.56%   TopologyIndex.ts 75.96%   registry.ts 80.77%",
+    "",
+    "Against 88.7% line coverage. The store \u2014 the component every other guarantee rests on \u2014 has",
+    "the weakest assertions in the kernel, and the two worst files are the ones a wrong answer in",
+    "is least visible: an R-tree that returns the wrong candidates degrades silently into a map",
+    "that 'feels laggy', and a store write that half-applies is the failure class Tier 0 closed by",
+    "hand. That gap between 88.7% covered and 65.5% killed is precisely the shape the July audit",
+    "left behind: 86 real defects behind a green suite."
   ],
   "packageManager": "npm",
   "testRunner": "vitest",
@@ -42,7 +57,7 @@
   "thresholds": {
     "high": 90,
     "low": 75,
-    "break": 60
+    "break": 65
   },
   "timeoutMS": 20000,
   "concurrency": 4
