@@ -28,7 +28,7 @@ const packages = [
       proj4: '^2.12.1',
       rbush: '^4.0.1',
     },
-    peers: { 'maplibre-gl': '>=4.7.0 <6' },
+    peers: { 'maplibre-gl': '>=4.7.0 <7' },
     refs: [],
   },
   {

@@ -27,6 +27,25 @@ import type {
   RendererPointerEvent,
 } from '../types/renderer.js'
 
+/**
+ * The key and value parameters of MapLibre's property setters, *as this installation declares
+ * them*.
+ *
+ * They are not the same types across the supported peer range, and no literal spelling compiles
+ * on every major: maplibre 4 and 5 take `(string, any)`, while maplibre 6 tightened these to
+ * `keyof AllPaintProperties` and the style-spec value union — type names that do not exist to
+ * import on 5. Deriving the parameters from the method itself resolves to whichever the
+ * installed version declares, so one source file type-checks against 4, 5 and 6 alike.
+ *
+ * The casts are sound at the value level regardless: `unionKeys` yields only keys that came off
+ * a `LayerStyle`'s own paint/layout records — the style-spec property names — and a key MapLibre
+ * does not recognise is a no-op there, exactly as it was before v6 narrowed the type.
+ */
+type PaintPropertyKey = Parameters<MapLibreMap['setPaintProperty']>[1]
+type PaintPropertyValue = Parameters<MapLibreMap['setPaintProperty']>[2]
+type LayoutPropertyKey = Parameters<MapLibreMap['setLayoutProperty']>[1]
+type LayoutPropertyValue = Parameters<MapLibreMap['setLayoutProperty']>[2]
+
 /* ========================================================================= */
 /* Reserved GeoJSON property keys                                            */
 /* ========================================================================= */
@@ -543,11 +562,19 @@ export class MapLibreRenderer implements Renderer {
       // `undefined` is MapLibre's documented "reset to the spec default", which is
       // exactly what a key that disappeared from the style should do.
       for (const key of unionKeys(old.paint, native.paint)) {
-        map.setPaintProperty(native.id, key, native.paint[key])
+        map.setPaintProperty(
+          native.id,
+          key as PaintPropertyKey,
+          native.paint[key] as PaintPropertyValue,
+        )
       }
       for (const key of unionKeys(old.layout, native.layout)) {
         if (key === 'visibility') continue // owned by setLayerVisible; see below
-        map.setLayoutProperty(native.id, key, native.layout[key])
+        map.setLayoutProperty(
+          native.id,
+          key as LayoutPropertyKey,
+          native.layout[key] as LayoutPropertyValue,
+        )
       }
     }
 
@@ -1118,7 +1145,7 @@ async function loadMapLibre(): Promise<MapLibreModule> {
     if (typeof ns.Map !== 'function') {
       throw new Error(
         '[blaeu] maplibre-gl resolved without a `Map` export. It is a peer dependency — ' +
-          'check that a compatible version (>=4.7 <6) is installed and that your bundler is not aliasing it.',
+          'check that a compatible version (>=4.7 <7) is installed and that your bundler is not aliasing it.',
       )
     }
     return ns
@@ -1143,12 +1170,12 @@ async function loadMapLibre(): Promise<MapLibreModule> {
  * Bind several listeners and return one unbind for all of them.
  *
  * Deliberately **not** the return value of `map.on`. Across the maplibre range this library
- * supports (peer `>=4.7 <6`) that value is not one thing: maplibre 5 returns a `Subscription`
- * with `.unsubscribe()`; maplibre 4 returns the map itself. Calling `.unsubscribe()` on the map,
+ * supports (peer `>=4.7 <7`) that value is not one thing: maplibre 5 and 6 return a
+ * `Subscription` with `.unsubscribe()`; maplibre 4 returns the map itself. Calling `.unsubscribe()` on the map,
  * as the old code did, throws on v4 — and because that throw escaped the `load` handler in
  * `whenLoaded` before it could `resolve()`, `mount()` never settled and the map hung silently on
  * every v4 host, behind a green suite whose fake map returned a v5-shaped subscription.
- * `map.off(type, listener)` is identical on both majors, so we unbind through it.
+ * `map.off(type, listener)` is identical on all three majors, so we unbind through it.
  */
 function bindListeners(
   map: MapLibreMap,
