@@ -191,7 +191,7 @@ describe('uiPlugin', () => {
         plugins: [uiPlugin(), strangerPlugin('stranger:hex-paint')],
       })
 
-      const node = buttons(map).find((b) => b.dataset['fxId'] === 'stranger:hex-paint')
+      const node = buttons(map).find((b) => b.dataset['blId'] === 'stranger:hex-paint')
       expect(node).toBeDefined()
       // No translation registered for it, so the label falls back to the tool id —
       // never to the raw i18n key.
@@ -210,7 +210,7 @@ describe('uiPlugin', () => {
       // their tools during setup, which is why this is enough in practice.
       map.events.emit('plugin:registered', { id: 'draw' })
 
-      const node = buttons(map).find((b) => b.dataset['fxId'] === 'draw:polygon')
+      const node = buttons(map).find((b) => b.dataset['blId'] === 'draw:polygon')
       expect(node?.textContent).toBe('Parsel çiz')
       expect(node?.getAttribute('aria-label')).toBe('Parsel çiz')
 
@@ -223,7 +223,7 @@ describe('uiPlugin', () => {
       })
 
       const node = (): HTMLButtonElement =>
-        buttons(map).find((b) => b.dataset['fxId'] === 'stranger:hex-paint')!
+        buttons(map).find((b) => b.dataset['blId'] === 'stranger:hex-paint')!
 
       expect(node().getAttribute('aria-pressed')).toBe('false')
 
@@ -245,7 +245,7 @@ describe('uiPlugin', () => {
       })
 
       map.tools.activate('stranger:hex-paint')
-      const node = buttons(map).find((b) => b.dataset['fxId'] === 'stranger:hex-paint')
+      const node = buttons(map).find((b) => b.dataset['blId'] === 'stranger:hex-paint')
       expect(node?.getAttribute('aria-pressed')).toBe('true')
 
       await map.destroy()
@@ -307,7 +307,7 @@ describe('uiPlugin', () => {
       const active = document.activeElement as HTMLElement
       expect(active).not.toBe(document.body)
       expect(active.classList.contains('bl-ui-button')).toBe(true)
-      expect(active.dataset['fxId']).toBe('stranger:b') // the tab stop, not list[0]
+      expect(active.dataset['blId']).toBe('stranger:b') // the tab stop, not list[0]
       expect(active.tabIndex).toBe(0) // and it still owns the single tab stop
 
       await map.destroy()
@@ -364,7 +364,7 @@ describe('uiPlugin', () => {
         onClick: () => clicked++,
       })
 
-      const matching = buttons(map).filter((b) => b.dataset['fxId'] === 'stranger:hex-paint')
+      const matching = buttons(map).filter((b) => b.dataset['blId'] === 'stranger:hex-paint')
       expect(matching.length).toBe(1)
       expect(matching[0]?.textContent).toBe('Paint')
 
@@ -375,7 +375,7 @@ describe('uiPlugin', () => {
       handle.dispose()
       // The generated button comes back once the custom one is gone.
       expect(
-        buttons(map).find((b) => b.dataset['fxId'] === 'stranger:hex-paint')?.textContent,
+        buttons(map).find((b) => b.dataset['blId'] === 'stranger:hex-paint')?.textContent,
       ).toBe('stranger:hex-paint')
 
       await map.destroy()

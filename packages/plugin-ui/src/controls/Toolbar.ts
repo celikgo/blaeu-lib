@@ -103,7 +103,7 @@ function renderButton(ctx: ControlContext, spec: ToolbarButton, tabbable: boolea
   const model = ctx.toolbarModel
   const label = labelFor(ctx, spec)
   const node = button('bl-ui-button', label)
-  node.dataset['fxId'] = spec.id
+  node.dataset['blId'] = spec.id
 
   if (spec.icon !== undefined) {
     node.appendChild(

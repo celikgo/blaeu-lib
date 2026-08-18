@@ -190,7 +190,7 @@ function build(ctx: PluginContext<ResolvedUiOptions>): UiApi {
         let entry = statusEntries.get(key)
         if (!entry) {
           entry = el('span', { class: 'bl-ui-status-entry' })
-          entry.dataset['fxKey'] = key
+          entry.dataset['blKey'] = key
           statusEntries.set(key, entry)
           status.appendChild(entry)
         }
