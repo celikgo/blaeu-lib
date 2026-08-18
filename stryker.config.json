@@ -1,0 +1,49 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": [
+    "Mutation testing for the kernel's load-bearing maths.",
+    "",
+    "Coverage answers 'was this line run', which is the wrong question. The July audit found 86",
+    "real defects behind a green suite at 88% coverage — that gap IS the signature of",
+    "coverage-measured testing. Mutation testing asks the right question: if this line were",
+    "wrong, would anything fail? The kill rate is the only objective number this repository has",
+    "for the strength of its assertions, and it is the honest way to re-derive the lost",
+    "medium/low backlog rather than re-guess it.",
+    "",
+    "Scoped to store/, crs/, layers/ and commands/ on purpose. They are where a silent wrong",
+    "answer becomes a wrong number on a deed, they are pure enough to mutate meaningfully, and",
+    "starting narrow keeps a full run in minutes rather than an hour. Widen it once these are",
+    "clean. Renderers are excluded: their real behaviour is MapLibre's, which lives in the",
+    "browser suite.",
+    "",
+    "Thresholds are a ratchet, not an aspiration. `break` sits at the current measured floor so",
+    "the number can only go up; raise it when a run beats it."
+  ],
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  },
+  "reporters": ["html", "clear-text", "progress"],
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  },
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "packages/core/src/store/**/*.ts",
+    "packages/core/src/crs/**/*.ts",
+    "packages/core/src/layers/**/*.ts",
+    "packages/core/src/commands/**/*.ts",
+    "!packages/core/src/**/*.test.ts",
+    "!packages/core/src/**/*.bench.ts",
+    "!packages/core/src/store/test-crs.ts"
+  ],
+  "ignorePatterns": ["dist", ".tsbuild", "reports", "coverage", ".doc-fences"],
+  "thresholds": {
+    "high": 90,
+    "low": 75,
+    "break": 60
+  },
+  "timeoutMS": 20000,
+  "concurrency": 4
+}

@@ -37,3 +37,7 @@ Thumbs.db
 
 # Claude Code local settings (personal, per-machine)
 .claude/settings.local.json
+
+# Stryker mutation reports and its sandboxes
+reports/
+.stryker-tmp/

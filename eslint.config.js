@@ -11,6 +11,15 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/*.tsbuildinfo',
       'examples/*/public/**',
+      // Stryker copies the whole repo into a sandbox per concurrent worker and injects
+      // `@ts-nocheck` plus its mutant switches. Linting a live sandbox mid-run produces
+      // hundreds of errors about generated code, and which ones appear depends on how far the
+      // run has got — so `npm run lint` would pass or fail depending on timing.
+      '**/.stryker-tmp/**',
+      'reports/**',
+      // The doc-fence checker's scratch directory, for the same reason: transient generated
+      // code that is deleted as soon as `tsc` has read it.
+      '.doc-fences/**',
     ],
   },
   js.configs.recommended,

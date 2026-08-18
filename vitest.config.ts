@@ -31,6 +31,11 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['packages/*/src/**/*.{test,spec}.ts', 'packages/*/test/**/*.{test,spec}.ts'],
+    // `*.browser.test.ts` needs a real WebGL context and lives in `vitest.browser.config.ts`.
+    // Without this exclusion the node runner picks the files up (the glob above matches them),
+    // mounts MapLibre against jsdom, and fails 20 tests for a reason that has nothing to do
+    // with the code under test.
+    exclude: ['**/node_modules/**', '**/dist/**', '**/*.browser.test.ts'],
     coverage: {
       provider: 'v8',
       include: ['packages/*/src/**/*.ts'],
