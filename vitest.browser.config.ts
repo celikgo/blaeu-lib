@@ -27,11 +27,14 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url))
  *
  * ## Known: maplibre 6 does not render under headless SwiftShader
  *
- * Measured, on this exact config: **21/21 pass against maplibre 5.24, and 18/21 against 6.4.0**.
- * The three that fail are the hit-testing ones, and the cause is upstream of them — on v6 the
- * map never reaches `loaded()`, so no render pass completes, and `queryRenderedFeatures` returns
- * only what has actually been *rendered*. Polling for five seconds does not help; this is not a
- * timing margin.
+ * Measured on this exact config: **21/21 against maplibre 5.24, 18/21 against 6.4.0**. The three
+ * that fail are the hit-testing ones, and the cause is upstream of them — on v6 the map never
+ * reaches `loaded()`, so no render pass completes, and `queryRenderedFeatures` returns only what
+ * has actually been *rendered*.
+ *
+ * It is a genuine non-render, not a timing margin: `whenQueryable` polls for fifteen seconds and
+ * the map is still `loaded=false`. Neither the headless shell nor the full Chromium build makes
+ * any difference, so it is not the cut-down GL stack in the shell either.
  *
  * The likely reason is one of v6's own breaking changes: it **removed WebGL1 and requires
  * WebGL2**, and SwiftShader's software WebGL2 appears not to give it everything it needs. That

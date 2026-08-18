@@ -44,6 +44,7 @@ interface NativeMap {
   jumpTo(o: Record<string, unknown>): void
   once(type: string, fn: () => void): unknown
   isStyleLoaded(): boolean
+  loaded(): boolean
 }
 const native = (): NativeMap => renderer.getNative<NativeMap>()
 
@@ -90,6 +91,33 @@ function parcel(id: string, at: [number, number] = ANKARA): BlaeuFeature {
 /** MapLibre applies style changes asynchronously; give it a frame to settle. */
 const settle = (): Promise<void> =>
   new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+
+/**
+ * Wait until the feature at `point` is actually queryable, or fail saying so.
+ *
+ * `queryRenderedFeatures` returns only what has been **rendered**, so a hit test is not a
+ * question about our code until a render pass has completed — and how long that takes is a
+ * property of the machine, not of the library. Two animation frames was enough on one
+ * developer's laptop and on no CI runner, which made three tests look like a maplibre-version
+ * problem when they were a timing assumption.
+ *
+ * Polling with a deadline is the honest shape: it still asserts the feature *becomes*
+ * queryable, and when it never does the failure says that instead of `expected [] to have
+ * length 1`, which sends you looking in the wrong place.
+ */
+async function whenQueryable(point: { x: number; y: number }, budgetMs = 15_000): Promise<void> {
+  const deadline = Date.now() + budgetMs
+  while (Date.now() < deadline) {
+    if (renderer.queryAt(point).length > 0) return
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+  const map = native()
+  throw new Error(
+    `nothing became queryable at (${point.x}, ${point.y}) within ${budgetMs} ms — ` +
+      `loaded=${map.loaded()} styleLoaded=${map.isStyleLoaded()}. The map never completed a ` +
+      `render pass, so this says nothing about hit testing.`,
+  )
+}
 
 /* ------------------------------------------------------------------ *
  * 1. Style translation — does MapLibre accept what we generate?
@@ -220,6 +248,7 @@ describe('hit testing round-trips the feature id', () => {
     await settle()
 
     const centre = renderer.project(ANKARA)
+    await whenQueryable(centre)
     const hits = renderer.queryAt(centre)
 
     expect(hits).toHaveLength(1)
@@ -235,6 +264,7 @@ describe('hit testing round-trips the feature id', () => {
     renderer.addLayer('parcels', 'parcels', { fill: { color: '#cccccc' } })
     await settle()
 
+    await whenQueryable(renderer.project(ANKARA))
     const hits = renderer.queryAt(renderer.project(ANKARA))
     expect(hits[0]!.id).toBe('parcel-a')
     expect(ID_PROPERTY).toBe('$id')
@@ -245,7 +275,10 @@ describe('hit testing round-trips the feature id', () => {
     renderer.addLayer('parcels', 'parcels', { fill: { color: '#cccccc' } })
     await settle()
 
-    // Far outside the parcel, still on the canvas.
+    // Wait for a render by proving the parcel is there, *then* assert the far corner is not.
+    // Asserting an absence before anything has rendered would pass for the wrong reason.
+    renderer.setFeatureResolver(() => ({ id: 'a' }) as unknown as BlaeuFeature)
+    await whenQueryable(renderer.project(ANKARA))
     expect(renderer.queryAt({ x: 5, y: 5 })).toHaveLength(0)
   })
 
@@ -259,6 +292,7 @@ describe('hit testing round-trips the feature id', () => {
     renderer.addLayer('parcels', 'parcels', { fill: { color: '#cccccc' } })
     await settle()
 
+    await whenQueryable(renderer.project(ANKARA))
     const hits = renderer.queryAt(renderer.project(ANKARA))
     expect(hits.filter((f) => f.id === 'wide')).toHaveLength(1)
   })
