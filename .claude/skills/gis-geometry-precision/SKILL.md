@@ -28,9 +28,23 @@ rest of the codebase reads itself:
 ```ts
 const plane = map.crs.working // EPSG:5254, metres
 const xy = ring.map(plane.forward) // 4326 → projected metres
-const out = offsetPolygonPlanar(xy, 2.5) // do the real maths, in metres
-const ring2 = out.map(plane.inverse) // projected → 4326, back to store
+const areaM2 = polygonArea([xy]) // do the real maths, in metres
+const snapped = xy.map((p) => snapXYToGrid(p, 0.001)) // …or maths that hands geometry back
+const ring2 = snapped.map(plane.inverse) // projected → 4326, back to store
 ```
+
+The middle step's vocabulary is `packages/core/src/crs/planar.ts`, exported from
+`@blaeu/core`: `polygonArea`, `ringArea`, `signedRingArea`, `pathLength`,
+`ringPerimeter`, `polygonPerimeter`, `distanceXY`, `gridBearing`, `snapXYToGrid`,
+`decimalsForGrid`. Nothing in that file knows what a longitude is, which is the
+point — it is structurally impossible to run a shoelace sum over degrees there and
+get an "area" of 0.0002 that renders perfectly and means nothing.
+
+For the common cases the sandwich is already made: `map.crs.area()`,
+`.length()`, `.distance()`, `.bearing()` and `.quantise()` project, compute and
+return the number, so reach for `crs.area(geometry)` before you hand-roll the
+three steps. Roll them yourself only when the middle step is something the
+wrappers do not cover.
 
 Never do the maths in the middle step on lng/lat. A "2.5 metre" buffer applied to
 degrees is a 280 km buffer, and the fact that this _renders_ without error is why
@@ -44,8 +58,33 @@ Two coordinates that differ by 10⁻¹² metres are the same corner to a human a
 different corner to a boolean op, and that difference is where slivers are born.
 
 ```ts
-const reducer = new GeometryPrecisionReducer(new PrecisionModel(1000)) // 1 mm
+const model = new PrecisionModel(1 / precisionMetres) // a *scale*, not a grid size: 1 mm ⇒ 1000
+const snapped = GeometryPrecisionReducer.reducePointwise(geom, model) // static, pointwise
 ```
+
+Two details there are load-bearing, and both are spelled out at
+`packages/plugin-edit/src/jsts.ts:260-277`. The scale is **derived** from the CRS's
+precision (`1 / precisionMetres`) rather than typed as a literal, so changing
+`crs.precision` cannot leave a stale 1000 behind. And on that path the reducer is
+used **pointwise** — `reducePointwise`, not `reduce` — because the input is
+geometry a user is mid-drag on, which snapping can and does make invalid. The
+`reduce` form runs a `buffer(0)` on an invalid polygon, a silent topological repair
+that drops spikes and changes area, exactly the auto-fix the closing section below
+forbids. The pointwise reducer only moves each vertex onto the grid; the caller
+then re-validates and _rejects_ a snap that broke the boundary, naming the
+coordinate, rather than shipping a quietly rewritten one.
+
+The repo has a **second** precision reduction, and it deliberately makes the other
+choice: `packages/plugin-topology/src/jsts.ts:166-170` derives the same scale but
+calls `GeometryPrecisionReducer.reduce`. That is not drift. Its only caller is
+`prepare()` (`rules.ts:667`), which returns `undefined` on `validityError` two lines
+earlier — so nothing invalid ever reaches the reducer, and the `buffer(0)` branch is
+unreachable by construction. Which form is correct depends entirely on whether the
+caller has already excluded invalid input; when in doubt, `reducePointwise` and an
+explicit rejection is the safe default.
+
+Reduce **both** operands to the same grid before a boolean op. Reducing one and
+not the other reintroduces the mismatch the reduction exists to remove.
 
 **2. Compare coordinates by tolerance, never by `===`.** Coordinate equality is
 `distance < tolerance`, and the tolerance lives in the CRS config — not as a magic

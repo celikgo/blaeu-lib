@@ -1,11 +1,17 @@
 # Blaeu
 
-Blaeu is a geospatial **kernel**, not a map viewer. The core owns five things — a typed
-event bus with cancellable `before:` hooks, a plugin registry, two middleware pipelines
-(one synchronous for interaction, one asynchronous for commits), a command bus, and a
-feature store — and nothing else. Drawing, snapping, editing, measurement, selection,
-undo/redo, topology, the coordinate-reference service, even layer _types_ are plugins that
-register through extension points the core owns. Domains ship as **presets**: composable,
+[![CI](https://img.shields.io/github/actions/workflow/status/celikgo/blaeu-lib/ci.yml?branch=main&label=CI)](https://github.com/celikgo/blaeu-lib/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](package.json)
+
+Blaeu is a geospatial **kernel**, not a map viewer. The core owns five _extension
+mechanisms_ — a typed event bus with cancellable `before:` hooks, a plugin registry, two
+middleware pipelines (one synchronous for interaction, one asynchronous for commits), a
+command bus, and a feature store — plus the small set of services those mechanisms cannot
+work without and no plugin may replace: CRS, layers, tools, validation, theme and i18n.
+Nothing domain-specific. Drawing, snapping, editing, measurement, selection, undo/redo,
+topology, even layer _types_ are plugins that register through extension points the core
+owns. Domains ship as **presets**: composable,
 plain-data bundles of plugins, config, layers, validation rules, theme and messages. The
 kernel has never heard of a parcel, and it never will.
 
@@ -16,6 +22,11 @@ game level editor — with no forks and no `if (domain === …)` anywhere inside
 ```
 npm install @blaeu/core maplibre-gl
 ```
+
+> **Not on npm yet.** The `@blaeu/*` packages are pre-release, so the install lines below
+> describe the shape of the API rather than something you can install today. To try it now:
+> `git clone https://github.com/celikgo/blaeu-lib && cd blaeu-lib && npm install && npm run build`,
+> then `npm run dev -w @blaeu/example-01-basic`.
 
 ## Quick start
 
@@ -39,31 +50,31 @@ map.events.on('draw:complete', (e) => {
 })
 ```
 
-Ten lines, and the polygon you draw already snaps to the corners of every parcel already on
-the map, is quantised to the millimetre grid of EPSG:5254, and is undoable with Ctrl+Z. The
-draw plugin is responsible for none of that.
+That is the whole setup, and the polygon you draw already snaps to the corners of every
+parcel already on the map, is quantised to the millimetre grid of EPSG:5254, and is undoable
+with Ctrl+Z. The draw plugin is responsible for none of that.
 
 ## The tier model
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────────────────┐
 │  Applications        your product. Knows about presets, not plugins. │
-├─────────────────────────────────────────────────────────────────────┤
+├──────────────────────────────────────────────────────────────────────┤
 │  Presets             judgement: tolerances, severities, units, CRS,  │
 │  preset-cadastre     layers, theme, locale. Plain data. Composable.  │
 │  preset-urban        A preset is a value, not a subclass.            │
 │  preset-game                                                         │
-├─────────────────────────────────────────────────────────────────────┤
+├──────────────────────────────────────────────────────────────────────┤
 │  Plugins             capability: draw, snap, edit, select, measure,  │
 │  plugin-draw …       history, topology, ui. Domain-agnostic. They    │
 │                      peer-depend on core and never import each other.│
-├─────────────────────────────────────────────────────────────────────┤
+├──────────────────────────────────────────────────────────────────────┤
 │  Core (the kernel)   EventBus · PluginManager · SyncInteractionPipe- │
-│  @blaeu/core      line · AsyncCommitPipeline · CommandBus ·       │
+│  @blaeu/core         line · AsyncCommitPipeline · CommandBus ·       │
 │                      FeatureStore (+ spatial & topology indexes)     │
 │                      + the seams: Renderer, CrsService, LayerManager,│
 │                      ToolManager, ThemeManager, I18n, Validation     │
-└─────────────────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────────────────────┘
         the arrows only ever point down. CI enforces it:
         `npm run lint:boundaries` fails on a core→plugin or plugin→plugin import.
 ```
@@ -146,12 +157,12 @@ the measurement maths — `preset-game` would be a fork rather than a package.
 
 Each of these is a constraint we accepted deliberately, and each is paid for by a property
 you cannot get any other way. Full write-ups, including the alternatives we turned down,
-are in [`docs/adr/`](docs/adr/).
+are in [`docs/adr/`](docs/adr/README.md).
 
 ### Every mutation is a Command, and history is a _subscriber_
 
 The `Command` interface (`execute`/`undo`, with the contract that `undo(execute(s))`
-restores `s` to **deep equality**) is the only way anything in BlaeuMap changes state.
+restores `s` to **deep equality**) is the only way anything in a Blaeu map changes state.
 
 The payoff is that undo works across plugins that have never heard of each other. The
 history plugin does not know what a "move vertex" is; it subscribes to
@@ -162,9 +173,12 @@ direction. That is also why history is a plugin and not a core feature: a read-o
 or a kiosk does not pay for an undo stack it will never use, and a collaborative product
 can swap in a history plugin backed by a CRDT without the kernel noticing.
 
-`CommandBus.transaction(label, fn)` groups a multi-step operation into one undo step, and
-rolls the store back if `fn` throws — so a half-completed parcel split cannot be left on
-screen. `Command.coalesceWith()` merges a 200-frame vertex drag into a single Ctrl+Z,
+`CommandBus.transaction(label, fn)` groups transient work — a preview plus its handles —
+into one undo step, and rolls the store back if `fn` throws. `CommandBus.commitTransaction(label, async (tx) => …)`
+is its durable counterpart: each `tx.commit()` clears the commit pipeline on its own, and a
+veto anywhere rolls the whole group back to the snapshot taken before it started — so a
+rejected second half of a parcel split cannot leave the original parcel deleted with nothing
+in its place. `Command.coalesceWith()` merges a 200-frame vertex drag into a single Ctrl+Z,
 which is what every user already assumes happens.
 
 ### Snapping is interaction middleware, not something the draw tool calls
@@ -226,7 +240,11 @@ a geodesic azimuth — surveyors care about the difference. The working CRS is a
 coordinate readouts and exports use, because a Turkish surveyor wants to see
 `Y=458123.456 X=4421987.123`, not a pair of decimal degrees. The Turkish TUREF/TM belts
 (EPSG:5253–5259) and the legacy ED50 Gauss-Krüger belts (EPSG:2319–2325) ship built in, and
-`crs.register()` takes a municipality's local system.
+`crs.register()` takes a municipality's local system. UTM 35N/36N/37N (EPSG:32635–32637)
+ship too, because imported data arrives in them. **If you set no working CRS you get
+EPSG:3857** — never catastrophically wrong for a map that has not said where it is, and
+never survey-grade either: at 40°N a Web Mercator "metre" is 1.3 real metres, so a planar
+area is ~70 % too large. Set a belt before measuring anything that matters.
 
 ### The plugin registry is typed by declaration merging
 
@@ -416,13 +434,14 @@ const map = await createBlaeuMap({ container: '#map', preset: izmir })
 
 The merge semantics are the whole contract of the preset system, and they are deliberate:
 
-| Field                                                               | Rule                                                                                            |
-| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `config`, `theme`                                                   | deep merge                                                                                      |
-| `plugins`                                                           | append — but a repeated plugin id **deep-merges its options into the existing entry, in place** |
-| `validation`, `layers`, `interactionMiddleware`, `commitMiddleware` | append                                                                                          |
-| `i18n`                                                              | merge per locale, later wins per key                                                            |
-| `id`, `description`, `locale`                                       | later wins                                                                                      |
+| Field                                                               | Rule                                                                                                                            |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `config`                                                            | deep merge                                                                                                                      |
+| `theme`                                                             | deep merge — except `basemap` and `css`, which replace wholesale (a style JSON is one value, not a bag of fields to interleave) |
+| `plugins`                                                           | append — but a repeated plugin id **deep-merges its options into the existing entry, in place**                                 |
+| `validation`, `layers`, `interactionMiddleware`, `commitMiddleware` | append                                                                                                                          |
+| `i18n`                                                              | merge per locale, later wins per key                                                                                            |
+| `id`, `description`, `locale`                                       | later wins                                                                                                                      |
 
 In place matters: the retuned snap plugin keeps the base preset's install position, so
 anything depending on it still finds it where the base put it. When append is genuinely
@@ -431,6 +450,10 @@ replaces instead. Needing that often is a smell that the base preset should have
 option.
 
 ## Packages
+
+**Not yet on npm.** The package names are final; the install commands are what they will be
+at 0.1.x. Until the first publish, run them from source — see the note under the first
+install fence above.
 
 | Package                  | Install                         | What it is                                                                       |
 | ------------------------ | ------------------------------- | -------------------------------------------------------------------------------- |
@@ -455,13 +478,22 @@ throws, the plugin just silently never receives an event, and someone loses a da
 
 A library honest about its edges is worth more than one that is not, so:
 
-- **The MapLibre renderer has no browser-mode test coverage.** The entire suite (500+ tests)
-  runs headless against `FakeRenderer`, which implements the full `Renderer` contract with
-  deterministic, analytically-invertible `project`/`unproject`. That is what makes a
+- **Hit testing is only verified on a GPU runner.** The node suite (789 tests across 44
+  files) runs headless against `FakeRenderer`, which implements the full `Renderer` contract
+  with deterministic, analytically-invertible `project`/`unproject`. That is what makes a
   pixel-denominated snap tolerance testable at all, and it proves the renderer seam is real
-  rather than aspirational — but it means `MapLibreRenderer` itself is verified by reading
-  and by hand. A browser-mode Vitest run against a real WebGL context is the highest-value
-  test we have not written.
+  rather than aspirational. `MapLibreRenderer` itself is now covered too: a separate browser
+  suite (`npm run test:browser`, `vitest.browser.config.ts`, 22 tests) mounts a real MapLibre
+  `Map` in headless Chromium and asserts the two things a fake cannot honestly reach — that
+  MapLibre accepts our `LayerStyle`→paint/layout translation, and that our pointer and touch
+  normalisation matches the events a browser actually makes. What it cannot reach on a
+  GPU-less runner is `queryRenderedFeatures`: hit testing needs a completed render pass, and
+  headless SwiftShader never delivers one, so four of those tests are gated behind a probe
+  and skip with a warning. That is the remaining edge, and it closes on a GPU runner. Beyond
+  the two suites, `npm run test:mutation` runs Stryker over the kernel (`stryker.config.json`)
+  and `npm run bench` runs the store benchmarks (`packages/core/src/store/store.bench.ts`);
+  neither is in `npm run verify`, because a mutation run is minutes rather than seconds and
+  its score is a number to read rather than a gate to trip. It runs nightly instead.
 - **Durable writes are async; interaction writes are not.** A write that must be validated
   goes through `await commands.commit(cmd)`, which runs the async commit pipeline and applies
   the write only if nothing rejected — `preset-game`'s entity placement is the reference.
@@ -484,7 +516,10 @@ A library honest about its edges is worth more than one that is not, so:
 
 ## Further reading
 
-- [docs/theming.md](docs/theming.md) — the theme system: switching light/dark, the six
+- [`examples/`](examples/) — four runnable apps built against the workspace sources, one per
+  claim this README makes: `01-basic`, `02-cadastre`, `03-urban-planning`, `04-game-map`.
+  `npm install && npm run build` at the root, then `npm run dev -w @blaeu/example-02-cadastre`.
+- [docs/theming.md](docs/theming.md) — the theme system: switching light/dark, the seven
   built-in themes (including the Twitter/X palettes), theme-following layer styles, and
   writing your own theme.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — every core abstraction, the life of a pointer event,
@@ -492,6 +527,6 @@ A library honest about its edges is worth more than one that is not, so:
 - [ROADMAP.md](ROADMAP.md) — what is next, and why in that order.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — the boundary rules, the three tests every plugin
   owes, and when a change needs an ADR.
-- [docs/adr/](docs/adr/) — the decisions, each with the alternatives we rejected.
+- [docs/adr/](docs/adr/README.md) — the decisions, each with the alternatives we rejected.
 
 MIT.

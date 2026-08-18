@@ -1,6 +1,6 @@
 # @blaeu/plugin-history
 
-Undo/redo for BlaeuMap — including for plugins that do not exist yet.
+Undo/redo for Blaeu — including for plugins that do not exist yet.
 
 This plugin is the proof that the command-bus design works. It knows **nothing**
 about drawing, editing, parcels or vertices. It subscribes to
@@ -36,6 +36,12 @@ scaffolding only and refuses a feature-writing command, at compile time and at
 runtime both:
 
 ```ts
+import { AddFeaturesCommand } from '@blaeu/core'
+import type { BlaeuMap, Geometry } from '@blaeu/core'
+import type { HistoryApi } from '@blaeu/plugin-history'
+
+declare const map: BlaeuMap, history: HistoryApi, geometry: Geometry
+
 await map.commands.commit(new AddFeaturesCommand('parcels', [{ geometry }]))
 history.undo() // the parcel is gone, byte for byte as before
 ```
@@ -61,20 +67,29 @@ dependency.
 
 ## Options
 
-| Option             | Default | Meaning                                                                                     |
-| ------------------ | ------- | ------------------------------------------------------------------------------------------- |
-| `limit`            | `100`   | Maximum undo depth. The **oldest** entry is dropped when it is exceeded.                    |
-| `coalesceWindowMs` | `300`   | Ceiling on how long a command may still merge into the one before it. `0` disables merging. |
-| `keyboard`         | `true`  | Bind Ctrl/Cmd+Z and Ctrl+Shift+Z / Ctrl+Y.                                                  |
-| `container`        | —       | Where to bind those keys. Defaults to the map container, recovered from the renderer.       |
+| Option             | Default | Meaning                                                                                                                                                                                                          |
+| ------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `limit`            | `100`   | Maximum undo depth. The **oldest** entry is dropped when it is exceeded. Must be a finite number ≥ 1 — anything else throws at setup; fractional values are floored. To disable undo, do not install the plugin. |
+| `coalesceWindowMs` | `300`   | Ceiling on how long a command may still merge into the one before it. `0` disables merging. Must be finite and ≥ 0; a negative value throws at setup.                                                            |
+| `keyboard`         | `true`  | Bind Ctrl/Cmd+Z and Ctrl+Shift+Z / Ctrl+Y.                                                                                                                                                                       |
+| `container`        | —       | Where to bind those keys. Defaults to the map container, recovered from the renderer.                                                                                                                            |
+
+Both defaults are exported as `DEFAULT_LIMIT` and `DEFAULT_COALESCE_WINDOW_MS`, so
+a host UI can show them without hardcoding.
 
 ### Coalescing
 
-`coalesceWindowMs` is a ceiling, not a policy. Whether two commands merge is
-decided by the _command_, through `Command.coalesceWith(previous)`; history only
-refuses to ask once the window has passed. This is what keeps a 200-pixel vertex
-drag from producing 200 undo entries, and what makes typing `Kadıköy` into an
-attribute field one Ctrl+Z rather than seven.
+`coalesceWindowMs` is a ceiling for commands that cannot say what they belong to
+(keystrokes). Whether two commands merge is decided by the _command_, through
+`Command.coalesceWith(previous)`. History asks when the previous command arrived
+inside the window — or, whatever the clock says, when both commands declare the
+same `Command.gesture`: a surveyor who drags a shared corner, pauses to read the
+coordinate, then nudges it home made one gesture and owes exactly one Ctrl-Z.
+`coalesceWindowMs: 0` disables merging entirely, gesture or not.
+
+The window is what keeps a 200-pixel vertex drag from producing 200 undo entries,
+and what makes typing `Kadıköy` into an attribute field one Ctrl+Z rather than
+seven.
 
 ### Keyboard
 
@@ -88,6 +103,29 @@ off macOS. Nothing fires while focus is in an `input`, `textarea`, `select` or a
 the renderer (`getContainer()` on MapLibre, `container` on the test
 `FakeRenderer`). If your renderer offers neither, pass `container` explicitly; the
 plugin will not silently fall back to `window`.
+
+## API
+
+```ts
+interface HistoryApi {
+  undo(): boolean
+  redo(): boolean
+  readonly canUndo: boolean
+  readonly canRedo: boolean
+  readonly undoLabel: string | undefined
+  readonly redoLabel: string | undefined
+  clear(): void
+  readonly depth: number
+  onChange(handler: () => void): Disposable
+}
+```
+
+`undo()` and `redo()` return `false` when there was nothing to do, and also when the
+replay itself failed — a menu item that greys itself out on `canUndo` is not enough,
+because a command whose `undo()` throws is a bug that the caller should see. `clear()`
+forgets both stacks, which is what you want after a save or after loading a new
+document: undoing past the point where the file was written is not history, it is a
+data loss report.
 
 ## Events
 
@@ -110,8 +148,12 @@ map.events.on('history:changed', (e) => {
 
 - **Transient commands are never recorded.** A hover highlight or a rubber-band
   preview should not be something the user has to press Ctrl+Z past.
-- **A transaction is one entry**, labelled by the transaction: undoing a parcel
-  split restores the original parcel and removes both halves, in one step.
+- **A transaction is one entry.** A transaction with two or more recordable
+  commands is recorded as one composite carrying the transaction's label — undoing
+  a parcel split restores the original parcel and removes both halves, in one step.
+  A transaction with a single recordable command is recorded as that command,
+  keeping its own label, so the menu says "Move vertex" and not "Transaction". A
+  transaction whose children were all transient records nothing.
 - **A new action clears the redo stack** — classic linear history, which is what
   every editor the user has already used does.
 - **An undo cannot record itself.** Commands dispatched _during_ a replay (by a
@@ -120,3 +162,7 @@ map.events.on('history:changed', (e) => {
   untouched, `undo()` returns `false`, and a `map:error` is emitted with source
   `history:undo`. That is a bug in the command — `undo(execute(s))` must restore
   `s` to deep equality — and it is reported as one.
+- **Disabling parks the recorder, it does not wipe it.** `map.plugins.disable('history')`
+  stops new commands being recorded; the stacks survive, so `map.plugins.enable('history')`
+  resumes with the user's earlier edits still undoable. Removing the plugin is what
+  forgets them.

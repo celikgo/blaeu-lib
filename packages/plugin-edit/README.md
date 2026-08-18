@@ -20,6 +20,16 @@ and both are about not losing a millimetre:
 
 ## Install
 
+```bash
+npm install @blaeu/plugin-edit
+```
+
+> Not on npm yet — see [the root README](../../README.md#packages) for how to run it from source.
+
+`@blaeu/core` is a **peer** dependency. This package also depends on `jsts` at runtime — it is
+what `split` and `merge` are built on, and the only third-party geometry library in the repo
+(see `src/jsts.ts` for why not Turf).
+
 ```ts
 import { createBlaeuMap } from '@blaeu/core'
 import { editPlugin } from '@blaeu/plugin-edit'
@@ -45,12 +55,12 @@ map.plugin('edit').edit('parcel-42') // typed as EditApi — no cast
 
 **Tools** (activate with `map.tools.activate(id)`):
 
-| Tool             | What it does                                                                                                                                                                         |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `edit:vertex`    | The default mode. Drag a vertex; click a midpoint to insert one; Alt-click or press Delete to remove one; Escape to finish.                                                          |
-| `edit:transform` | Bounding-box gizmo: drag inside to move, a corner to scale, the stalk to rotate. Operates on the selection when a select plugin is installed, otherwise on the feature being edited. |
-| `edit:split`     | Click to draw the cut line, double-click or Enter to cut, Escape to abandon.                                                                                                         |
-| `edit:merge`     | Click the parcels to merge (seeded from the selection), Enter to merge.                                                                                                              |
+| Tool             | What it does                                                                                                                                                                                                                                 |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `edit:vertex`    | The default mode. Drag a vertex; click a midpoint to insert one; Alt-click or press Delete/Backspace to remove one; Escape rolls back the drag in flight and ends the session. Clicking a different feature starts editing that one instead. |
+| `edit:transform` | Bounding-box gizmo: drag inside to move, a corner to scale, the stalk to rotate. Operates on the selection when a select plugin is installed, otherwise on the feature being edited.                                                         |
+| `edit:split`     | Click to draw the cut line, double-click or Enter to cut, Escape to abandon.                                                                                                                                                                 |
+| `edit:merge`     | Click the parcels to merge (seeded from the selection); click one again to take it back out; Enter or double-click to merge; Escape to abandon the picks.                                                                                    |
 
 **Store collections and layers** — `edit:vertices`, `edit:midpoints`, `edit:guides`.
 The handles are ordinary features in ordinary vector layers, styled from theme tokens
@@ -59,9 +69,13 @@ The handles are ordinary features in ordinary vector layers, styled from theme t
 visible to any other plugin. They are written with `transient` commands, so they never
 appear in the undo stack.
 
-**Commands** — `MoveVerticesCommand` (coalescing, topological) and
-`SetGeometriesCommand` (insert, delete, move, rotate, scale). One drag is one undo
-step, because both implement `coalesceWith` and merge only within the same gesture.
+**Commands** — during a drag, `MoveVerticesCommand` / `SetGeometriesCommand` are
+dispatched as _transient_ previews: redrawn, never recorded, never validated. Mid-drag
+geometry is legitimately invalid, so validating each frame would be both slow and wrong.
+On release the controller commits one `CommitEditCommand` through the pipeline. That
+single validated write is the one undo step, and it is what lets a preset's rules veto
+the finished edit. `coalesceWith` is still implemented on both geometry commands, for a
+caller that dispatches them durably.
 
 ## Dependencies
 
@@ -76,13 +90,15 @@ All optional, and all genuinely so — the degradation test proves it:
 ## API
 
 ```ts
+import type { FeatureId, LineString, LngLat, ProjectedXY } from '@blaeu/core'
+
 interface EditApi {
-  edit(id: FeatureId): void // show handles, activate edit:vertex, emit edit:start
+  edit(id: FeatureId): void // show handles, activate edit:vertex, emit edit:start; throws if locked
   stop(): void // cancellable via before:edit:complete
   readonly editing: FeatureId | null
 
-  split(id: FeatureId, line: LineString): void // JSTS noding + polygonize, one undo step
-  merge(ids: readonly FeatureId[]): void // JSTS union, one undo step
+  split(id: FeatureId, line: LineString): Promise<void> // JSTS noding + polygonize, one undo step
+  merge(ids: readonly FeatureId[]): Promise<void> // JSTS union, one undo step
 
   rotate(ids: readonly FeatureId[], degrees: number, pivot?: LngLat): void
   scale(ids: readonly FeatureId[], factor: number, pivot?: LngLat): void
@@ -90,25 +106,48 @@ interface EditApi {
 }
 ```
 
-`split` throws — rather than producing garbage — when the cut line does not fully
-cross the feature, and `merge` throws when the inputs are not contiguous (a shared
+`edit()` throws if the feature has `meta.locked === true` — unlock it first. While the
+plugin is disabled it is a silent no-op, because a click on a read-only map is not an
+application error; `disable()` also deactivates any active `edit:*` tool and ends the
+session.
+
+`split` **rejects** — rather than producing garbage — when the cut line does not fully
+cross the feature, and `merge` rejects when the inputs are not contiguous (a shared
 _edge_, not a corner touch). Merging two disjoint parcels into a MultiPolygon is
 almost never what a surveyor meant, and silently doing it is worse than refusing.
-The tools catch those refusals and re-emit them as `map:error`; the API methods throw,
-so a script can handle them.
+Both are async, so nothing is ever thrown synchronously: the tools act on the settled
+promise and re-emit the refusal as `map:error`, and a script must `await` the call — or
+attach a `.catch` — to handle a refusal. A `try`/`catch` around the bare call never
+fires, and the rejection goes unhandled.
 
 Rotate, scale, move, split and merge all happen in the **projected working CRS**, in
 metres (core invariant 3). Sphere maths is not survey maths.
 
+**Also exported.** The command classes `GeometryEditCommand`, `MoveVerticesCommand`,
+`SetGeometriesCommand` and `CommitEditCommand`, with their `EditCommandOptions`; the
+handle-collection ids `VERTEX_COLLECTION`, `MIDPOINT_COLLECTION`, `GUIDE_COLLECTION` and
+the `HANDLE_COLLECTIONS` set; and the `Handle` / `HandleRole` types. The collection ids are
+deliberately public, because a UI plugin may legitimately read them —
+`store.collection('edit:vertices')` is a supported thing to do.
+
+The plugin also registers `en` and `tr` message bundles, so the undo-menu labels it stamps
+on its commands ("Move shared corner", "Ortak köşe taşı") are localised at the point of
+dispatch — by the time a history UI renders the stack the locale may have changed, but the
+label the user recognises is the one from when they did the thing.
+
 ## Events
 
-| Event                  | Payload                                                                               |
-| ---------------------- | ------------------------------------------------------------------------------------- |
-| `edit:start`           | `{ id, feature }`                                                                     |
-| `edit:vertex-move`     | `{ id, refs, from, to }` — `refs` has more than one entry when a shared corner moved  |
-| `edit:vertex-add`      | `{ id, at, refs }`                                                                    |
-| `edit:vertex-delete`   | `{ id, at, refs }`                                                                    |
-| `edit:complete`        | `{ id, feature }`                                                                     |
-| `edit:split`           | `{ source, parts }`                                                                   |
-| `edit:merge`           | `{ sources, feature }`                                                                |
-| `before:edit:complete` | `{ id, feature }` — **cancellable**: `preventDefault()` keeps the user in the session |
+| Event                  | Payload                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------- |
+| `edit:start`           | `{ id, feature }`                                                                                 |
+| `edit:vertex-move`     | `{ id, refs, from, to }` — `refs` has more than one entry when a shared corner moved              |
+| `edit:vertex-add`      | `{ id, at, refs }`                                                                                |
+| `edit:vertex-delete`   | `{ id, at, refs }`                                                                                |
+| `edit:complete`        | `{ id, feature }` — `feature` is `undefined` when the session ended because the feature went away |
+| `edit:split`           | `{ source, parts }`                                                                               |
+| `edit:merge`           | `{ sources, feature }`                                                                            |
+| `before:edit:complete` | `{ id, feature }` — **cancellable**: `preventDefault()` keeps the user in the session             |
+
+On both events `feature` is `undefined` when the session ended because the feature went
+away — split, merged or removed out from under it — so a listener that reaches straight
+for `e.payload.feature.geometry` throws.

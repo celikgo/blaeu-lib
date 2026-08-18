@@ -1,6 +1,6 @@
 # @blaeu/preset-cadastre
 
-The BlaeuMap kernel, aimed at a land registry.
+The Blaeu kernel, aimed at a land registry.
 
 ```ts
 import { createBlaeuMap } from '@blaeu/core'
@@ -16,7 +16,8 @@ That is the whole setup. You now have: a projected working plane with millimetre
 readouts, polygon drawing that snaps to neighbouring parcel corners, **topological**
 vertex editing, parcel-to-parcel topology validation with cadastral severities, a
 `yuzolcumu` that is computed from the boundary rather than typed, an ada/parsel
-attribute schema, a pale basemap so the boundaries dominate, and Turkish.
+attribute schema, a pale paper theme so the boundaries dominate (pass `basemap:` — see
+`paleRasterBasemap()` — to put an orthophoto behind them), and Turkish.
 
 ---
 
@@ -48,22 +49,24 @@ or a firm building a product for one of them.
 The plugins are domain-agnostic. `snapPlugin` has never heard of a parcel. What
 makes this package _cadastre_ is a page of decisions:
 
-| Decision            | Value                                           | Why                                                                                                                                                                                                                      |
-| ------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Working CRS         | `EPSG:5254`, projected                          | A registry accepts planar metres, not degrees.                                                                                                                                                                           |
-| Coordinate display  | `projected`, precision `3`                      | A surveyor reads `Y=458123.456 X=4421987.123` and types it back in. Millimetres, because that is what a coordinate schedule prints.                                                                                      |
-| Snap tolerance      | **12 px**                                       | Tight. A loose tolerance _invents_ geometry — the pointer lands 30 px away, snapping drags it onto the corner anyway, and the stored parcel is not the one that was drawn. Slivers come from generous tolerances.        |
-| Snap providers      | vertex, edge, midpoint, intersection, extension | No `perpendicular` by default: perpendicularity is an _inference_ about intent, and it silently rotates a boundary that was placed by coordinate.                                                                        |
-| Double-click zoom   | **off**                                         | Double-click closes a ring here. Zooming as well would throw the surveyor off the work every time they finished a parcel.                                                                                                |
-| Topological editing | **on**                                          | A shared corner moves in both parcels, in one command, or the parcels drift.                                                                                                                                             |
-| `topology.autoFix`  | **off**                                         | The software reports; the surveyor decides. Even a `buffer(0)` "repair" changes the parcel's area, and the area is the number on the deed.                                                                               |
-| Tolerance           | 1 mm                                            | Two coordinates closer than this are the same corner.                                                                                                                                                                    |
-| Area unit           | `donum`                                         | 1 dönüm = 1 000 m². It is what the number is said out loud in.                                                                                                                                                           |
-| Undo depth          | 200                                             | About an afternoon's digitising.                                                                                                                                                                                         |
-| **Overlap**         | `error` — blocks the write                      | An overlap is a **dispute**. Two parcels claiming the same square metre is a claim about who owns it, and this software must not be the thing that quietly files it.                                                     |
-| **Gap**             | `warning`                                       | A gap is usually a **digitisation artefact** — somebody's mouse missed a corner by 4 cm. Blocking the save would deadlock the work: you could not store parcel A until you had drawn B, and could not store B without A. |
-| Sliver, min-area    | `warning`                                       | Same reasoning. Report loudly, block nothing.                                                                                                                                                                            |
-| Missing ada/parsel  | `warning`                                       | The geometry is drawn _before_ the deed is typed. An `error` would make a parcel impossible to store until it was attributed.                                                                                            |
+| Decision                                  | Value                                           | Why                                                                                                                                                                                                                           |
+| ----------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Working CRS                               | `EPSG:5254`, projected                          | A registry accepts planar metres, not degrees.                                                                                                                                                                                |
+| Coordinate display                        | `projected`, precision `3`                      | A surveyor reads `Y=458123.456 X=4421987.123` and types it back in. Millimetres, because that is what a coordinate schedule prints.                                                                                           |
+| Snap tolerance                            | **12 px**                                       | Tight. A loose tolerance _invents_ geometry — the pointer lands 30 px away, snapping drags it onto the corner anyway, and the stored parcel is not the one that was drawn. Slivers come from generous tolerances.             |
+| Snap providers                            | vertex, edge, midpoint, intersection, extension | No `perpendicular` by default: perpendicularity is an _inference_ about intent, and it silently rotates a boundary that was placed by coordinate.                                                                             |
+| Double-click zoom                         | **off**                                         | Double-click closes a ring here. Zooming as well would throw the surveyor off the work every time they finished a parcel.                                                                                                     |
+| Topological editing                       | **on**                                          | A shared corner moves in both parcels, in one command, or the parcels drift.                                                                                                                                                  |
+| `topology.autoFix`                        | **off**                                         | The software reports; the surveyor decides. Even a `buffer(0)` "repair" changes the parcel's area, and the area is the number on the deed.                                                                                    |
+| Tolerance                                 | 1 mm                                            | Two coordinates closer than this are the same corner.                                                                                                                                                                         |
+| Area unit                                 | `donum`                                         | 1 dönüm = 1 000 m². It is what the number is said out loud in.                                                                                                                                                                |
+| Undo depth                                | 200                                             | About an afternoon's digitising.                                                                                                                                                                                              |
+| **Overlap**                               | `error` — blocks the write                      | An overlap is a **dispute**. Two parcels claiming the same square metre is a claim about who owns it, and this software must not be the thing that quietly files it.                                                          |
+| **Gap**                                   | `warning`                                       | A gap is usually a **digitisation artefact** — somebody's mouse missed a corner by 4 cm. Blocking the save would deadlock the work: you could not store parcel A until you had drawn B, and could not store B without A.      |
+| Sliver, min-area                          | `warning`                                       | Same reasoning. Report loudly, block nothing.                                                                                                                                                                                 |
+| Missing ada/parsel                        | `warning`                                       | The geometry is drawn _before_ the deed is typed. An `error` would make a parcel impossible to store until it was attributed.                                                                                                 |
+| **Wrong TM belt**                         | `warning`                                       | Never blocking — a cross-belt dataset must stay storable, and the fix is to switch the working CRS rather than to reject the parcel. The message names the belt to switch to.                                                 |
+| **Non-areal / GeometryCollection parcel** | `error` — blocks the write                      | A collection has no single boundary, so `sınırlandırma` is undefined and the vertex tool cannot edit it. Flatten to a MultiPolygon on import; the fix is mechanical, and storing one is a dead end that looks fine on screen. |
 
 Set `strictTopology: true` to collapse the gap/sliver/min-area warnings into
 errors. That is the right setting at a **submission boundary** — a batch import, a
@@ -116,15 +119,20 @@ otherwise have to copy this package to change a number, the number is here.
 import { parcelSchema } from '@blaeu/preset-cadastre'
 ```
 
-| field       | type                    | notes                                                                                                       |
-| ----------- | ----------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `ada`       | string, required        | Block. A **string**: it is an identifier, it can carry a leading zero, and one day it arrives as `102/3-A`. |
-| `parsel`    | string, required        | Parcel.                                                                                                     |
-| `pafta`     | string                  | Sheet.                                                                                                      |
-| `malik`     | string                  | Owner of record.                                                                                            |
-| `nitelik`   | string                  | Land use / character.                                                                                       |
-| `mevkii`    | string                  | Locality.                                                                                                   |
-| `yuzolcumu` | number, m², **derived** | Computed from the geometry. Render it read-only.                                                            |
+| field       | type                    | max length | notes                                                                                                       |
+| ----------- | ----------------------- | ---------- | ----------------------------------------------------------------------------------------------------------- |
+| `ada`       | string, required        | 16         | Block. A **string**: it is an identifier, it can carry a leading zero, and one day it arrives as `102/3-A`. |
+| `parsel`    | string, required        | 16         | Parcel.                                                                                                     |
+| `pafta`     | string                  | 32         | Sheet.                                                                                                      |
+| `malik`     | string                  | 255        | Owner of record.                                                                                            |
+| `nitelik`   | string                  | 128        | Land use / character.                                                                                       |
+| `mevkii`    | string                  | 128        | Locality.                                                                                                   |
+| `yuzolcumu` | number, m², **derived** | —          | Computed from the geometry, to 2 decimals. Render it read-only.                                             |
+
+Exceeding a max length raises a `cadastre.attributes` issue at `attributeSeverity` —
+a `warning` by default, so an over-long owner name pasted from a title deed is
+reported rather than refused. Replace the whole schema with `parcelSchema:` if your
+registry's columns are wider.
 
 One schema drives both the form UI (labels are i18n _keys_, not literals) and the
 `cadastre.attributes` validation rule. Two sources of truth for "what fields does a
@@ -210,6 +218,13 @@ buildings do. A village of 400 houses would produce 400 errors on day one, the
 surveyor would learn to ignore the panel, and the one real overlap in the dataset
 would be lost in it.
 
+The two rules this package contributes itself are exported alongside the topology
+ones, so a different assembly can re-severity them: `outOfBeltRule({ severity,
+collection })` (id `cadastre.crs.outOfBelt`) and `parcelGeometryTypeRule({ severity,
+collection })` (id `cadastre.geometryType`). Naming the ids matters as much as the
+functions — `overridePreset` and `validation.remove()` address a rule by id, which is
+how you drop one without rebuilding the set.
+
 ### Style
 
 ```ts
@@ -239,6 +254,37 @@ composePresets(
   }),
 )
 ```
+
+---
+
+## Layers, collections and ids
+
+Three layers, in draw order. Buildings go _under_ parcels on purpose: a building sits
+inside its parcel, whichever is drawn last wins the boundary pixels, and the boundary
+is the whole document.
+
+| id              | source                  | notes                                                              |
+| --------------- | ----------------------- | ------------------------------------------------------------------ |
+| `buildings`     | `collections.buildings` | Context. Faded fill, thin line, fixed brown — it is not competing. |
+| `parcels`       | `collections.parcels`   | The document. Colours come from the live theme tokens.             |
+| `parcel-labels` | `collections.parcels`   | "102/7" — ada over parsel. Same source, so one upload, not two.    |
+
+`parcel-labels` draws text, so it becomes a MapLibre **symbol** layer, and MapLibre
+refuses a style with a text layer and nowhere to fetch a font from. Your basemap style
+must carry a `glyphs` endpoint or the labels take the whole style down with them —
+this is the one thing in the preset that needs the network, and it is easy to
+discover the hard way.
+
+The ids are exported (`PARCEL_LAYER`, `BUILDING_LAYER`, `PARCEL_LABEL_LAYER`), because
+addressing a layer by a string literal you typed is how a rename becomes a silent
+no-op.
+
+## Installed plugins
+
+`snap`, `draw`, `edit`, `topology`, `measure`, `select`, `history`, `ui` — in that
+order. The last one is the framework-free chrome, and it is why `attributions` is an
+option of this preset: the attribution line is `ui`'s, and a preset that installs a
+plugin owes you the knobs for it.
 
 ---
 

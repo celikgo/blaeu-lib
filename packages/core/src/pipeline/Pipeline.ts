@@ -38,8 +38,15 @@ function insert<M>(entries: Entry<M>[], fn: M, options: MiddlewareOptions): Entr
  *
  * Sync by contract (core invariant 4). This runs on every `pointermove`, so an
  * `async` middleware here would add a frame of latency and reorder events under
- * load — the user sees it as the cursor lagging behind the snap indicator. The
- * type of {@link InteractionMiddleware} forbids it: `void`, not `Promise<void>`.
+ * load — the user sees it as the cursor lagging behind the snap indicator.
+ *
+ * Nothing enforces that. {@link InteractionMiddleware} returns `void`, not
+ * `Promise<void>`, but TypeScript's void-return rule lets an `async` function
+ * assign to it without complaint, and `run` below never looks at what a middleware
+ * returned. **It is a convention held up by review.** Break it and the suite stays
+ * green: the promise is dropped on the floor, so the middleware's work lands a tick
+ * or more late, out of order with the events that followed it, and the only symptom
+ * is a cursor that drifts ahead of the snap indicator under load.
  */
 export class SyncInteractionPipeline implements InteractionPipeline {
   #entries: Entry<InteractionMiddleware>[] = []

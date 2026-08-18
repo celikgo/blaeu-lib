@@ -115,8 +115,11 @@ const map: BlaeuMap = await createBlaeuMap({
 
   // ── DX friction, reported rather than papered over ───────────────────────────
   // The kernel constructs its own `MapLibreRenderer()` with no arguments when you do
-  // not pass one, which means (a) `theme.basemap` — which the preset sets — never
-  // reaches MapLibre, and (b) neither does `config.interaction`, so the preset's
+  // not pass one, which means (a) `theme.basemap` never reaches MapLibre — the cadastre
+  // preset ships no basemap of its own, it only forwards one you hand to
+  // `cadastrePreset({ basemap })`, which is why the paper style above had to be built
+  // here and passed to the renderer directly — and (b) neither does `config.interaction`,
+  // so the preset's
   // `doubleClickZoom: false` (double-click *closes the ring*; it must not also zoom)
   // is silently dropped. Constructing the renderer ourselves is the only way to honour
   // either, and it forces this file to restate a decision the preset already made.

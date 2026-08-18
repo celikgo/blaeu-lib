@@ -2,7 +2,7 @@
  * The renderer against a real MapLibre and a real WebGL2 context.
  *
  * Everything else in this repository tests the renderer *seam* — `FakeRenderer` implements the
- * `Renderer` contract, and 700-odd tests run the whole library through it with no GPU. That is
+ * `Renderer` contract, and 789 tests run the whole library through it with no GPU. That is
  * the right default and it is why the suite takes two seconds. It leaves exactly one surface
  * unverified, and it is unverifiable by construction: **whether MapLibre accepts what we hand
  * it.** A mocked `maplibre-gl` accepts everything, so a mocked suite can only ever confirm that

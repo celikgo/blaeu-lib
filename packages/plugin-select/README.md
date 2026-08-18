@@ -1,10 +1,12 @@
 # @blaeu/plugin-select
 
-Selection for BlaeuMap: single click, multi-select, box drag, freehand lasso.
+Selection for Blaeu: single click, multi-select, box drag, freehand lasso.
 
 ```bash
 npm install @blaeu/plugin-select
 ```
+
+> Not on npm yet — see [the root README](../../README.md#packages) for how to run it from source.
 
 ## Usage
 
@@ -41,6 +43,18 @@ console.log(map.crs.area(select.features[0]!.geometry))
 
 Both layers are hoisted above every declared layer on `map:ready`, so the halo is
 never painted over by the features it highlights.
+
+**Escape** abandons a marquee or lasso in progress — the preview is cleared and the
+existing selection is left exactly as it was, because a user who started the wrong
+gesture wanted out of the gesture, not out of their selection.
+
+The ids are exported as constants — `SINGLE_TOOL`, `BOX_TOOL`, `LASSO_TOOL`,
+`HIGHLIGHT_LAYER`, `PREVIEW_LAYER` — along with the `SelectOptions`, `MultiKey` and
+`SelectMode` types, so a toolbar can reference them without retyping the strings.
+
+`map.plugins.disable('select')` deactivates a select tool if one is active and hides the
+halo, but keeps the selection — a user who toggles the tool off and on again finds
+the twelve parcels they had picked still picked.
 
 ## What it depends on
 
@@ -93,6 +107,11 @@ interface SelectApi {
 `select()` drops ids that are not selectable, or that the store has never heard of.
 `subtract` is exempt: a feature locked _after_ it was selected must still be
 removable, or the user cannot clear it.
+
+The selection is kept live against the store. Deleting a selected feature removes it
+from the set and fires `select:changed` with it in `removed`, so no dangling ids
+reach your attribute panel. Editing a selected feature repaints the halo, so the
+highlight follows the geometry mid-drag.
 
 ## Selection is not on the undo stack, and that is on purpose
 

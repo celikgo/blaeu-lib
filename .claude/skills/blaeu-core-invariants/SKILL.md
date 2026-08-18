@@ -1,6 +1,6 @@
 ---
 name: blaeu-core-invariants
-description: The six non-negotiable rules of the BlaeuMap kernel — what may never be imported, mutated, or bypassed. Read BEFORE editing anything under packages/core, or when a change is tempted to "just add one small thing" to the core to make a plugin work.
+description: The six non-negotiable rules of the Blaeu kernel — what may never be imported, mutated, or bypassed. Use when editing anything under packages/core, when `npm run lint:boundaries` fails, when choosing between `commands.dispatch` and `commands.commit`, or when a change is tempted to "just add one small thing" to the core to make a plugin work.
 ---
 
 # Core invariants
@@ -19,8 +19,13 @@ core owns.
 The check is mechanical, and CI runs it:
 
 ```bash
-grep -rE "from '@blaeu/(plugin|preset)-" packages/core/src && exit 1
+npm run lint:boundaries   # scripts/check-boundaries.mjs — runs first in `npm run verify`
 ```
+
+It also catches a plugin→plugin import and a plugin that lists `@blaeu/core`
+under `dependencies` instead of `peerDependencies`. `eslint.config.js` flags the
+same import in the editor, through a `no-restricted-imports` rule scoped to
+`packages/core/**/*.ts`, so the violation is visible before it reaches CI.
 
 If you find yourself wanting to import the draw plugin into core, the real
 request is "core is missing an extension point." Add the extension point.
@@ -104,14 +109,22 @@ Anything cosmetic (hover highlight, label placement) can stay in 4326.
 
 ## 4. The interaction pipeline is synchronous. The commit pipeline is not.
 
-`SyncPipeline` runs on every `pointermove` — up to 120 times a second. An `async`
-middleware there introduces a frame of latency and reorders events under load,
-which shows up as the cursor "lagging behind" the snap indicator. The type system
-forbids it: interaction middleware returns `void`, not `Promise<void>`.
+`SyncInteractionPipeline` runs on every `pointermove` — up to 120 times a second.
+An `async` middleware there introduces a frame of latency and reorders events
+under load, which shows up as the cursor "lagging behind" the snap indicator.
+`InteractionMiddleware` is declared to return `void`, not `Promise<void>` — but
+TypeScript's void-return rule means an `async` function still assigns to it
+cleanly, and nothing inspects the return value at runtime. **This invariant is
+enforced by review only.** If you add an `async` interaction middleware nothing
+will stop you; the cursor lagging the snap indicator is the only signal you get.
 
-`AsyncPipeline` runs on commit, where a middleware may legitimately need to call a
-server (a topology check against the parcel registry, say). It is allowed to be
-slow, and callers `await` it — `commands.commit()` returns a `Promise`.
+`AsyncCommitPipeline` runs on commit, where a middleware may legitimately need to
+call a server (a topology check against the parcel registry, say). It is allowed
+to be slow, and callers `await` it — `commands.commit()` returns a `Promise`.
+
+Plugins never see either class directly. They see the two interfaces the context
+hands them: `ctx.interaction` (an `InteractionPipeline`) and `ctx.commit` (a
+`CommitPipeline`).
 
 This is why the durable-write API is async and the interaction API is not, and why
 that asymmetry is load-bearing rather than an inconsistency to be tidied away. A
@@ -120,8 +133,13 @@ tool handler stays synchronous and fires the commit without awaiting it
 write lands. Do not "fix" this by making the interaction pipeline async.
 
 If a piece of interaction middleware genuinely needs async work, it must do it
-_speculatively_ off the pipeline and cache the result — see how the snap engine
-prefetches its spatial index on `camera:idle` rather than on `pointermove`.
+_speculatively_ off the pipeline and cache the result. There is no worked example
+of speculative prefetch in the tree today, because nothing has needed one:
+snapping is the hot path, and the store keeps an rbush index up to date on every
+write (`packages/core/src/store/SpatialIndex.ts`), so the snap engine simply
+queries a warm index on each `pointermove`
+(`packages/plugin-snap/src/engine.ts`). An index maintained on writes beats an
+index prefetched on a camera event, because it is never stale.
 
 ## 5. Every subscription returns a `Disposable`, and the plugin owns it.
 

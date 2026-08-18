@@ -7,18 +7,31 @@ need an ADR before a line is written.
 Nothing here is a promise of a date. It is a statement of intent and of sequence, which is
 the more useful thing to publish.
 
-## Before anything else: close the edge we already know about
+## Before anything else: close the edges we already know about
 
-**Browser-mode tests for `MapLibreRenderer`.** The suite (500+ tests) runs against
-`FakeRenderer`, which proves the renderer seam is real but leaves exactly one surface
-unverified: our translation of `LayerStyle` into MapLibre paint/layout, and our normalisation
-of its pointer events. A Vitest browser-mode run against a real WebGL context, asserting that
-we call MapLibre correctly — not asserting on MapLibre's internal source JSON, which would be
-testing MapLibre — is the highest-value test we have not written. It is first because
-everything below it makes the renderer seam matter more.
+**Run the browser suite on a GPU runner.** The node suite runs against `FakeRenderer`, which
+proves the renderer seam is real; `npm run test:browser` (`vitest.browser.config.ts`) now runs
+`MapLibreRenderer` against real MapLibre and a real WebGL2 context, and covers the two places
+the seam could leak — our translation of `LayerStyle` into MapLibre paint/layout, judged by
+MapLibre's own validator, and our normalisation of its pointer and touch events. What it
+cannot cover on the runners we have is hit testing: `queryRenderedFeatures` needs a completed
+render pass, and neither `ubuntu-latest` nor headless SwiftShader ever delivers one, so four
+tests are gated on a probe and skip with a warning. That leaves the pointer-to-feature path —
+including the leading-zero-id case — verified by reading rather than by running. A GPU runner
+closes it, and nothing else will.
 
-_(The other edge listed here — a commit path that owns its own pipeline run — has shipped as
-`commands.commit()`; see [ADR 0009](./docs/adr/0009-commit-commands.md).)_
+**Raise the mutation ratchet.** The first full Stryker run scored 65.5% killed against 88.7%
+line coverage, and the distribution is the finding rather than the average: `SpatialIndex.ts`
+at 34.6% and `FeatureStore.ts` at 54.5% are the two files a wrong answer in is least visible —
+an R-tree that returns the wrong candidates degrades silently into a map that "feels laggy".
+The `break` threshold in `stryker.config.json` sits at the measured floor on purpose, so the
+number can only go up; strengthening the store's assertions and raising it is the cheapest
+remaining way to find defects the suite is currently green through.
+
+_(Both of the edges this section used to list have shipped: a commit path that owns its own
+pipeline run is `commands.commit()` — see [ADR 0009](./docs/adr/0009-commit-commands.md) — and
+browser-mode tests for `MapLibreRenderer` are `npm run test:browser`, gated in CI on every pull
+request and nightly.)_
 
 ## v2
 
@@ -93,7 +106,7 @@ being the right seam.
 `LayerTypeDef` is the extension point and it already works: `preset-game` registers a
 `tile-grid` layer type in one file, and the core has never heard of it. A deck.gl plugin
 registering `type: 'deckgl'` — scatterplot, hexbin, arc, trip — is the same move, and gives
-BlaeuMap large-scale analytical visualisation without a line of it entering the kernel.
+Blaeu large-scale analytical visualisation without a line of it entering the kernel.
 
 ### WASM GEOS for heavy topology
 

@@ -1,6 +1,6 @@
 ---
 name: blaeu-preset-authoring
-description: How to build a BlaeuMap domain preset — the composable bundle of plugins, config, layers, validation rules, theme and i18n that turns the kernel into a vertical product. Use when creating a packages/preset-* or when a user asks how to target a new industry without forking.
+description: How to build a Blaeu domain preset — the composable bundle of plugins, config, layers, validation rules, theme and i18n that turns the kernel into a vertical product. Use when creating a packages/preset-* or when a user asks how to target a new industry without forking.
 ---
 
 # Authoring a domain preset
@@ -10,6 +10,35 @@ a game level editor?" It is a **data structure**, not a subclass — which is wh
 makes it composable, diffable, and overridable at every level.
 
 ```ts
+import { definePreset, type LayerStyle, type Preset, type Theme } from '@blaeu/core'
+import { drawPlugin } from '@blaeu/plugin-draw'
+import { editPlugin } from '@blaeu/plugin-edit'
+import { historyPlugin } from '@blaeu/plugin-history'
+import { measurePlugin } from '@blaeu/plugin-measure'
+import { snapPlugin } from '@blaeu/plugin-snap'
+// The validation rules live with the plugin that runs them, not in the kernel.
+import {
+  closedRings,
+  minParcelArea,
+  noGapsWithNeighbours,
+  noOverlapWithNeighbours,
+  noSelfIntersection,
+  noSlivers,
+  topologyPlugin,
+} from '@blaeu/plugin-topology'
+
+declare const parcelStyle: LayerStyle
+declare const buildingStyle: LayerStyle
+declare const cadastreTheme: Theme
+declare const trMessages: Record<string, string>
+declare const enMessages: Record<string, string>
+declare function deriveAreaMiddleware(o: { collection: string; decimals: number }): never
+interface CadastreOptions {
+  crs?: string
+  parcels?: string
+  locale?: string
+}
+
 export function cadastrePreset(opts: CadastreOptions = {}): Preset {
   const crs = opts.crs ?? 'EPSG:5254' // TUREF / TM30 — central Türkiye
   return definePreset({
@@ -25,7 +54,7 @@ export function cadastrePreset(opts: CadastreOptions = {}): Preset {
         snapPlugin,
         { tolerance: 12, providers: ['vertex', 'edge', 'midpoint', 'intersection', 'extension'] },
       ],
-      [drawPlugin, { defaultMode: 'polygon', closeTolerance: 0 }],
+      [drawPlugin, { defaultMode: 'polygon', collection: opts.parcels ?? 'parcels' }],
       [editPlugin, { topological: true }], // shared corners move together
       [topologyPlugin, { autoFix: false }], // a surveyor decides, not us
       [measurePlugin, { areaUnit: 'm2', planar: true }],
@@ -35,14 +64,25 @@ export function cadastrePreset(opts: CadastreOptions = {}): Preset {
     validation: [
       noSelfIntersection({ severity: 'error' }),
       noOverlapWithNeighbours({ severity: 'error', tolerance: 0.001 }),
-      noGapsWithNeighbours({ severity: 'warning', maxSliverArea: 0.5 }),
-      minParcelArea({ severity: 'warning', min: 1 }),
+      noGapsWithNeighbours({ severity: 'warning', maxGapArea: 0.5 }),
+      noSlivers({ severity: 'warning', sliverRatio: 0.25 }), // a *different* rule; the ratio knob is here
+      minParcelArea({ severity: 'warning', minArea: 1 }),
       closedRings({ severity: 'error' }),
     ],
 
     layers: [
       { id: 'parcels', type: 'vector', source: 'parcels', style: parcelStyle },
       { id: 'buildings', type: 'vector', source: 'buildings', style: buildingStyle },
+    ],
+
+    // Derived attributes are commit middleware, not a plugin and not a form default.
+    // The priority is the load-bearing part: it runs ahead of validation, so a rule
+    // that reads `yuzolcumu` sees *this* edit's area rather than the last one's.
+    commitMiddleware: [
+      [
+        deriveAreaMiddleware({ collection: opts.parcels ?? 'parcels', decimals: 2 }),
+        { id: 'cadastre:derive-area', priority: 100 },
+      ],
     ],
 
     theme: cadastreTheme,
@@ -75,7 +115,7 @@ const izmirPreset = composePresets(
   cadastrePreset({ crs: 'EPSG:5253' }), // national base, on İzmir's belt (TUREF/TM27)
   definePreset({
     id: 'izmir',
-    validation: [minParcelArea({ min: 250 })], // appended to the base's rules
+    validation: [minParcelArea({ minArea: 250 })], // appended to the base's rules
     config: { crs: { precision: 4 } }, // deep-merged over the base
     layers: [{ id: 'izmir-zoning', type: 'vector', source: 'zoning' }],
   }),
@@ -83,12 +123,17 @@ const izmirPreset = composePresets(
 ```
 
 Merge semantics are deliberate and worth knowing: `config` and `theme` **deep
-merge**; `plugins`, `validation`, `layers` and `middleware` **append** (with
-plugin options for a repeated `id` deep-merging into the earlier entry, so you
-can retune a plugin without re-declaring it); `i18n` merges per-locale. If you
-ever need _replace_ rather than _append_, that is what
-`overridePreset(base, { validation: [...] })` is for — and needing it often is a
-smell that the base preset was too opinionated.
+merge** — except `theme.basemap` and `theme.css`, which replace wholesale, because
+a style JSON is one value and not a bag of fields to interleave, so a municipality
+supplying a partial `basemap` gets a replacement rather than a merge. `plugins`,
+`validation`, `layers`, `interactionMiddleware` and `commitMiddleware` **append**
+(with plugin options for a repeated `id` deep-merging into the earlier entry, so
+you can retune a plugin without re-declaring it); `i18n` merges per-locale. There
+is no `middleware` field, and `definePreset` **throws** on any field outside that
+set — `preset "x" has unknown field(s): middleware` — so a typo is caught at
+construction rather than silently ignored. If you ever need _replace_ rather than
+_append_, that is what `overridePreset(base, { validation: [...] })` is for — and
+needing it often is a smell that the base preset was too opinionated.
 
 **3. Every knob a domain expert would touch belongs in `Options`, not in the
 body.** The test: if a user has to copy your preset file to change a number, that

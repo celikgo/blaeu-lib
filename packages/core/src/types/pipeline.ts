@@ -94,12 +94,16 @@ export interface InteractionContext {
  *
  * This runs on every `pointermove` — up to 120 Hz. An async middleware here adds
  * a frame of latency and reorders events under load, which the user perceives as
- * the cursor lagging behind the snap indicator. The return type forbids it: `void`,
- * not `Promise<void>`.
+ * the cursor lagging behind the snap indicator. The return type says `void`, not
+ * `Promise<void>` — but TypeScript's void-return rule lets an `async` function
+ * assign to it cleanly, and nothing inspects the return value at runtime. **This
+ * one is enforced by review, not by the compiler.**
  *
  * If a middleware genuinely needs async work, it must do it speculatively off the
- * pipeline and cache the result — which is exactly what the snap engine does when
- * it rebuilds its spatial index on `camera:idle` rather than on `pointermove`.
+ * pipeline and cache the result. Nothing in the tree needs to today: the snap
+ * engine keeps no index of its own, and per pointer event it computes a tolerance
+ * bbox and queries the *store's* R-tree — a structure the store keeps current on
+ * every write (`store/SpatialIndex.ts`), not one anybody rebuilds on a camera event.
  */
 export type InteractionMiddleware = (ctx: InteractionContext, next: () => void) => void
 

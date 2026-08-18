@@ -27,7 +27,7 @@ import { DEFAULT_ZONING_CATEGORIES, FIELD, zoningAttributeSchema, zoningLayers }
  * know what it is overriding.
  * ------------------------------------------------------------------ */
 
-/** TUREF / TM33: the 3° belt covering Ankara. Areas and the grid are metres on this plane. */
+/** TUREF / TM30: the 3° belt at 30°E. Areas and the grid are metres on this plane. */
 export const DEFAULT_URBAN_CRS = 'EPSG:5254'
 
 /** Screen pixels. Twice cadastre's, and the number this preset is *about*. */

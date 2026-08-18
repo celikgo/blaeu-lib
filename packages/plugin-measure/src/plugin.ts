@@ -31,7 +31,7 @@ const COLLECTIONS: readonly CollectionId[] = [
  * ```ts
  * const map = await createBlaeuMap({
  *   container: '#map',
- *   config: { crs: { working: 'EPSG:5254' } },   // TUREF / TM30. The plane the numbers live on.
+ *   crs: { working: 'EPSG:5254' },               // TUREF / TM30. The plane the numbers live on.
  *   plugins: [snapPlugin(), measurePlugin({ areaUnit: 'donum' })],
  * })
  * map.plugin('measure').start('area')            // typed, no cast

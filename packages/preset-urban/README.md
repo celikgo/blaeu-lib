@@ -1,6 +1,6 @@
 # @blaeu/preset-urban
 
-The BlaeuMap kernel, as an **urban planning** tool: a zoning legend that styles itself, a 5 m planning
+The Blaeu kernel, as an **urban planning** tool: a zoning legend that styles itself, a 5 m planning
 grid, forgiving snapping, warning-level topology, deep undo, and scenario comparison.
 
 ```ts
@@ -37,29 +37,34 @@ this repo of what a preset is _for_).
 
 ## What it assumes
 
-- **A projected working CRS, in metres.** Defaults to `EPSG:5254` (TUREF / TM33 — the 3° belt through
-  Ankara). Every area, every grid step, every tolerance in this package is metres _on that plane_. Left
+- **A projected working CRS, in metres.** Defaults to `EPSG:5254` (TUREF / TM30 — the 3° belt centred on
+  30°E). Ankara itself sits in the TM33 belt, `EPSG:5255`; pick the belt your plan is surveyed in. Every
+  area, every grid step, every tolerance in this package is metres _on that plane_. Left
   at the kernel's `EPSG:3857` default, areas at Turkish latitudes come out ~70 % too large and look
   entirely plausible while doing so. Set your belt.
 - **Zoning polygons live in one collection** (`zoning` by default) and carry their category on one
   property (`zoning` by default).
 - **The legend is data.** Five Turkish defaults ship (konut, ticaret, sanayi, yeşil alan, donatı); pass
   your own and the fill colours, the attribute forms and the scenario report all follow.
+- **Double-click closes the ring, and does not zoom.** The preset sets
+  `interaction.doubleClickZoom: false`, and `crs.display: 'projected'` alongside it, because a planner
+  who has just finished a block wants the polygon closed, not the camera two levels deeper into it.
 - **Turkish by default**, with `en` shipped alongside.
 
 ## The judgement, in one table
 
-The row that matters is the last one. Cadastre and urban install **the same topology plugin**; only the
+The rows that matter are the last two. Cadastre and urban install **the same topology plugin**; only the
 severity differs, and it differs _in the preset_, in one line, because only a preset knows the domain.
 
-|                       | `preset-cadastre`     | `preset-urban`           | why                                                                                                                                       |
-| --------------------- | --------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Snap tolerance        | 12 px                 | **20 px**                | A planner is sketching a proposal, not reproducing a boundary that legally exists                                                         |
-| Grid snapping         | off                   | **on, 5 m**              | A plan drawn on a module subdivides into buildable plots; cadastre rounding _is_ the error                                                |
-| Coordinate precision  | 3 (mm)                | **2 (cm)**               | A plan boundary quoted to the millimetre claims precision the plan does not have                                                          |
-| Undo depth            | 200                   | **500**                  | Planners explore, and back out further                                                                                                    |
-| Area unit             | dönüm / m²            | **hectares**             | The unit a plan is read in                                                                                                                |
-| **Overlaps and gaps** | **`error`** — blocked | **`warning`** — reported | An overlap is a _dispute_ in cadastre and a _thought_ in planning. A tool that refuses the intermediate state is a tool that gets closed. |
+|                      | `preset-cadastre`                          | `preset-urban`           | why                                                                                                                                       |
+| -------------------- | ------------------------------------------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Snap tolerance       | 12 px                                      | **20 px**                | A planner is sketching a proposal, not reproducing a boundary that legally exists                                                         |
+| Grid snapping        | off                                        | **on, 5 m**              | A plan drawn on a module subdivides into buildable plots; cadastre rounding _is_ the error                                                |
+| Coordinate precision | 3 (mm)                                     | **2 (cm)**               | A plan boundary quoted to the millimetre claims precision the plan does not have                                                          |
+| Undo depth           | 200                                        | **500**                  | Planners explore, and back out further                                                                                                    |
+| Area unit            | dönüm / m²                                 | **hectares**             | The unit a plan is read in                                                                                                                |
+| **Gaps**             | `warning` (`error` under `strictTopology`) | **`warning`** — reported | A gap is a digitisation artefact on both sides of the line, so neither preset blocks it by default.                                       |
+| **Overlaps**         | **`error`** — blocked                      | **`warning`** — reported | An overlap is a _dispute_ in cadastre and a _thought_ in planning. A tool that refuses the intermediate state is a tool that gets closed. |
 
 Structural defects — unclosed ring, duplicate vertex, self-intersection — stay `error` even here: a
 bowtie has no well-defined area, and the area is the number the scenario report hands to a council.
@@ -207,9 +212,18 @@ Derived from the legend by `zoningAttributeSchema(categories)`, and shipped **in
 on the zoning layer's `config`, so a host app can render a form without ever constructing a map:
 
 ```ts
+import { urbanPlanningPreset, ZONING_FILL_LAYER, type AttributeSchemas } from '@blaeu/preset-urban'
+
 const preset = urbanPlanningPreset()
-const schema = preset.layers?.[0]?.config?.attributes // { K: { fields: [...] }, T: …, … }
+const schema = preset.layers?.find((l) => l.id === ZONING_FILL_LAYER)?.config?.['attributes'] as
+  AttributeSchemas | undefined
+// { K: { fields: [...] }, T: …, … }
 ```
+
+The bracket and the cast are not ceremony. `LayerSpec.config` is `Record<string, unknown>` and the repo
+compiles with `noPropertyAccessFromIndexSignature`, so a layer's config is a bag the compiler refuses to
+let you pretend you know the shape of — and the named lookup beats `layers[0]` because the draw order is
+allowed to change.
 
 Fields: `zoning` (select, every category), `kaks`, `taks`, `gabari` (numbers, capped by the category),
 `planNotu` (text — a plan note is legally binding, so it is a field, not a "description").
@@ -229,7 +243,20 @@ s.save() // re-snapshot into the active scenario
 s.areas('Mevcut') // [{ code, label, areaM2 }, …] — planar m², legend order
 s.compare('Mevcut', 'Yoğun')
 // { a, b, totalA, totalB, categories: [{ code, label, areaA, areaB, deltaM2, deltaPercent }] }
+
+s.active // the active scenario's name, or null
+s.list() // every scenario, in creation order
+s.get('Mevcut') // one, or undefined
+s.remove('Mevcut') // active becomes null if it was the one removed
+s.onChange(handler) // (active: string | null) => void; returns a Disposable — dispose it
 ```
+
+The plugin also emits `scenario:changed` with `{ active, previous }`, so a panel that is not holding the
+API can listen for the switch on the event bus instead.
+
+A polygon with no zoning code is counted under the `unzoned` bucket (exported as `UNZONED`), so the
+totals always add up: a report whose category rows sum to less than its own total is a report a council
+will send back.
 
 Two details that are not accidents:
 

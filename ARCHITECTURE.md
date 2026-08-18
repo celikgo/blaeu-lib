@@ -12,7 +12,7 @@ what the core declines to do.
 
 ## 1. The kernel
 
-`BlaeuMap` (`packages/core/src/BlaeuMap.ts`) is a class with fifteen fields and no
+`BlaeuMap` (`packages/core/src/BlaeuMap.ts`) is a class with sixteen fields and no
 `draw()`, no `measure()`, no `snapTo()`. Read the field list and notice the absences:
 
 ```ts
@@ -32,11 +32,14 @@ class BlaeuMap {
   readonly renderer: Renderer
   readonly config: ResolvedConfig
   readonly log: Logger
+  readonly debug: { snapshot(); plugins(); interactionMiddleware(); commitMiddleware() }
 }
 ```
 
-The first six are the kernel proper. The rest are _seams_: services with an interface the
-core owns, which plugins extend rather than replace.
+The first six are the kernel proper. Most of the rest are _seams_: services with an interface
+the core owns, which plugins extend rather than replace. The last, `debug`, is introspection
+only — `snapshot()` returns live listener, middleware, layer, plugin and feature counts, and
+is what the teardown test asserts against.
 
 `createBlaeuMap()` is async because the renderer must mount and every plugin's `setup` must
 finish before the map is usable — and a plugin's setup may legitimately fetch a projection
@@ -53,8 +56,16 @@ heard of:
 ```ts
 declare module '@blaeu/core' {
   interface BlaeuEventMap {
-    'draw:complete': { readonly mode: DrawMode; readonly feature: BlaeuFeature }
-    'before:draw:complete': { readonly mode: DrawMode; readonly feature: FeatureInput }
+    'draw:complete': {
+      readonly mode: DrawMode
+      readonly collection: CollectionId
+      readonly feature: BlaeuFeature
+    }
+    'before:draw:complete': {
+      readonly mode: DrawMode
+      readonly collection: CollectionId
+      readonly feature: FeatureInput
+    }
   }
 }
 ```
@@ -71,6 +82,11 @@ Two channels, and the type system keeps them apart:
 order decides which validator vetoes first and therefore which error message the user
 actually sees. Handlers are synchronous by design: the bus sits on the hot path, and an
 async handler would silently reorder under load.
+
+`onAny('draw:*', handler)` is the third subscription form — a prefix subscription, and the
+pattern must end with `*`. Every listener may `stopPropagation()` to stop later listeners on
+the same event, and `ListenerOptions` also carries `once` and an `AbortSignal` (`signal`),
+which is what makes a React effect's cleanup a one-liner.
 
 Every `on`/`onBefore`/`onAny` returns a `Disposable`. `listenerCount()` exists so the
 teardown test can assert it returns to zero.
@@ -111,6 +127,14 @@ dispatched inside `fn` into one atomic, single-undo unit and rolls the store bac
 throws. A one-command transaction collapses rather than wrapping, because the undo menu
 should say "Move vertex", not "Transaction".
 
+That is the _synchronous_ transaction, and since `dispatch()` refuses any feature-writing
+command it groups only transient scaffolding. A durable multi-step edit — a parcel split —
+uses `commitTransaction(label, async (tx) => { await tx.commit(...) })`, whose `tx` handle is
+the transaction's identity: anything submitted through it is a child, anything submitted
+through the bus queues behind the whole group. Writes are serialised in call order by a queue
+on `commit`/`commitTransaction`, so two overlapping async writes cannot interleave. A veto
+anywhere inside rolls the whole group back to the up-front snapshot. See ADR 0012.
+
 `CompositeCommand.undo()` walks its children in **reverse**. Undoing "remove A, add B"
 forwards would try to re-add A while B still occupies its geometry, which a topology
 validator would correctly reject.
@@ -128,8 +152,9 @@ double-apply the snap offset — silent, and horrible to find.
 
 **`SyncInteractionPipeline`** — `run(ctx: InteractionContext): InteractionContext`.
 Synchronous by contract (`void`, not `Promise<void>`). Runs on every pointer event. A
-middleware that throws is logged and the pipeline continues: a partly-processed pointer
-event is far better than a dead cursor.
+middleware that throws is logged, the rest of the chain is abandoned, and the context still
+reaches the tool as far as it got: a partly-processed pointer event is far better than a dead
+cursor.
 
 **`AsyncCommitPipeline`** — `run(ctx: CommitContext): Promise<CommitContext>`. Short-circuits
 the moment anything sets `ctx.rejected`, which is why priority ordering puts cheap local
@@ -148,15 +173,15 @@ what they did. `destroy` means "you are gone, release everything."
 
 ### The seams
 
-| Seam         | Interface            | What a plugin does with it                                       |
-| ------------ | -------------------- | ---------------------------------------------------------------- |
-| `renderer`   | `Renderer`           | Draws. MapLibre ships; `FakeRenderer` proves the seam is real.   |
-| `crs`        | `CrsService`         | `register()` a custom plane; `working.forward/inverse` for maths |
-| `layers`     | `LayerManager`       | `registerType()` a whole new rendering category                  |
-| `tools`      | `ToolManager`        | `register()` an interactive mode                                 |
-| `validation` | `ValidationRegistry` | `add()` a rule that runs in the commit pipeline                  |
-| `theme`      | `ThemeManager`       | `token()` instead of hardcoding a colour                         |
-| `i18n`       | `I18n`               | `register()` a message bundle; presets override it               |
+| Seam         | Interface            | What a plugin does with it                                                   |
+| ------------ | -------------------- | ---------------------------------------------------------------------------- |
+| `renderer`   | `Renderer`           | Draws. MapLibre ships; `FakeRenderer` proves the seam is real.               |
+| `crs`        | `CrsService`         | `register()` a custom plane; `working.forward/inverse` for maths             |
+| `layers`     | `LayerManager`       | `registerType()` a whole new rendering category                              |
+| `tools`      | `ToolManager`        | `register()` an interactive mode                                             |
+| `validation` | `ValidationRegistry` | `add()` a rule that runs in the commit pipeline                              |
+| `theme`      | `ThemeManager`       | `token()` instead of hardcoding a colour; `register()`/`use()` a named theme |
+| `i18n`       | `I18n`               | `register()` a message bundle; presets override it                           |
 
 `ToolManager` keeps exactly one primary tool active at a time, which is what makes a map
 feel coherent rather than like modal soup. Ambient behaviour that should always run — hover
@@ -166,6 +191,15 @@ highlighting, the snap indicator — is not a tool; it is middleware.
 (as values inside paint expressions). That single source of truth is why the selection halo
 on the map is exactly the same blue as the selected row in the attribute table — a detail
 you cannot get if the map style and the CSS are maintained separately.
+
+The theme also owns the **ground**. `Theme.basemap` is pushed to `renderer.setBasemap` on
+every theme change (`BlaeuMap.#applyBasemap`), so a day/night switch swaps the map under the
+features rather than just the chrome; a renderer with no `setBasemap` is a no-op, and a failed
+swap reports on `map:error` rather than stranding the chrome mid-change. Layers added
+declaratively with a `ThemeStyleFn` are re-evaluated against the new tokens by the
+LayerManager, which is how a preset's parcel outline follows the palette with no subscription
+of its own. A small registry (`register`/`use`/`follow`) lets the app name themes and track
+the OS colour-scheme preference.
 
 ---
 
@@ -177,9 +211,11 @@ explain most of the library between them.
 ### 2.1 The renderer normalises
 
 `MapLibreRenderer` (or `FakeRenderer`) listens to MapLibre's own pointer events and emits a
-`RendererPointerEvent`: `{ kind, lngLat, screen, button, modifiers, originalEvent }`. Mouse,
-touch and pen are already unified here. **No tool ever sees a raw DOM event**, which is what
-makes a tool written for a mouse work on a tablet in the field without changes.
+`RendererPointerEvent`: `{ kind, lngLat, screen, button, buttons?, modifiers, originalEvent }`.
+Mouse, touch and pen are already unified here. **No tool ever sees a raw DOM event**, which is
+what makes a tool written for a mouse work on a tablet in the field without changes. `buttons`
+is the bitmask currently held (undefined for a touch stream) — a `pointermove` with
+`buttons === 0` is how a drag tool learns the button was released off-canvas.
 
 `BlaeuMap.#wireInteraction()` subscribes once, in `#init`, and holds the `Disposable`.
 
@@ -195,6 +231,7 @@ properties are worth reading closely:
   get xy() { return crs.working.forward(lngLat) },   // DERIVED, never cached
   readonly rawLngLat: event.lngLat,    // the untouched original
   readonly screen: event.screen,       // ground truth; middleware must not rewrite it
+  readonly dragging: this.tools.dragging,  // what the active tool has hold of
   snap: undefined,                     // filled in by the snap middleware
   hits: () => this.renderer.queryAt(event.screen),   // lazy hit test
   consume(): void,                     // stops the event reaching the tool at all
@@ -222,10 +259,14 @@ vertex a metre from where the user clicked. And the `crs` _service_ is captured 
    previous frame's snap left it, or the snap would be sticky.
 3. The `SnapQueryContext` hands each provider `project`/`unproject`, a precomputed `bbox` of
    the tolerance circle (so the provider hits the spatial index instead of scanning),
-   `exclude` (the feature being dragged — otherwise it snaps to itself, at distance zero,
-   every time), and `inProgress` (the ring's committed vertices, so the user can close a
-   polygon on its own first corner).
-4. Candidates are ranked by `distancePx`, ties broken by `priority`. The ordering is the
+   `exclude`, and `inProgress` (the ring's committed vertices, so the user can close a
+   polygon on its own first corner). `exclude` is the union of what a plugin asked to ignore
+   (`SnapApi.exclude`, used by draw for the ring it is closing) and `ctx.dragging`, which the
+   _kernel_ carries: a tool declares what it has hold of through `tools.setDragging()`, and
+   any middleware may read it. Without it, snapping offers the dragged vertex its own
+   position, the tool computes "it didn't move", and every drag shorter than the tolerance is
+   a silent no-op. See ADR 0010.
+4. Candidates are ranked by `priority`, ties broken by `distancePx`. The ordering is the
    one decision the whole engine rests on: **vertex (100) > intersection (90) > midpoint
    (80) > edge (70) > extension/perpendicular (50) > grid (10)**. A vertex must outrank the
    edge it sits on, because the perpendicular foot of a pointer near a corner is at
@@ -270,6 +311,16 @@ that through a duck-typed handle (`plugin-draw/src/snap-handle.ts`), obtained vi
 `ctx.tryPlugin('snap')`, so the dependency stays optional and the degradation test stays
 honest.
 
+### 2.5 Key presses take the same road
+
+`Renderer.onKey` is optional — a headless export target has no focusable surface, so the
+kernel probes for it exactly as it probes for `setBasemap` and `setInteraction`. Where it
+exists, `#normaliseKey` builds an `InteractionContext` of kind `'keydown'` (with `key`, and
+`button: -1` so no tool mistakes it for a primary click), walks it through the same
+interaction pipeline, and hands it to the same `dispatchToTool`, which routes it to
+`tool.onKeyDown`. A tool's `onKeyDown` is therefore a real handler, not one only the test
+harness could reach.
+
 ---
 
 ## 3. The life of a mutation
@@ -283,7 +334,7 @@ A drawn polygon, from the tool to the pixels.
 ```ts
 const input: FeatureInput = {
   geometry,
-  properties: { ...options.properties() },
+  properties: { ...options.properties(), ...extraProperties },
   meta: { source: 'draw' },
 }
 
@@ -304,8 +355,8 @@ carries a `FeatureInput`, not a `BlaeuFeature` — the store has not minted an i
 version yet, and pretending otherwise would hand listeners an id no later event will ever
 mention.
 
-The rubber-band preview is cleared here, _before_ the transaction, and its command is
-`transient`, so it never appears in a snapshot history would roll back to.
+The rubber-band preview is cleared here, _before_ the await, and its command is `transient`,
+so it never appears in a snapshot history would roll back to.
 
 ### 3.2 The command bus
 
@@ -317,13 +368,15 @@ const result = await ctx.commands.commit(new AddFeaturesCommand(collection, [inp
 
 const created = result.value?.[0]
 if (!result.ok || created === undefined) {
-  this.cancel(result.rejectedReason ?? 'the commit pipeline rejected the shape')
+  const reason = result.rejectedReason ?? 'the store did not return the drawn feature'
+  ctx.log.warn(`${label} was not committed: ${reason}`)
+  ctx.events.emit('draw:cancel', { mode, reason })
   return undefined
 }
 ```
 
 Both entry points funnel into the same execute step — `commit()` first runs the command
-through the async pipeline (§3.3) and applies it only if nothing rejected; `dispatch()` skips
+through the commit pipeline (§3.3) and applies it only if nothing rejected; `dispatch()` skips
 the pipeline and is for transient scaffolding, refusing a `CommitCommand` at compile time
 (`intent?: never`) and at runtime both. Once a command reaches its execute step the bus:
 
@@ -352,10 +405,23 @@ the pipeline and is for transient scaffolding, refusing a `CommitCommand` at com
   readonly command: Command | undefined,
   reject(reason: string): void,
   readonly rejected: boolean,
+  readonly rejectReason: string | undefined,
 }
 ```
 
-Two things register there today:
+`reject()` is first-veto-wins — a later middleware cannot overwrite an earlier rule's reason
+with a vaguer one, because the user should be told the first thing that was wrong with their
+parcel, not the last.
+
+The `features` a middleware sees are **materialised, not written**. `AddFeaturesCommand.intent()`
+calls `store.materialise()` before the pipeline runs: ids are minted, `meta` is stamped, and
+the geometry is already quantised to the working CRS's grid with its rings wound and closed.
+Nothing has been written — a rejected commit leaves no minted id and no touched index behind
+it — but a rule judges the parcel that will exist rather than the raw input, because a rule
+that passes on the input and would have failed on the stored feature is not a weak rule, it
+is a lie.
+
+Three things register there today:
 
 - `BlaeuValidationRegistry.asCommitMiddleware()`, at priority **−100** so it runs _last_.
   That is deliberate: the middleware that fills in defaults, quantises coordinates and
@@ -370,6 +436,9 @@ Two things register there today:
   the geometry on every write. Area is _derived_, never typed: a hand-entered area that
   disagrees with the boundary is the single most common source of a cadastral dispute, and
   the cheapest way never to have one is to make the field un-typeable.
+- The game preset's `game:generate`, at priority **0** — between the two. A placement's
+  procedural generators run inside the commit they belong to, so what they spawn is
+  validated by the rules below them rather than arriving afterwards as an unchecked write.
 
 **Where it runs.** `Command.execute()` is synchronous and the pipeline is async, so
 `dispatch()` deliberately does _not_ run the pipeline — it is the transient-scaffolding path
@@ -392,10 +461,12 @@ each routed to the collection its own `meta` names. See ADR 0009 for the contrac
 
 ### 3.4 The store writes, and announces
 
-`AddFeaturesCommand.execute()` calls `store._add(collection, inputs)`, which mints ids,
-stamps `meta`, quantises coordinates to the working CRS's grid, normalises ring winding and
-closure, updates the spatial index and the topology index, and emits `feature:added` plus a
-`StoreChange` to `onChange` subscribers.
+`AddFeaturesCommand.intent()` already called `store.materialise()` — ids minted, `meta`
+stamped, coordinates quantised to the working CRS's grid, rings wound and closed — which is
+why the commit pipeline in §3.3 judged the feature that will actually exist rather than the
+raw input. `execute()` then calls `store._add()` with whatever the pipeline adopted, which
+writes it, updates the spatial index and the topology index, and emits `feature:added` plus
+a `StoreChange` to `onChange` subscribers.
 
 The command keeps what the store _actually wrote_ — not what it was asked to write. That is
 the difference between a command that can undo approximately and one that can undo exactly:
@@ -419,8 +490,11 @@ features, and hands the rest to a GeoJSON source.
 
 The history plugin subscribed to `commands.onDidExecute` in its `setup`. It saw a
 `Command`. It pushed it onto a stack, possibly coalescing it into the previous one
-(`coalesceWith`, within a 300 ms window). It knows nothing about polygons, parcels or draw
-tools, and it never will.
+(`coalesceWith`, within a 300 ms window — or regardless of the clock, when both commands
+declare the same `gesture`, because a drag the user paused mid-way is still one gesture). The
+subscription also carries a `transaction` label and an `origin` whose `replay` flag is
+captured at submission time, which is how history avoids recording the echo of its own undo.
+It knows nothing about polygons, parcels or draw tools, and it never will.
 
 ---
 
@@ -431,8 +505,8 @@ A plugin declares dependencies as `{ id, range?, optional? }`. `PluginManager.us
 
 ```ts
 const missing = this.#missingDependencies(plugin)
-if (missing.length > 0) {
-  return new Promise<TApi>((resolve, reject) => {
+if (missing.length > 0 || this.#awaitedOptional(plugin).length > 0) {
+  return await new Promise<TApi>((resolve, reject) => {
     this.#pending.push({ plugin, options, resolve, reject })
   })
 }
@@ -456,7 +530,7 @@ topological sort handles the static case and needs a second mechanism for the dy
 Parking handles both with one mechanism, and the dynamic case is the one that will matter
 in two years.
 
-Three more details worth knowing:
+Four more details worth knowing:
 
 - **Capabilities.** `provides: ['snap-engine']` lets a plugin satisfy a dependency on a
   _capability_ rather than an id. A product that swaps our snapping for its own implements
@@ -466,6 +540,12 @@ Three more details worth knowing:
 - **Removal is refused when it would strand a dependent.** `remove('snap')` with `edit`
   hard-depending on it throws, naming the dependents. Teardown (`destroyAll`) walks in
   reverse install order, so dependents go before their dependencies.
+- **Optional dependencies resolve by declaration, not by timing.** A plugin also parks on an
+  optional dependency that has been _announced_ in this batch but has not finished
+  installing, so `ctx.tryPlugin('snap')` answers the same way every run. Once nothing is
+  actively installing (`#quiescent`), the waiters are released to degrade rather than
+  deadlock — which is what lets two plugins optionally depend on each other. An optional
+  dependency that was never announced is genuinely absent and does not park at all.
 
 A failed `setup` disposes that plugin's `DisposableStore` before rethrowing. A stray layer
 or listener from a plugin that "isn't installed" is a genuinely baffling thing to debug.
@@ -476,20 +556,26 @@ or listener from a plugin that "isn't installed" is a genuinely baffling thing t
 
 You want to add X → register a Y.
 
-| You want to…                                        | Register a…             | Through                                 | And you get                                                              |
-| --------------------------------------------------- | ----------------------- | --------------------------------------- | ------------------------------------------------------------------------ |
-| Change the pointer position before any tool sees it | `InteractionMiddleware` | `ctx.interaction.use(fn, { priority })` | Snapping, grid lock, ortho constraint — in **every** tool, forever       |
-| Veto or rewrite a mutation before it lands          | `CommitMiddleware`      | `ctx.commit.use(fn, { priority })`      | Validation, attribute defaults, audit stamps, server checks              |
-| Add a new kind of snap target                       | `SnapProvider`          | `ctx.tryPlugin('snap')?.addProvider()`  | Your targets appear in every tool that snaps, including future ones      |
-| Add a whole new rendering category                  | `LayerTypeDef`          | `ctx.layers.registerType(def)`          | `map.layers.add({ type: 'your-type' })` — deck.gl, heatmap, tile-grid    |
-| Add an interactive mode                             | `Tool`                  | `ctx.tools.register(id, tool)`          | Exclusive activation, cursor, post-pipeline events                       |
-| Make a durable edit undoable                        | `CommitCommand`         | `ctx.commands.commit(cmd)`              | Cross-plugin undo/redo, transactions, validation — free                  |
-| Block a write on a domain rule                      | `ValidationRule`        | `ctx.validation.add(rule)`              | Runs last in the commit pipeline; `error` blocks, `warning` annotates    |
-| Add a coordinate system                             | `ProjectedCrs` spec     | `ctx.crs.register(spec)`                | Every planar facility (snap, grid, area, topology) works in it unchanged |
-| Add UI chrome                                       | `Control`               | `map.plugin('ui').addControl(c, pos)`   | Themed, localised, torn down with the plugin                             |
-| Localise anything                                   | `Messages`              | `ctx.i18n.register(locale, messages)`   | Later registration wins, so presets override plugins                     |
-| React to something                                  | handler                 | `ctx.events.on(type, fn)`               | —                                                                        |
-| Veto something                                      | handler                 | `ctx.events.onBefore('before:…', fn)`   | `preventDefault(reason)`                                                 |
+| You want to…                                        | Register a…             | Through                                    | And you get                                                                        |
+| --------------------------------------------------- | ----------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------- |
+| Change the pointer position before any tool sees it | `InteractionMiddleware` | `ctx.interaction.use(fn, { priority })`    | Snapping, grid lock, ortho constraint — in **every** tool, forever                 |
+| Veto or rewrite a mutation before it lands          | `CommitMiddleware`      | `ctx.commit.use(fn, { priority })`         | Validation, attribute defaults, audit stamps, server checks                        |
+| Add a new kind of snap target                       | `SnapProvider`          | `ctx.tryPlugin('snap')?.addProvider()`     | Your targets appear in every tool that snaps, including future ones                |
+| Add a whole new rendering category                  | `LayerTypeDef`          | `ctx.layers.registerType(def)`             | `map.layers.add({ type: 'your-type' })` — deck.gl, heatmap, tile-grid              |
+| Add an interactive mode                             | `Tool`                  | `ctx.tools.register(id, tool)`             | Exclusive activation, cursor, post-pipeline events                                 |
+| Make a durable edit undoable                        | `CommitCommand`         | `ctx.commands.commit(cmd)`                 | Cross-plugin undo/redo, transactions, validation — free                            |
+| Block a write on a domain rule                      | `ValidationRule`        | `ctx.validation.add(rule)`                 | Runs last in the commit pipeline; `error` blocks, `warning` annotates              |
+| Add a coordinate system                             | `ProjectedCrs` spec     | `ctx.crs.register(spec)`                   | Every planar facility (snap, grid, area, topology) works in it unchanged           |
+| Add UI chrome                                       | `Control`               | `map.plugin('ui').addControl(c, pos)`      | Themed, localised, torn down with the plugin                                       |
+| Localise anything                                   | `Messages`              | `ctx.i18n.register(locale, messages)`      | Later registration wins, so presets override plugins                               |
+| React to something                                  | handler                 | `ctx.events.on(type, fn)`                  | —                                                                                  |
+| Veto something                                      | handler                 | `ctx.events.onBefore('before:…', fn)`      | `preventDefault(reason)`                                                           |
+| Ship a whole vertical product                       | `Preset`                | `definePreset({...})`, passed as `preset:` | Plugins, config, layers, rules, theme, i18n and middleware as one composable value |
+
+A `Preset` is data, not a subclass, which is why `composePresets`/`overridePreset` let a
+product extend one rather than fork it (ADR 0006). It is applied in a fixed order in `#init`:
+theme, then i18n, then middleware, then validation, then its plugins _before_ the user's, so
+`plugins: [...]` alongside a preset extends it and can depend on it.
 
 Two rules of thumb hold across all of it.
 
@@ -506,15 +592,24 @@ catch exactly this, and it is not optional.
 
 ## 6. The renderer seam
 
-`Renderer` is deliberately small: mount, project/unproject, sources, layers, camera, hit
-testing, pointer/camera events, `setCursor`, `getNative`, `destroy`. Anything that can be
+`Renderer` is deliberately small: `kind`, mount, project/unproject, sources, layers, camera,
+hit testing, pointer/camera events, `setCursor`, `getNative`, `destroy` — plus three
+_optional_ members the kernel probes for rather than requires: `setBasemap` (a theme swap),
+`setInteraction` (which gestures are live), and `onKey` (a surface with a keyboard). A
+renderer that cannot do one of those is a no-op, not an error, which is how a fixed-ground
+game renderer and a headless export target implement the same interface. Anything that can be
 built on top of those primitives — measurement, highlighting, editing handles — is a plugin,
 not a renderer method.
 
 `MapLibreRenderer` is the only implementation we ship and the right default. `FakeRenderer`
 (in `@blaeu/core/testing`) is the proof that the seam is real rather than aspirational:
 it implements the whole contract with deterministic, analytically-invertible
-`project`/`unproject`, and the entire test suite runs against it with no GPU. A test can
+`project`/`unproject`, and the 789-test node suite runs against it with no GPU. A separate
+22-test browser suite (`vitest.browser.config.ts`) mounts real MapLibre in headless Chromium
+to check the one thing a fake cannot: that MapLibre accepts the paint/layout we hand it, and
+that our pointer normalisation matches real DOM events. Four of those tests are probe-gated
+and skip without a GPU, because `queryRenderedFeatures` hit testing needs a completed render
+pass and no GPU-less runner delivers one. A test can
 therefore say "the pointer is 8 pixels from that vertex" and mean it — which is the only
 honest way to test a snap tolerance denominated in pixels.
 

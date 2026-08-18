@@ -27,12 +27,12 @@
     "  vectorLayerType.ts  70.59%   CommandBus.ts 72.58%   planar.ts 74.31%",
     "  LayerManager.ts     74.56%   TopologyIndex.ts 75.96%   registry.ts 80.77%",
     "",
-    "Against 88.7% line coverage. The store \u2014 the component every other guarantee rests on \u2014 has",
-    "the weakest assertions in the kernel, and the two worst files are the ones a wrong answer in",
-    "is least visible: an R-tree that returns the wrong candidates degrades silently into a map",
-    "that 'feels laggy', and a store write that half-applies is the failure class Tier 0 closed by",
-    "hand. That gap between 88.7% covered and 65.5% killed is precisely the shape the July audit",
-    "left behind: 86 real defects behind a green suite."
+    "Against ~89% line coverage (measured 2026-08-18). The store \u2014 the component every other",
+    "guarantee rests on \u2014 has the weakest assertions in the kernel, and the two worst files are",
+    "the ones a wrong answer in is least visible: an R-tree that returns the wrong candidates",
+    "degrades silently into a map that 'feels laggy', and a store write that half-applies is the",
+    "failure class Tier 0 closed by hand. That gap between ~89% covered and 65.5% killed is",
+    "precisely the shape the July audit left behind: 86 real defects behind a green suite."
   ],
   "packageManager": "npm",
   "testRunner": "vitest",

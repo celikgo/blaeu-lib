@@ -29,7 +29,7 @@ import { cadastreValidation } from './validation.js'
  * ```ts
  * const map = await createBlaeuMap({
  *   container: '#map',
- *   preset: cadastrePreset({ crs: 'EPSG:5255', locale: 'tr' }),   // Izmir belt
+ *   preset: cadastrePreset({ crs: 'EPSG:5253', locale: 'tr' }),   // Izmir belt (TUREF/TM27)
  * })
  * ```
  *

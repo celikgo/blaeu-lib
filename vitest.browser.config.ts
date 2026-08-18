@@ -6,7 +6,7 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url))
 /**
  * The browser suite. **Additive, and deliberately not part of `npm run verify`.**
  *
- * The 700-odd node tests run against `FakeRenderer`, which proves the renderer seam is real and
+ * The 789 node tests run against `FakeRenderer`, which proves the renderer seam is real and
  * lets the whole library be tested with no GPU. It leaves exactly one surface unverified: our
  * translation of `LayerStyle` into MapLibre paint/layout, and our normalisation of MapLibre's
  * pointer events. A mocked `maplibre-gl` cannot check either, because the thing being checked
@@ -23,7 +23,9 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url))
  *
  * Not in `verify` because a WebGL browser is a different order of cost and flakiness from
  * `tsc` and a node runner, and a gate that is slow or flaky is a gate people learn to skip. CI
- * runs it on pull requests that touch `renderers/**`, and nightly.
+ * runs it in its own `browser` job, unconditionally — on every pull request, on every push to
+ * main, and on the nightly schedule. There is no `paths:` filter narrowing it to
+ * `renderers/**`, because what breaks the translation is rarely a change inside the renderer.
  *
  * ## Known: hit testing needs a GPU
  *

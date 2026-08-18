@@ -8,23 +8,44 @@ extensible.
 
 ```bash
 npm install          # at the ROOT. Workspaces link on install.
-npm run verify       # boundaries → typecheck → lint → test. This is what CI runs.
+npm run verify       # scaffold:check → boundaries → typecheck (src, examples, tests) → lint
+                     # → doc fences → test → build
+npm run format:check # CI runs this too — `verify` alone is not enough for a green PR
 ```
+
+CI runs both of those and then four more jobs: the maplibre peer-range matrix (4.7.0, ^5, ^6,
+type-check only), a pack-and-consume job that builds every tarball and installs it, the
+real-browser suite, and — nightly rather than per-PR, because it takes minutes — mutation
+testing.
 
 Individually:
 
 ```bash
 npm run lint:boundaries   # package-dependency rules (below)
+npm run scaffold:check    # manifests still match the generator (first step of verify)
 npm run typecheck         # tsc --build, project references, incremental
+npm run typecheck:examples
+npm run typecheck:tests   # the test files, which the build graph does not cover
 npm run lint              # eslint
 npm run format            # prettier --write
-npm test                  # vitest, all packages, headless
+npm run format:check      # what CI checks
+npm run check:docs        # type-checks every ts fence in the docs that has an import
+npm test                  # vitest, all packages, headless — the node suite
+npm run test:coverage     # v8 coverage; reported, not thresholded
 ```
 
-Tests and typecheck resolve `@blaeu/*` to **source**, not to `dist` (see the `development`
-condition in each package's `exports`, and the aliases in `vitest.config.ts`). So there is no
-build step in the inner loop, and a type error in the core surfaces in a plugin's test run
-immediately.
+Three further suites live outside `verify`, because they are slow and a gate people learn to
+skip is worse than no gate: `npm run test:browser` (real MapLibre in headless Chromium — the
+renderer only), `npm run bench` (store hot-path benchmarks; read the ratios, not the
+absolutes), and `npm run test:mutation` (Stryker over `store/`, `crs/`, `layers/` and
+`commands/`, with `break` set as a ratchet at the measured floor).
+
+Tests and typecheck resolve `@blaeu/*` to **source**, not to `dist` — via the `paths` map in
+`tsconfig.base.json` and the matching aliases in `vitest.config.ts` (and
+`vitest.browser.config.ts`). The `exports` map in each package points at `dist` and is only for
+consumers; there is deliberately no `development` condition, because when published it would
+resolve a consumer to `./src`, which `files` never ships. So there is no build step in the inner
+loop, and a type error in the core surfaces in a plugin's test run immediately.
 
 ## The boundary rules
 
@@ -39,7 +60,10 @@ packages/
 
 - a `core → plugin` or `core → preset` import,
 - a `plugin → plugin` import,
-- a plugin listing `@blaeu/core` as a `dependency` instead of a `peerDependency`.
+- a plugin **or preset** listing `@blaeu/core` under `dependencies` instead of
+  `peerDependencies`,
+- a plugin or preset that does not declare `@blaeu/core` as a peer at all — npm can then
+  silently install a second copy instead of warning about a mismatch.
 
 The first is core invariant 1: if the core needs to know something a plugin knows, the plugin
 **registers** it and the core calls it through an interface the core owns. Wanting to import
@@ -52,7 +76,7 @@ degrades if it is absent. If your plugin _cannot_ degrade, declare a hard depend
 (`{ id: 'snap' }`, no `optional`) — but think first about whether you have picked the wrong
 extension point.
 
-The third looks pedantic and is not. Two copies of `@blaeu/core` in a user's
+The last two look pedantic and are not. Two copies of `@blaeu/core` in a user's
 `node_modules` means **two event buses, two command buses, two stores**. Nothing throws. The
 plugin silently never receives an event, and someone loses a day to it. If you ever triage an
 issue that says "my listener never fires", check for a duplicate core before anything else.
@@ -83,6 +107,7 @@ it('draws without the snap plugin present', async () => {
   map.test.click([32.851, 39.93])
   map.test.click([32.851, 39.931])
   map.plugin('draw').finish()
+  await map.test.flush() // the commit pipeline is async — see ADR 0004
   expect(map.store.collection('parcels').size).toBe(1)
 })
 ```
@@ -122,12 +147,19 @@ it('round-trips every command', async () => {
   const before = map.store.snapshot()
 
   map.plugin('edit').move(['parcel-left'], [1.5, 0]) // metres in the working CRS
+  await map.test.flush()
   expect(map.store.snapshot()).not.toEqual(before)
 
   map.plugin('history').undo()
+  await map.test.flush()
   expect(map.store.snapshot()).toEqual(before) // deep equality, no tolerance
 })
 ```
+
+Both flushes are load-bearing, not defensive. The commit pipeline is asynchronous by design
+(ADR 0004), and history records in `onDidExecute` — so without the first flush the move has
+not landed in the store, and without it the command is not on the undo stack when `undo()` is
+called. Drop either one and the test fails.
 
 If `undo` cannot restore **deep equality**, the command captured too little state. Do not
 loosen the assertion — fix the command. A command that captures _what it was asked to do_ can
@@ -162,7 +194,7 @@ correctly (spy on `FakeRenderer`), not what MapLibre does afterwards.
 
 ## When a change needs an ADR
 
-**Any change to a contract needs an ADR in `docs/adr/`, in the same PR.** Concretely:
+**Any change to a contract needs an ADR in [`docs/adr/`](docs/adr/README.md), in the same PR.** Concretely:
 
 - anything in `packages/core/src/types/` — every plugin in every downstream product
   implements against those interfaces,
@@ -187,6 +219,9 @@ An ADR is four sections, and the third is the one that makes it worth writing:
 question is never "what did you do", it is "did you think about X" — and the only way to
 answer that a year later is to have written down that you did, and what was wrong with it.
 
+A fifth section earns its place where a decision was forced by a bug: the test that would
+have caught it (ADR 0009 and 0013 both carry one).
+
 Adding a file needs no ADR. Adding an **entry point** to a package's `exports` does: it is a
 public API surface with a versioning consequence, forever.
 
@@ -206,10 +241,14 @@ matters, and what to do instead:
 
 ```ts
 throw new Error(
-  `[blaeu] plugin "${plugin.id}" is already installed. ` +
-    `Two instances would each register their listeners and layers, and you would see every action happen twice.`,
+  `[blaeu] plugin "${plugin.id}" is already installed (or still installing). ` +
+    `Two instances would each register their listeners and layers, and you would see every action happen twice. ` +
+    `If a composed preset lists "${plugin.id}" twice, include it once.`,
 )
 ```
+
+The third sentence is the one doing the work: it names the situation the reader is almost
+certainly in and tells them what to change.
 
 ## Releases
 
@@ -223,6 +262,13 @@ the same way, so releasing the core without the plugins produces a matrix of ver
 nobody has ever run together. One version for the whole kernel is the only claim we can stand
 behind.
 
+One trap, measured rather than assumed: with a `fixed` group on 0.x packages, a **minor**
+changeset does not produce 0.2.0 — it produces **1.0.0**. Changesets cannot keep a group
+aligned across a 0.x minor, so it escalates. Keep every changeset `patch` while the API is
+still moving, and take 1.0.0 deliberately rather than on the way past. The four example apps
+sit in the config's `ignore` list: `private: true` stops them publishing but not being
+versioned, and the `@blaeu/*` glob was bumping them and writing them a changelog each.
+
 Core is versioned strictly: **a change to a public interface in `packages/core/src/types/` is
 a major**, no matter how small it looks.
 
@@ -231,25 +277,28 @@ that skipped the gate is the one build nobody checked and the one that reaches o
 machines; and every package publishes with npm **provenance**, so "which commit built this
 tarball" has an answer.
 
-The version number lives in `packages/core/package.json` and nowhere else — the scaffold reads
-it rather than declaring its own copy, so `changeset version` cannot desync the generator.
+The generator holds no copy of the version number: `scripts/scaffold-packages.mjs` reads it out
+of `packages/core/package.json` and derives the plugins' caret peer range from it. So
+`changeset version`, which rewrites all twelve manifests, cannot desync `scaffold:check`.
 
 ## Adding a package
 
 Package manifests are **generated, not hand-written**: `scripts/scaffold-packages.mjs` holds
 the list of workspace packages and emits every `package.json`, `tsconfig.json` and
 `tsup.config.ts` from one template. That is what keeps the `exports` map, the dependency
-versions and — above all — the peer-dependency rule consistent across thirteen packages.
+versions and — above all — the peer-dependency rule consistent across twelve packages.
 
-So: add your package to the list in that script, run it, and then wire the two things it does
-not own — the root `workspaces` array (if the glob does not already cover it) and the
-`@blaeu/*` alias in `vitest.config.ts`, without which your tests will resolve `dist`
-instead of source. Check the diff.
+So: add your package to the list in that script, run it, and then wire the three things it does
+not own — the `paths` entry in `tsconfig.base.json`, without which `npm run typecheck` cannot
+resolve your imports; the `@blaeu/*` alias in `vitest.config.ts`, without which your tests will
+resolve `dist` instead of source; and, only if the package needs browser coverage, the smaller
+alias list in `vitest.browser.config.ts`. The root `workspaces` array is already `packages/*`,
+so nothing is needed there. Check the diff.
 
-(The root `new-package` script currently points at a file that does not exist. Fixing it — so
-that a new package is scaffolded with the three tests above already wired and already failing
-— is a good first PR. A package that starts with three failing tests gets them passing; one
-that starts with zero tests ships with zero tests.)
+(There is no `new-package` script — `npm run scaffold` regenerates manifests only, and creates
+neither a `src/` nor any tests. A generator that scaffolds a new plugin with the three tests
+above already wired and already failing would be a good first PR: a package that starts with
+three failing tests gets them passing; one that starts with zero tests ships with zero tests.)
 
 Then, before you open the PR:
 

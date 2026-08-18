@@ -15,7 +15,7 @@ a single feature.
 
 ## Switching themes
 
-Six themes are registered on every map, so you can switch by id with no setup:
+Seven themes are registered on every map, so you can switch by id with no setup:
 
 ```ts
 map.theme.use('twitter-dim') // night
@@ -28,6 +28,12 @@ map.theme.scheme // 'light' | 'dark'
 
 `use()` of an unknown id throws (with the list of valid ids) rather than silently
 leaving a blank map.
+
+A **preset's** theme is applied, not registered: `preset.theme` goes through
+`theme.set()`, which merges into the active theme without touching the registry. So
+the cadastre preset's theme is what you are looking at, but it does not appear in
+`list()` and `use('cadastre')` throws. If you want to switch away from a preset theme
+and back again, call `map.theme.register(preset.theme)` yourself first.
 
 ### Following the OS
 
@@ -48,17 +54,21 @@ map.theme.setSchemeDefaults({ light: 'survey-paper', dark: 'imagery-dark' })
 
 ## The built-in themes
 
-| id              | scheme | notes                                                          |
-| --------------- | ------ | -------------------------------------------------------------- |
-| `twitter-light` | light  | X's default day palette                                        |
-| `twitter-dim`   | dark   | X's Dim night palette                                          |
-| `twitter-black` | dark   | X's Lights-out — true black, for OLED                          |
-| `survey-paper`  | light  | warm cadastral survey sheet; low-contrast so the boundary wins |
-| `high-contrast` | light  | WCAG **AAA**; for a laptop in direct sunlight                  |
-| `imagery-dark`  | dark   | night theme tuned to sit over satellite / orthophoto tiles     |
+| id              | scheme | notes                                                                                   |
+| --------------- | ------ | --------------------------------------------------------------------------------------- |
+| `blaeu-default` | light  | the neutral slate/blue chrome every map starts on, until a preset or `use()` changes it |
+| `twitter-light` | light  | X's default day palette                                                                 |
+| `twitter-dim`   | dark   | X's Dim night palette                                                                   |
+| `twitter-black` | dark   | X's Lights-out — true black, for OLED                                                   |
+| `survey-paper`  | light  | warm cadastral survey sheet; low-contrast so the boundary wins                          |
+| `high-contrast` | light  | WCAG **AAA**; for a laptop in direct sunlight                                           |
+| `imagery-dark`  | dark   | night theme tuned to sit over satellite / orthophoto tiles                              |
 
-Every text pair and every on-map mark in all six is validated against WCAG. The
-Twitter palettes correct three of X's own contrast failures while keeping the hue:
+Every text pair and every on-map mark in all seven has a contrast ratio computed by
+hand and recorded in the theme source (`packages/core/src/theme/themes/`). There is no
+automated gate — if you add or re-tint a theme, compute the pairs and record them the
+same way, because nothing else will catch it. The Twitter palettes correct three of X's
+own contrast failures while keeping the hue:
 white-on-blue is exactly 3.00:1, so a filled button uses `accentStrong`/`onAccent`
 instead; X's snap-yellow is 1.43:1 on white, so the light theme's snap indicator is
 deepened; Lights-out muted text is nudged to clear 4.5:1.
@@ -82,8 +92,10 @@ deepened; Lights-out muted text is nudged to clear 4.5:1.
 | `labelHalo`                          | the halo around **on-map** labels — the colour of the ground, so a dark map gets a dark halo |
 | `border`                             | chrome borders                                                                               |
 
-There are also `size`, `font`, and `z` groups. `token()` hands plugins the raw number
-(`5`, for a MapLibre paint expression); the CSS variable carries the unit (`5px`).
+There are also `size`, `font`, and `z` groups. `token(group)` hands plugins a whole
+group of raw values — `map.theme.token('size').vertexRadius` is `5`, ready to drop into
+a MapLibre paint expression; the CSS variable `--bl-size-vertex-radius` carries the unit
+(`5px`). The `z` group is unitless in CSS too.
 
 ## Theme-following layer styles
 
@@ -92,6 +104,10 @@ tokens instead of a fixed value. The layer manager resolves it against the live 
 and re-resolves on every theme change:
 
 ```ts
+import type { BlaeuMap } from '@blaeu/core'
+
+declare const map: BlaeuMap
+
 map.layers.add({
   id: 'parcels',
   type: 'vector',
@@ -120,6 +136,11 @@ theme's `canvas` colour, nothing fetched over the network. That is what makes
 variant whose `basemap` is its own style:
 
 ```ts
+import { twitterDim } from '@blaeu/core'
+import type { BlaeuMap } from '@blaeu/core'
+
+declare const map: BlaeuMap
+
 map.theme.register({
   ...twitterDim,
   id: 'twitter-dim-osm',

@@ -1,6 +1,6 @@
 # @blaeu/plugin-snap
 
-Snapping for BlaeuMap — vertex, intersection, midpoint, edge, extension, perpendicular and grid.
+Snapping for Blaeu — vertex, intersection, midpoint, edge, extension, perpendicular and grid.
 
 ## Snapping is middleware, not a service
 
@@ -20,6 +20,12 @@ If you find yourself wanting a function from this package to call from a tool, t
 architecture is telling you something.
 
 ## Install
+
+```
+npm install @blaeu/plugin-snap @blaeu/core maplibre-gl
+```
+
+> Not on npm yet — see [the root README](../../README.md#packages) for how to run it from source.
 
 ```ts
 import { createBlaeuMap } from '@blaeu/core'
@@ -42,7 +48,9 @@ map.events.on('snap:changed', (e) => {
 ```
 
 Hold **Alt** to suppress snapping for one event — the universal CAD convention, and
-what users reach for when they need a point _near_ a corner rather than _on_ it.
+what users reach for when they need a point _near_ a corner rather than _on_ it. A
+`keydown` never snaps either, so a keyboard shortcut fired mid-gesture does not leave a
+stale indicator behind.
 
 ## What it registers
 
@@ -64,6 +72,15 @@ indicator therefore lives in its own _renderer_ source rather than in a store
 collection: a decoration in the store would show up in `store.snapshot()`, which is
 what every undo round-trip test in the repo compares for deep equality, and every
 plugin's undo test would then pass or fail depending on where the mouse was.
+
+It _reads_ the store, and three filters decide what is a target at all. A feature is
+skipped when `meta.hidden === true` or when `meta.snappable === false` — the latter is
+how UI scaffolding stays out of the auction, because a vertex handle sits exactly on the
+vertex it represents, and without the flag the pointer snaps onto the handle of the very
+vertex being dragged and pins it there. `snappable` is a kernel field defaulting to
+`true`, which is what lets plugin-edit keep its handles un-snappable without the snap
+plugin having heard of plugin-edit. The `snap:indicator` source is never a target either;
+the mark under the cursor snapping to itself would be its own kind of comedy.
 
 ## Dependencies
 
@@ -87,12 +104,36 @@ times a second while the cursor rests on a corner.
 
 ```ts
 snapPlugin({
-  tolerance: 10,        // screen pixels. How close is "close". Default 10.
-  providers: [...],     // which built-ins to install. Default: all of them except grid.
-  gridSize: 5,          // metres, in the WORKING CRS. Required for the grid provider.
-  enabled: true,        // start snapping on. Default true.
+  // screen pixels. How close is "close". Default 10. Must be > 0; throws otherwise —
+  // use { enabled: false } to turn snapping off.
+  tolerance: 10,
+  // which built-ins to install. Default: vertex, intersection, midpoint, edge,
+  // extension and perpendicular — plus grid, but only when gridSize is set.
+  providers: [...],
+  // metres, in the WORKING CRS. Required for the grid provider. Must be > 0 when
+  // present; omit it entirely to install no grid provider.
+  gridSize: 5,
+  // start snapping on. Default true.
+  enabled: true,
 })
 ```
+
+## API
+
+`map.plugin('snap')` returns `SnapApi`, typed and cast-free:
+
+| Member                                      | What                                                                          |
+| ------------------------------------------- | ----------------------------------------------------------------------------- |
+| `addProvider(provider): Disposable`         | register a source of targets; every tool snaps to them from the next move     |
+| `removeProvider(id)`                        | drop one by id                                                                |
+| `providers(): readonly SnapProvider[]`      | what is currently registered, built-ins included                              |
+| `setTolerance(px)`                          | change the radius at runtime; throws on a non-positive value                  |
+| `readonly current: SnapResult \| undefined` | what the last pointer event snapped to, without subscribing to `snap:changed` |
+| `enable()` / `disable()`                    | the runtime toggle the `enabled` option only sets the initial value of        |
+| `exclude(ids)`                              | features to ignore; replaces the previous set                                 |
+| `setInProgress(points)`                     | the vertices committed so far in the current gesture                          |
+
+The last two are gesture-scoped and have a section of their own below.
 
 ## The built-in providers, and why the priorities are what they are
 
@@ -170,18 +211,80 @@ ctx.disposables.add(handle) // invariant 5
 provider that throws is logged and skipped for that event — a degraded map beats a
 dead cursor — but do not rely on that.
 
+You do not have to hand-roll the maths. The package exports the same toolkit the
+built-ins are written against, and using it is how a third-party provider inherits the
+precision rules rather than re-deriving them:
+
+- `createScope(deps, point, tolerancePx, ctx)` gives you `scope.plane` — the projected
+  working CRS every construction must happen in — along with `scope.distancePx()` and
+  `scope.searchMetres`, the tolerance converted into metres by _measuring_ the local
+  scale at the cursor rather than assuming it.
+- `candidateAt(scope, kind, xy)` and `candidateAtLngLat(scope, kind, point)` build a
+  tolerance-filtered `SnapCandidate`, returning `undefined` rather than a candidate the
+  engine would discard. `candidateAtLngLat` is what enforces the verbatim-coordinate rule
+  above: pass a store coordinate through it and the bits come back untouched.
+- `PRIORITY` is the priority table, so you can slot yours against the built-ins by name
+  instead of by a magic number that drifts.
+
+Also exported, for the same reason: the geometry primitives `footOnLine`, `footOnSegment`,
+`segmentIntersection`, `segmentsNear`, `segmentsWhoseLineIsNear`, `eachPath` and
+`FrameCache`; the seven provider factories `createVertexProvider` … `createGridProvider`,
+should you want to install one by hand; the constants `BUILTIN_KINDS`,
+`DEFAULT_TOLERANCE_PX`, `INDICATOR_SOURCE` and `INDICATOR_LAYER`; and the types `SnapApi`,
+`SnapOptions`, `SnapDeps` and `SnapScope`.
+
 ## Gesture-scoped API
 
-Two things only the plugin driving a gesture can know, so it must tell the engine:
+Some things only the plugin driving a gesture can know. The most common one — what is
+being dragged — is **not** in this API, and deliberately so.
+
+### Dragging: tell the kernel, not the snap engine
+
+A dragged feature must not snap to itself: the vertex under the cursor _is_ the vertex you
+are moving, it is at distance zero, and it wins every time, which pins it in place and
+turns every drag shorter than the tolerance into a silent no-op. The fix is one line, on
+the kernel:
 
 ```ts
-const snap = ctx.tryPlugin('snap') // optional dependency: guard, never assume
+ctx.tools.setDragging([feature.id]) // and setDragging([]) when the gesture ends
+```
 
-// The feature being dragged must not snap to itself — the vertex under the cursor
-// *is* the vertex you are moving, at distance zero, and it wins every time.
-snap?.exclude([feature.id])
+The snap engine reads `ctx.dragging` off the interaction context and unions it into its
+own exclusion set. No call into this package, no optional dependency, no guard — a tool
+states a fact about itself and any middleware that cares can act on it, snapping today and
+a grid lock or a constraint solver tomorrow. This is [ADR 0010](../../docs/adr/0010-tools-declare-what-they-drag.md),
+which exists precisely to remove the out-of-band plugin-to-plugin channel that
+`exclude()` used to be for this case. The edit plugin — the one that actually drags
+geometry — never mentions snapping at all.
+
+### `exclude()`: for what is in the store but is not being dragged
+
+That leaves a narrower job. A transient preview — a rubber band, a half-closed ring — is a
+real feature in the store, so it is a snap target, but no tool is _dragging_ it. The draw
+plugin is the working example: it excludes its own preview so the rubber band cannot snap
+to itself.
+
+```ts
+// Plugins may not import one another, so `@blaeu/plugin-snap`'s registry augmentation is
+// not in scope here and 'snap' is not a key `ctx.tryPlugin` will accept. Go through an
+// untyped lookup and duck-type the result, as plugin-draw's `resolveSnapHandle` does.
+type UntypedLookup = (id: string) => unknown
+const snap = (ctx.tryPlugin as unknown as UntypedLookup)('snap') as
+  | { exclude?(ids: readonly string[]): void; setInProgress?(points: readonly LngLat[]): void }
+  | undefined
+
+snap?.exclude?.([preview.id])
 
 // The ring so far. Lets the user close it on its own first vertex, and gives the
 // perpendicular provider something to be perpendicular *from*.
-snap?.setInProgress(ring)
+snap?.setInProgress?.(ring)
 ```
+
+In an _application_ — which may import both packages — `map.plugin('snap')` is typed and
+needs none of that ceremony. It is only a sibling plugin that has to go the long way
+round, because `scripts/check-boundaries.mjs` fails the build on a plugin importing
+another plugin.
+
+See [ADR 0003](../../docs/adr/0003-snapping-as-interaction-middleware.md) for snapping as
+middleware, and [ADR 0010](../../docs/adr/0010-tools-declare-what-they-drag.md) for how a
+dragged feature is kept out of the auction.

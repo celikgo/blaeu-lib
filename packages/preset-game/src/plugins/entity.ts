@@ -35,10 +35,11 @@ const GENERATE_PRIORITY = 0
  * Two things worth reading this file for:
  *
  * **1. The place tool is fifteen lines, and it does not snap.** It reads
- * `ctx.lngLat`, which the snap middleware rewrote to the exact centre of a tile
- * before any tool saw the event. The tool has never heard of the grid — which is
- * why swapping `gridType: 'hex'` changes where entities land without changing a
- * line of it.
+ * `ctx.lngLat`, which the snap middleware rewrote to a lattice point before any tool
+ * saw the event — a tile *corner* on a square grid, because the grid provider rounds
+ * each working-CRS coordinate to a multiple of `gridSize`, and a hex *centre* under
+ * `gridType: 'hex'`. The tool has never heard of the grid, which is why swapping the
+ * grid type moves where entities land without changing a line of it.
  *
  * **2. Generators run in the commit pipeline, and they are not validation.** The
  * commit pipeline was built so a land registry could ask a server whether a parcel
@@ -146,9 +147,10 @@ function createPlaceTool(ctx: PluginContext<GameOptions>, session: EntitySession
     },
 
     onClick(interaction): boolean {
-      // `interaction.lngLat` has already been through the snap middleware, so it is
-      // the centre of a tile — or the raw pointer, if no snap plugin is installed.
-      // Either way the tool does not know, and does not need to.
+      // `interaction.lngLat` has already been through the snap middleware, so it is a
+      // grid intersection — a tile corner, or a hex centre under `gridType: 'hex'` — or
+      // the raw pointer, if no snap plugin is installed. Either way the tool does not
+      // know, and does not need to.
       session.placeAt(interaction.lngLat)
       return true
     },

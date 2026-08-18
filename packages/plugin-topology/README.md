@@ -1,6 +1,6 @@
 # @blaeu/plugin-topology
 
-Topology validation for BlaeuMap: self-intersection, overlaps, gaps, slivers,
+Topology validation for Blaeu: self-intersection, overlaps, gaps, slivers,
 minimum area, and the two cheap structural checks that catch a bad import before
 it reaches a boolean operation.
 
@@ -12,16 +12,18 @@ important sentence in this package. A `0.001` tolerance in degrees is about 100 
 npm i @blaeu/plugin-topology
 ```
 
+> Not on npm yet — see [the root README](../../README.md#packages) for how to run it from source.
+
 ## Usage
 
 ```ts
 import { createBlaeuMap } from '@blaeu/core'
-import { topologyPlugin } from '@blaeu/plugin-topology'
+import { RULE_IDS, topologyPlugin } from '@blaeu/plugin-topology'
 
 const map = await createBlaeuMap({
   container: '#map',
   crs: { working: 'EPSG:5254' }, // TUREF / TM30 — a real cadastral plane
-  plugins: [topologyPlugin({ tolerance: 0.001 })],
+  plugins: [topologyPlugin({ tolerance: 0.001, sliverRatio: 100 })],
 })
 
 const topology = map.plugin('topology') // → TopologyApi, no cast
@@ -31,9 +33,13 @@ for (const issue of issues) {
   console.log(issue.severity, issue.message, issue.at) // `at` drives "zoom to issue"
 }
 
-// Repairs are explicit. Always.
-const fixable = issues.filter((i) => i.rule === 'topology.self-intersection')
-if (fixable[0] && confirm(fixable[0].message)) topology.fix(fixable[0])
+// Repairs are explicit. Always — and a repair can be rejected on its way through
+// the command bus, so `fix()` is awaited and its answer is read.
+const fixable = issues.filter((i) => i.rule === RULE_IDS.selfIntersection)
+if (fixable[0] && confirm(fixable[0].message)) {
+  const repaired = await topology.fix(fixable[0])
+  if (!repaired) console.warn('the repair was rejected')
+}
 ```
 
 ### Set the working CRS, or the numbers are fiction
@@ -56,15 +62,15 @@ as a default, not a conservative guess.
 
 Even the three repairs this package _can_ perform are lossy or opinionated:
 
-| Rule                          | Repairable?      | Why                                                                                                    |
-| ----------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------ |
-| `topology.closed-rings`       | yes              | Nobody ever meant an unclosed ring.                                                                    |
-| `topology.duplicate-vertices` | yes              | Nobody ever meant to digitise the same corner twice.                                                   |
-| `topology.self-intersection`  | yes, **lossily** | `buffer(0)` can drop a lobe, which changes the parcel's area — and the area is the number on the deed. |
-| `topology.overlap`            | **no**           | Two people claim the same ground. Which one yields is a legal act.                                     |
-| `topology.gap`                | **no**           | Unclaimed land. Closing it _gives_ that land to somebody.                                              |
-| `topology.slivers`            | **no**           | A thin parcel may be a right-of-way that genuinely exists.                                             |
-| `topology.min-area`           | **no**           | An undersized parcel is a fact about the world, not a defect in the data.                              |
+| Rule                          | Repairable?      | Why                                                                                                                                 |
+| ----------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `topology.closed-rings`       | yes              | Nobody ever meant an unclosed ring.                                                                                                 |
+| `topology.duplicate-vertices` | yes              | Nobody ever meant to digitise the same corner twice.                                                                                |
+| `topology.self-intersection`  | yes, **lossily** | `buffer(0)` re-forms a bowtie as a two-part MultiPolygon, which changes the parcel's area — and the area is the number on the deed. |
+| `topology.overlap`            | **no**           | Two people claim the same ground. Which one yields is a legal act.                                                                  |
+| `topology.gap`                | **no**           | Unclaimed land. Closing it _gives_ that land to somebody.                                                                           |
+| `topology.slivers`            | **no**           | A thin parcel may be a right-of-way that genuinely exists.                                                                          |
+| `topology.min-area`           | **no**           | An undersized parcel is a fact about the world, not a defect in the data.                                                           |
 
 `fix()` returns `false`, and changes nothing, for the bottom four — forever. Every
 repair that _does_ run goes through the command bus, so it undoes like any other
@@ -81,8 +87,22 @@ edit.
   one in a particular jurisdiction, and the plugin does not know one. A preset adds it.
   It also **never overwrites a rule that is already registered under the same id**, so
   a preset's severities win.
+  The plugin's `tolerance` and `sliverRatio` options are what those registered rules
+  are built with — `sliverRatio` is not a separate knob, it is the one the registered
+  `topology.slivers` reads.
 - **i18n bundles** `en` and `tr`, for the rule messages. Every message goes through
-  `ctx.t()`; there is no hardcoded English in an issue a user will read.
+  `ctx.t()`; there is no hardcoded English in an issue a user will read. They are
+  exported individually as well as bundled, so a preset can extend one language
+  without restating the other.
+- **`topology.issues`** — the issues from the last `validate()`, empty until one has
+  run. A panel that mounts after the import has already been checked reads this
+  rather than waiting for an event that has already fired.
+- **`isFixable(rule)` and `FIXABLE_RULE_IDS`** — so a panel can decide whether to
+  show a Fix button without hardcoding the three repairable rules, and without
+  calling `fix()` to find out.
+- **`RULE_IDS`** — the rule ids as constants, so a host never has to hardcode
+  `'topology.self-intersection'`. `STRUCTURAL_RULE_IDS`, `TOPOLOGY_RULE_PREFIX` and
+  every `DEFAULT_*` in the table below are exported for the same reason.
 
 ## What it emits
 
@@ -90,7 +110,8 @@ edit.
 | ----------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `topology:issues` | `{ issues: readonly ValidationIssue[] }` | after every `validate()`, including the ones that find nothing — a UI has to clear its panel |
 
-`onIssues(handler)` is the same stream as a `Disposable`.
+`onIssues(handler)` is the same stream, subscribed directly; it returns a
+`Disposable`, and is torn down with the plugin even if you forget to dispose it.
 
 ## Dependencies
 
@@ -133,15 +154,15 @@ export const cadastre = definePreset({
 })
 ```
 
-| Rule                        | Default severity | Finds                                                                                      |
-| --------------------------- | ---------------- | ------------------------------------------------------------------------------------------ |
-| `closedRings()`             | `error`          | a ring that does not close, or has fewer than three corners                                |
-| `noDuplicateVertices()`     | `warning`        | consecutive vertices within `tolerance` **metres**                                         |
-| `noSelfIntersection()`      | `error`          | a bowtie — with `at` set to the crossing coordinate                                        |
-| `noOverlapWithNeighbours()` | `error`          | intersection area > `tolerance²` with any neighbour; `data.overlapArea` in m²              |
-| `noGapsWithNeighbours()`    | `warning`        | a void < `maxGapArea` m² and < 2 × `maxGapWidth` wide, between the feature and a neighbour |
-| `noSlivers()`               | `warning`        | perimeter²/area above `sliverRatio` (a square is 16; 100 ≈ a 1:20 strip)                   |
-| `minParcelArea()`           | `error`          | planar area below `minArea` m², measured via `ctx.crs.area`                                |
+| Rule                        | Default severity | Finds                                                                                                                                                                                                                                       |
+| --------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `closedRings()`             | `error`          | a ring that does not close, or has fewer than three corners                                                                                                                                                                                 |
+| `noDuplicateVertices()`     | `warning`        | consecutive vertices within `tolerance` **metres**                                                                                                                                                                                          |
+| `noSelfIntersection()`      | `error`          | a bowtie — with `at` set to the crossing coordinate                                                                                                                                                                                         |
+| `noOverlapWithNeighbours()` | `error`          | intersection with any neighbour whose area > `tolerance²` **and** which survives an erosion of half the tolerance — a ribbon narrower than the grid along a shared edge is a digitisation artefact, not a dispute; `data.overlapArea` in m² |
+| `noGapsWithNeighbours()`    | `warning`        | a void < `maxGapArea` m² (default 1) and < 2 × `maxGapWidth` (default 0.25 m) wide, between the feature and a neighbour, searched within `searchDistance` (default 1 m)                                                                     |
+| `noSlivers()`               | `warning`        | perimeter²/area above `sliverRatio` (default 100; a square is 16, and 100 ≈ a 1:20 strip)                                                                                                                                                   |
+| `minParcelArea()`           | `error`          | planar area below `minArea` m², measured via `ctx.crs.area` (**default 1 m² — a placeholder; supply the legal minimum**)                                                                                                                    |
 
 ### Why overlap is an error and a gap is only a warning
 

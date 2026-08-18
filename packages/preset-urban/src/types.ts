@@ -89,7 +89,7 @@ export type AttributeSchemas = Readonly<Record<string, AttributeSchema>>
  */
 export interface UrbanOptions {
   /**
-   * Projected working CRS. Default `EPSG:5254` (TUREF / TM33 — central Türkiye).
+   * Projected working CRS. Default `EPSG:5254` (TUREF / TM30 — the 3° belt at 30°E).
    *
    * Areas and the 5 m grid are metres *on this plane*. Leaving it at the kernel's
    * `EPSG:3857` default would inflate every area report by ~70 % at Turkish

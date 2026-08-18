@@ -1,11 +1,13 @@
 # @blaeu/plugin-draw
 
 Point, line, polygon, rectangle, circle and freehand — the drawing half of an editing
-product, built on the BlaeuMap kernel.
+product, built on the Blaeu kernel.
 
 ```bash
 npm install @blaeu/plugin-draw
 ```
+
+> Not on npm yet — see [the root README](../../README.md#packages) for how to run it from source.
 
 `@blaeu/core` is a **peer** dependency.
 
@@ -35,11 +37,12 @@ map.events.on('draw:complete', (e) => {
 
 ## What it registers
 
-| Kind       | Id                                                                                          |
-| ---------- | ------------------------------------------------------------------------------------------- |
-| Tools      | `draw:point`, `draw:line`, `draw:polygon`, `draw:rectangle`, `draw:circle`, `draw:freehand` |
-| Collection | `draw:preview` — the shape in progress, and nothing else                                    |
-| Commands   | `core:add-features` (the completed shape), `draw:set-preview` (transient)                   |
+| Kind       | Id                                                                                                                         |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Tools      | `draw:point`, `draw:line`, `draw:polygon`, `draw:rectangle`, `draw:circle`, `draw:freehand`                                |
+| Collection | `draw:preview` — the shape in progress, and nothing else                                                                   |
+| Commands   | `core:add-features` (the completed shape), `draw:set-preview` (transient)                                                  |
+| Layer      | `draw:preview` — a theme-styled vector layer over the preview collection, on by default (`previewLayer: false` to opt out) |
 
 Activate a tool either way — they are the same thing:
 
@@ -50,10 +53,10 @@ map.plugin('draw').start('rectangle')
 
 ## What it depends on
 
-| Plugin    | Required?    | What it adds                                                                     |
-| --------- | ------------ | -------------------------------------------------------------------------------- |
-| `snap`    | **optional** | Vertices land on snap targets, and a ring can be closed on its own first corner. |
-| `history` | **optional** | Ctrl-Z undoes a shape. Without it the shapes still land; nothing records them.   |
+| Plugin    | Required?    | What it adds                                                                                                                     |
+| --------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `snap`    | **optional** | Vertices land on snap targets, and the click that closes a ring lands exactly on its first corner instead of within 12 px of it. |
+| `history` | **optional** | Ctrl-Z undoes a shape. Without it the shapes still land; nothing records them.                                                   |
 
 Both degrade to nothing. The plugin never imports either one, and `draw.test.ts` proves it
 draws with neither installed.
@@ -98,7 +101,7 @@ map.events.onBefore('before:draw:complete', (e) => {
 ## Behaviour worth knowing
 
 **Polygon / line.** Click to add a vertex. Double-click, press Enter, click the first corner
-(polygon only), or call `finish()` to close. Backspace removes the last vertex, Escape
+(polygon only), or call `finish()` to close. Backspace (or Delete) removes the last vertex, Escape
 abandons the shape and leaves the tool armed for the next one.
 
 **Rectangle.** Press-drag-release, axis-aligned **in the working CRS**. A rectangle that is
@@ -108,9 +111,12 @@ corners are not 90° — so the corners are computed in the projected plane and 
 **Circle.** Press at the centre, drag for the radius, release. The radius is a planar
 distance in metres in the working CRS, not a great-circle distance. GeoJSON has no circle, so
 the shape is stored as a polygon of `circleSegments` vertices — and the _true_ centre and
-radius are stashed in the properties (`draw:centre`, `draw:radiusMetres`, `draw:segments`,
-`draw:shape === 'circle'`) so an editor can re-derive the exact circle instead of guessing it
-back from 64 rounded vertices.
+radius are stashed in the properties named by the exported `CIRCLE_CENTRE_PROPERTY`,
+`CIRCLE_RADIUS_PROPERTY`, `CIRCLE_SEGMENTS_PROPERTY` and `CIRCLE_SHAPE_PROPERTY` constants, so
+an editor can re-derive the exact circle instead of guessing it back from 64 rounded vertices.
+Read the centre back with `circleCentre(feature.properties)` rather than parsing the property
+yourself — it is the supported reader, and it returns `undefined` for a feature that is not a
+circle.
 
 **Freehand.** Press, trace, release. The captured path is simplified with Douglas-Peucker at
 `freehandTolerance` metres, in the projected plane, and stored as a `LineString`. This is not
@@ -125,13 +131,14 @@ Each completed shape is exactly one undo step.
 
 ## Options
 
-| Option              | Default      | Meaning                                                                    |
-| ------------------- | ------------ | -------------------------------------------------------------------------- |
-| `collection`        | `'default'`  | Where completed shapes land. Retarget later with `setCollection`.          |
-| `defaultMode`       | —            | A tool to activate as soon as the plugin is installed.                     |
-| `freehandTolerance` | `1`          | Douglas-Peucker tolerance, in metres in the working CRS.                   |
-| `circleSegments`    | `64`         | Vertices used to approximate a circle.                                     |
-| `properties`        | `() => ({})` | Called once per shape; its result is merged into the feature's properties. |
+| Option              | Default      | Meaning                                                                                                                                                                         |
+| ------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `collection`        | `'default'`  | Where completed shapes land. Retarget later with `setCollection`.                                                                                                               |
+| `defaultMode`       | —            | A tool to activate as soon as the plugin is installed.                                                                                                                          |
+| `freehandTolerance` | `1`          | Douglas-Peucker tolerance, in metres in the working CRS.                                                                                                                        |
+| `circleSegments`    | `64`         | Vertices used to approximate a circle.                                                                                                                                          |
+| `properties`        | `() => ({})` | Called once per shape; its result is merged into the feature's properties.                                                                                                      |
+| `previewLayer`      | `true`       | Render the rubber band with a built-in, theme-styled layer (`draw:preview`). Set `false` if you declare your own layer over `PREVIEW_COLLECTION`, or the preview renders twice. |
 
 ## API
 
@@ -145,3 +152,11 @@ interface DrawApi {
   setCollection(id: CollectionId): void
 }
 ```
+
+**Also exported.** The ids and defaults the tools work from, so an app can reference them
+rather than retype them: `DRAW_MODES`, `DEFAULT_COLLECTION`, `DEFAULT_CIRCLE_SEGMENTS`,
+`DEFAULT_FREEHAND_TOLERANCE_METRES`, `PREVIEW_COLLECTION`, `PREVIEW_ID`, `PREVIEW_PROPERTY`,
+`PREVIEW_LAYER` and `previewLayerStyle`; the circle property constants
+`CIRCLE_CENTRE_PROPERTY`, `CIRCLE_RADIUS_PROPERTY`, `CIRCLE_SEGMENTS_PROPERTY`,
+`CIRCLE_SHAPE_PROPERTY` with the reader `circleCentre`; and the geometry helpers the tools
+themselves use — `circlePolygon`, `rectanglePolygon`, `douglasPeucker` and `simplifyTrace`.

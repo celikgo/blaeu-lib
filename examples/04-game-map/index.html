@@ -119,9 +119,11 @@
         <ul>
           <li>
             <b>Snapping is middleware, not a tool feature.</b> The place tool reads
-            <code>ctx.lngLat</code>; the snap plugin rewrote it to a tile centre before any tool saw
-            the event. The place tool has never heard of the grid — which is why a tool written by a
-            stranger next year snaps for free.
+            <code>ctx.lngLat</code>; the snap plugin rewrote it to a tile corner — a grid
+            intersection, since this world is on a square grid — before any tool saw the event. The
+            place tool has never heard of the grid, which is why a tool written by a stranger next
+            year snaps for free, and why switching to <code>gridType: 'hex'</code> moves entities to
+            hex centres without touching the tool.
           </li>
           <li>
             <b><code>tile-grid</code> is a layer type this preset registered.</b> The kernel ships

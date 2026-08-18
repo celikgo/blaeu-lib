@@ -175,12 +175,14 @@ export interface SnapCandidate {
   /** Distance from the raw pointer, in **screen pixels** — that's what "close" means to a user. */
   readonly distancePx: number
   /**
-   * Tie-break when two candidates are equidistant. Higher wins.
+   * The **primary** sort key. Higher wins; `distancePx` is only the tie-break
+   * (`byPriorityThenDistance`, plugin-snap/src/engine.ts).
    *
-   * The ordering matters more than it sounds: a vertex must outrank the edge it
-   * sits on, or you can never snap to a corner — the edge is always exactly as
-   * close. Convention: vertex 100 > intersection 90 > midpoint 80 > edge 70 >
-   * grid 10.
+   * That order matters more than it sounds: a vertex must outrank the edge it
+   * sits on, or you can never snap to a corner — the perpendicular foot on the
+   * edge *through* the corner is at exactly the same distance, to the last bit,
+   * so sorting by distance first makes snapping to a corner a coin flip.
+   * Convention: vertex 100 > intersection 90 > midpoint 80 > edge 70 > grid 10.
    */
   readonly priority: number
   readonly feature?: FeatureId

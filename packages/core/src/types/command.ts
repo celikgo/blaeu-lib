@@ -10,7 +10,7 @@ export interface CommandContext {
 }
 
 /**
- * A reversible mutation. **The only way anything in BlaeuMap changes state.**
+ * A reversible mutation. **The only way anything in a Blaeu map changes state.**
  *
  * This is the single most important interface in the library, and the reason
  * undo/redo works *across plugins that have never heard of each other*: the
@@ -231,8 +231,15 @@ export interface CommandBus {
   /**
    * Group everything dispatched inside `fn` into one atomic, single-undo unit.
    *
-   * If `fn` throws, every command already executed inside it is rolled back —
-   * so a half-completed parcel split cannot be left on screen.
+   * If `fn` throws, every command already executed inside it is rolled back — so a
+   * preview cannot be left on screen with the handles that belong to it missing.
+   *
+   * This one is **synchronous**, which bounds what it can group: the only thing `fn`
+   * can submit is `dispatch()`, and `dispatch` refuses a `CommitCommand` at compile
+   * time (`intent?: never`) and again at runtime. So the work that suits it is the
+   * transient kind — a preview plus its handles, a selection plus its halo. Anything
+   * that has to clear the commit pipeline, such as a parcel split, belongs in
+   * {@link CommandBus.commitTransaction} instead.
    *
    * ```ts
    * map.commands.transaction('Highlight', () => {

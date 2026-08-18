@@ -71,8 +71,10 @@ const COLLECTION = 'zoning'
  * for the *emsal*, not for the "floor area ratio", whichever language the chrome is
  * in.
  *
- * Everything else is left at the preset's defaults on purpose: EPSG:5254 (TUREF/TM33
- * — areas in real metres over central Türkiye), a 5 m planning grid, a 20 px snap
+ * Everything else is left at the preset's defaults on purpose: EPSG:5254 (TUREF/TM30
+ * — the 3° belt at 30°E; note the camera below sits on Ankara, which is really in the
+ * TM33 belt, `EPSG:5255`, so a live plan would pass its own `crs`), a 5 m planning
+ * grid, a 20 px snap
  * tolerance, `topologySeverity: 'warning'`. Each of those is an option a municipality
  * would retune without forking, and the point of the example is that you do not have
  * to.

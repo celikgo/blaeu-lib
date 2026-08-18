@@ -6,8 +6,17 @@ on:
   pull_request:
   workflow_dispatch:
   schedule:
-    # 03:00 UTC. The browser and mutation suites then run against whatever maplibre and
-    # Chromium resolved to overnight — the drift a lockfile-pinned PR run cannot see.
+    # 03:00 UTC. What this buys is the `mutation` job: a full Stryker run is minutes rather than
+    # seconds, too slow to sit in front of a pull request, but useless if it only ever runs when
+    # someone remembers to ask for it. A cadence is how it gets run at all.
+    #
+    # It buys almost no drift detection, and not the kind worth naming. Every job starts from
+    # `npm ci`, which is lockfile-exact, and the Chromium the browser job downloads is pinned to
+    # the lockfile's playwright version — so for `verify`, `browser` and `mutation` a 03:00 run
+    # resolves to precisely what a PR run resolves to. The one exception is `peer-range` below,
+    # whose `^5` and `^6` legs install unpinned on purpose and so can float upward overnight;
+    # that job is the deliberate drift check, and the only one here that can go red with no
+    # commit behind it. Everything else is pinned so a scheduled failure always has a cause.
     - cron: '0 3 * * *'
 
 jobs:
@@ -196,7 +205,7 @@ jobs:
 
   # Additive, and deliberately outside `npm run verify`. A WebGL browser is a different order
   # of cost and flakiness from `tsc` and a node runner, and a gate that is slow or flaky is a
-  # gate people learn to skip. It proves the one thing the 710 node tests cannot: that MapLibre
+  # gate people learn to skip. It proves the one thing the 789 node tests cannot: that MapLibre
   # accepts what we hand it, and that our pointer normalisation matches real DOM events.
   browser:
     runs-on: ubuntu-latest
