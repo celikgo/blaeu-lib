@@ -26,6 +26,7 @@ import GeoJSONReader from 'jsts/org/locationtech/jts/io/GeoJSONReader.js'
 import GeoJSONWriter from 'jsts/org/locationtech/jts/io/GeoJSONWriter.js'
 import IsValidOp from 'jsts/org/locationtech/jts/operation/valid/IsValidOp.js'
 import OverlayOp from 'jsts/org/locationtech/jts/operation/overlay/OverlayOp.js'
+import UnaryUnionOp from 'jsts/org/locationtech/jts/operation/union/UnaryUnionOp.js'
 import BufferOp from 'jsts/org/locationtech/jts/operation/buffer/BufferOp.js'
 import PrecisionModel from 'jsts/org/locationtech/jts/geom/PrecisionModel.js'
 import GeometryPrecisionReducer from 'jsts/org/locationtech/jts/precision/GeometryPrecisionReducer.js'
@@ -174,6 +175,23 @@ export function intersection(a: JstsGeometry, b: JstsGeometry): JstsGeometry {
 
 export function union(a: JstsGeometry, b: JstsGeometry): JstsGeometry {
   return OverlayOp.overlayOp(a, b, OverlayOp.UNION) as JstsGeometry
+}
+
+/**
+ * Dissolves one geometry's own parts into each other.
+ *
+ * A `GeometryCollection`'s members are independent polygons that may share an edge or nest;
+ * an OGC MultiPolygon forbids both. So concatenating them — which is what flattening a
+ * collection does — can yield a geometry `IsValidOp` calls "Self-intersection" or "Nested
+ * shells", and `prepare()` would then discard it and silently skip the rule. Unioning yields
+ * the single area the collection actually claims. A no-op when the parts are already disjoint.
+ *
+ * Used **only** on geometry this plugin itself flattened (ADR 0013). It is deliberately not
+ * applied to a stored MultiPolygon: repairing geometry the surveyor actually saved is the
+ * `autoFix` mistake, and an invalid stored parcel is the self-intersection rule's business.
+ */
+export function unaryUnion(geometry: JstsGeometry): JstsGeometry {
+  return UnaryUnionOp.union(geometry) as JstsGeometry
 }
 
 export function difference(a: JstsGeometry, b: JstsGeometry): JstsGeometry {

@@ -19,7 +19,7 @@ import { RULE_IDS } from '@blaeu/plugin-topology'
 import { cadastrePreset } from './preset.js'
 import { deriveAreaMiddleware } from './derive.js'
 import { parcelAttributesRule, parcelSchema } from './schema.js'
-import { OUT_OF_BELT_RULE_ID } from './validation.js'
+import { OUT_OF_BELT_RULE_ID, PARCEL_GEOMETRY_RULE_ID } from './validation.js'
 
 /* ------------------------------------------------------------------------- */
 /* Helpers — a preset is a data structure, so testing it is asserting a value */
@@ -146,6 +146,10 @@ describe('cadastrePreset — shape', () => {
       // A parcel drawn in the wrong TM belt: advisory, never blocking (a cross-belt
       // dataset must still be storable).
       'cadastre.crs.outOfBelt': 'warning',
+      // A parcel that is not areal — or is a GeometryCollection, which the topology rules
+      // now measure but the vertex tool still cannot edit — blocks. The fix is mechanical
+      // (flatten on import), and the alternative is an uneditable parcel.
+      [PARCEL_GEOMETRY_RULE_ID]: 'error',
     })
   })
 

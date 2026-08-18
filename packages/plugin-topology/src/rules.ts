@@ -49,11 +49,12 @@ import {
   projectGeometry,
   read,
   reduce,
-  touchesOrIntersects,
   toLngLat,
+  touchesOrIntersects,
+  type JstsGeometry,
+  unaryUnion,
   union,
   validityError,
-  type JstsGeometry,
 } from './jsts.js'
 
 /* ------------------------------------------------------------------ *
@@ -177,7 +178,27 @@ export function noSelfIntersection(options: RuleOptions = {}): ValidationRule {
       // Deliberately *not* precision-reduced: GeometryPrecisionReducer can throw on a
       // self-intersecting polygon, and a validity check that crashes on invalid input
       // is not a validity check.
-      const error = validityError(read(projectGeometry(feature.geometry, plane)))
+      // A `GeometryCollection` is judged **member by member**, not as one concatenated
+      // MultiPolygon. Two members that share an edge — the ordinary way a converter emits a
+      // parcel in pieces — are perfectly legitimate, but concatenating them produces something
+      // `IsValidOp` calls "Self-intersection", and reporting that would mean this rule blocks a
+      // parcel whose boundary crosses itself nowhere. Per-part is also the honest reading of
+      // the question: a collection self-intersects iff one of its members does.
+      //
+      // Polygon and MultiPolygon are still judged whole, deliberately — a MultiPolygon whose
+      // parts overlap or nest *is* invalid under OGC, and that is this rule's business.
+      const subjects =
+        feature.geometry.type === 'GeometryCollection'
+          ? polygonParts(feature.geometry)
+          : polygonalGeometry(feature.geometry) !== undefined
+            ? [feature.geometry]
+            : []
+
+      let error: ReturnType<typeof validityError>
+      for (const subject of subjects) {
+        error = validityError(read(projectGeometry(subject, plane)))
+        if (error) break
+      }
       if (!error) return []
 
       // JSTS's own wording is English, and it is a *detail*, not the message — so the
@@ -562,8 +583,57 @@ export function noSlivers(options: SliverRuleOptions = {}): ValidationRule {
  * Shared machinery
  * ------------------------------------------------------------------ */
 
+/**
+ * Does this feature have any polygonal area for the rules to judge?
+ *
+ * This predicate is load-bearing far beyond a type test: it is the `appliesTo` for all seven
+ * rules, the stored-neighbour filter in {@link candidateNeighbours}, and the batch filter in
+ * `batchInCollection`. A geometry it rejects is not merely unchecked — it also becomes
+ * *invisible as a neighbour*, so it switches off the relational rules for the parcels around it
+ * too.
+ *
+ * That is why it sees through a `GeometryCollection`. Core stores one deliberately (its
+ * normaliser recurses into members, `CrsService.area` sums them, the renderer draws them), and
+ * a GC arrives from real converters — an ArcGIS or DXF export that wraps a parcel's rings. When
+ * this predicate was a bare `type ===` test, wrapping an overlapping parcel in a GC made a
+ * 1 199 m² overlap commit clean, and blinded its honest Polygon neighbour as well.
+ *
+ * "Any polygonal member" rather than "all": a GC of a parcel plus its address point is still a
+ * parcel, and {@link polygonalGeometry} judges the polygonal part and ignores the rest.
+ */
 export function isPolygonal(feature: BlaeuFeature): boolean {
-  return feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon'
+  return polygonalGeometry(feature.geometry) !== undefined
+}
+
+/**
+ * The polygonal content of a geometry, as a geometry JSTS overlay can accept — or `undefined`
+ * when there is none.
+ *
+ * A `GeometryCollection` is flattened to a `MultiPolygon` rather than passed through, and that
+ * is not tidiness: JTS raises `IllegalArgumentException: This method does not support
+ * GeometryCollection arguments` from every overlay op, so handing one to `intersection()` would
+ * trade a silent miss for a crash. Flattening is also the semantically right answer — the union
+ * of a collection's polygons is the ground it claims.
+ */
+export function polygonalGeometry(geometry: Geometry): Geometry | undefined {
+  switch (geometry.type) {
+    case 'Polygon':
+    case 'MultiPolygon':
+      return geometry
+    case 'GeometryCollection': {
+      const coordinates = geometry.geometries.flatMap((member) => {
+        const polygonal = polygonalGeometry(member)
+        if (polygonal === undefined) return []
+        return polygonal.type === 'Polygon'
+          ? [polygonal.coordinates]
+          : (polygonal as { coordinates: Position[][][] }).coordinates
+      })
+      if (coordinates.length === 0) return undefined
+      return { type: 'MultiPolygon', coordinates }
+    }
+    default:
+      return undefined
+  }
 }
 
 /**
@@ -575,10 +645,26 @@ export function isPolygonal(feature: BlaeuFeature): boolean {
  * JTS or — worse — returns a plausible number that is wrong.
  */
 function prepare(geometry: Geometry, plane: ProjectedCrs): JstsGeometry | undefined {
+  // The single conversion boundary into JSTS for every overlay in this file, and therefore the
+  // right place to reduce a geometry to its polygonal content — a `GeometryCollection` reaching
+  // `intersection()` raises IllegalArgumentException inside JTS.
+  const polygonal = polygonalGeometry(geometry)
+  if (polygonal === undefined) return undefined
   try {
-    const projected = read(projectGeometry(geometry, plane))
-    if (validityError(projected) !== undefined) return undefined
-    return reduce(projected, plane.precision)
+    const projected = read(projectGeometry(polygonal, plane))
+
+    // A collection's members are independent polygons and routinely share an edge — two halves
+    // of one parcel is the ordinary case for a converter that emits pieces. Concatenating them
+    // into a MultiPolygon makes something OGC-invalid ("Self-intersection" along the shared
+    // edge), which the validity check below would then discard — silently skipping the rule and
+    // re-opening, by a different door, exactly the exemption ADR 0013 closed. So dissolve the
+    // parts *we* just concatenated. Scoped to the collection case on purpose: a stored
+    // MultiPolygon that is invalid stays invalid and is the self-intersection rule's problem,
+    // because quietly repairing saved geometry is the `autoFix` mistake.
+    const dissolved = geometry.type === 'GeometryCollection' ? unaryUnion(projected) : projected
+
+    if (validityError(dissolved) !== undefined) return undefined
+    return reduce(dissolved, plane.precision)
   } catch {
     return undefined
   }
@@ -718,23 +804,33 @@ function expandBbox(bbox: Bbox, radiusMetres: number, crs: ValidationContext['cr
 
 /** Every ring of every polygon part, exterior and holes alike. */
 export function polygonRings(geometry: Geometry): readonly Position[][] {
-  switch (geometry.type) {
+  const polygonal = polygonalGeometry(geometry)
+  if (polygonal === undefined) return []
+  switch (polygonal.type) {
     case 'Polygon':
-      return geometry.coordinates
+      return polygonal.coordinates
     case 'MultiPolygon':
-      return geometry.coordinates.flat()
+      return polygonal.coordinates.flat()
     default:
       return []
   }
 }
 
-/** Each polygon part of a Polygon or MultiPolygon, as its own geometry. */
+/**
+ * Each polygon part of a polygonal geometry, as its own geometry.
+ *
+ * Routed through {@link polygonalGeometry}, so a `GeometryCollection`'s members are parts here
+ * exactly as a `MultiPolygon`'s are — which is what lets the per-part rules (slivers, and the
+ * per-part overlay in the gap rule) judge a collection at all.
+ */
 function polygonParts(geometry: Geometry): readonly Geometry[] {
-  switch (geometry.type) {
+  const polygonal = polygonalGeometry(geometry)
+  if (polygonal === undefined) return []
+  switch (polygonal.type) {
     case 'Polygon':
-      return [geometry]
+      return [polygonal]
     case 'MultiPolygon':
-      return geometry.coordinates.map((coordinates) => ({ type: 'Polygon', coordinates }))
+      return polygonal.coordinates.map((coordinates) => ({ type: 'Polygon', coordinates }))
     default:
       return []
   }
