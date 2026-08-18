@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "//fixed": "All twelve move in lockstep. A plugin peer-depends on `@blaeu/core` with a caret range, and the presets depend on the plugins the same way — so a core release that leaves the plugins behind produces a matrix of version pairs nobody has ever run together. One version for the whole kernel is the only claim we can actually stand behind.",
+  "//fixed": "All twelve move in lockstep. A plugin peer-depends on `@blaeu/core` with a caret range, and the presets depend on the plugins the same way \u2014 so a core release that leaves the plugins behind produces a matrix of version pairs nobody has ever run together. One version for the whole kernel is the only claim we can actually stand behind.  MEASURED, and a trap worth knowing before the first non-patch release: with a `fixed` (or `linked`) group, a `minor` changeset on 0.x packages does NOT give 0.2.0 \u2014 it gives **1.0.0**. Both grouping kinds do this; changesets cannot keep a group aligned across a 0.x minor, so it escalates. Drop the grouping and the same changeset gives 0.2.0. So the first `minor` here is a 1.0 declaration whether or not anyone meant it: keep releases `patch` while the API is still moving, and take 1.0.0 deliberately \u2014 when hit testing is verified on a GPU runner and the mutation score is respectable \u2014 rather than by accident on the way past.",
   "fixed": [["@blaeu/*"]],
   "linked": [],
   "access": "public",
