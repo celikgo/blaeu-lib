@@ -10,20 +10,73 @@
  * Two copies of the core means two event buses, and the symptom is a listener
  * that silently never fires.
  */
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { format } from 'prettier'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-const VERSION = '0.1.0'
+/**
+ * `--check` compares what the generator *would* write against what is committed, and fails on
+ * any difference, instead of overwriting.
+ *
+ * This exists because the generator drifting from the tree was not a cosmetic problem. It had
+ * silently lost `plugin-select`'s two `@turf/*` runtime dependencies and grown a `rbush` that
+ * `plugin-snap` never imported — and neither showed up in typecheck, test or build, because npm
+ * hoists workspace dependencies to the root regardless. Only a published tarball would have
+ * broken, at the consumer, with ERR_MODULE_NOT_FOUND.
+ *
+ * The one visible signal used to be `format:check` failing on the regenerated files, because
+ * the generator wrote raw `JSON.stringify` output while the committed files were
+ * prettier-formatted. The natural response to that — run `npm run format` — tidied the signal
+ * away and left the dependency deletions in place. So the generator now formats its own output
+ * with the repo's prettier config: generated and committed are byte-identical, the noise is
+ * gone, and a real difference is the only thing `--check` can report.
+ */
+const CHECK = process.argv.includes('--check')
+/** @type {string[]} */
+const differences = []
+
+async function emit(path, contents) {
+  // `filepath` rather than an explicit `parser`, so prettier infers exactly what its CLI would.
+  // That distinction is not cosmetic here: prettier picks the `json-stringify` parser for a file
+  // literally named `package.json` (which keeps one array item per line) and `json` for every
+  // other .json file. Forcing `json` made the generator's output disagree with `npm run format`
+  // on all twelve manifests — which would have made `--check` cry wolf on every run, and a check
+  // that always fails is a check everyone learns to skip.
+  const formatted = await format(contents, { ...prettierConfig, filepath: path })
+  if (!CHECK) {
+    writeFileSync(path, formatted)
+    return
+  }
+  let current = null
+  try {
+    current = readFileSync(path, 'utf8')
+  } catch {
+    /* missing file — reported as a difference below */
+  }
+  if (current !== formatted) differences.push(relative(root, path))
+}
+
+const prettierConfig = JSON.parse(readFileSync(join(root, '.prettierrc.json'), 'utf8'))
+
+/**
+ * Read from the core manifest rather than declared here.
+ *
+ * A hard-coded literal would be a thirteenth copy of the version number, and the one thing
+ * guaranteed to touch the other twelve is `changeset version`. The moment it bumped them, this
+ * file would still say 0.1.0, `--check` would fail on every package, and the fix would look
+ * like a scaffold bug rather than a stale constant. Changesets owns the version; this reads it.
+ */
+const VERSION = JSON.parse(readFileSync(join(root, 'packages/core/package.json'), 'utf8')).version
 const CORE_PEER = { '@blaeu/core': '^0.1.0' }
 
 /** @type {Array<{name: string, deps?: Record<string,string>, peers?: Record<string,string>, refs?: string[], desc: string}>} */
 const packages = [
   {
     name: 'core',
-    desc: 'The BlaeuMap kernel: event bus, plugin registry, pipelines, command bus, feature store.',
+    desc: 'The Blaeu kernel: event bus, plugin registry, pipelines, command bus, feature store.',
     deps: {
       proj4: '^2.12.1',
       rbush: '^4.0.1',
@@ -35,7 +88,8 @@ const packages = [
     name: 'plugin-snap',
     desc: 'Snapping engine: vertex, edge, midpoint, intersection, grid and guide providers.',
     peers: CORE_PEER,
-    deps: { rbush: '^4.0.1' },
+    // No `deps`: nothing under packages/plugin-snap/src references rbush. It was declared here
+    // and regeneration kept adding it back — a dependency a consumer downloads and never runs.
     refs: ['core'],
   },
   {
@@ -55,6 +109,13 @@ const packages = [
     name: 'plugin-select',
     desc: 'Selection: single, multi, box, lasso.',
     peers: CORE_PEER,
+    // Real, and imported at SelectionController.ts:1-2. They were missing here, so every
+    // regeneration silently deleted them from the manifest — invisible to typecheck, test and
+    // build, because npm hoists them to the root anyway. Only the published tarball broke.
+    deps: {
+      '@turf/boolean-point-in-polygon': '^7.3.5',
+      '@turf/helpers': '^7.3.5',
+    },
     refs: ['core'],
   },
   {
@@ -151,26 +212,28 @@ const packages = [
 
 for (const pkg of packages) {
   const dir = join(root, 'packages', pkg.name)
-  mkdirSync(join(dir, 'src'), { recursive: true })
+  if (!CHECK) mkdirSync(join(dir, 'src'), { recursive: true })
 
   const isCore = pkg.name === 'core'
 
-  // Dual-format: each condition points at the right declaration (.d.ts for ESM,
-  // .d.cts for CJS) and the right code. In-repo, resolution goes through the
-  // tsconfig `paths` and the vite/vitest aliases (both to source), not through this
-  // map — so there is no `development` condition here, which when published would
-  // resolve a consumer to `./src`, which `files: ['dist']` never ships.
-  const dual = (base) => ({
-    import: { types: `./dist/${base}.d.ts`, default: `./dist/${base}.js` },
-    require: { types: `./dist/${base}.d.cts`, default: `./dist/${base}.cjs` },
+  // ESM only, and that is a decision rather than an omission — see the note on `format` in
+  // the tsup template below. One condition, so there is no way for a consumer to resolve a
+  // second copy of the kernel through a different entry point.
+  //
+  // In-repo, resolution goes through the tsconfig `paths` and the vite/vitest aliases (both to
+  // source), not through this map — so there is no `development` condition here, which when
+  // published would resolve a consumer to `./src`, which `files` never ships.
+  const entry = (base) => ({
+    types: `./dist/${base}.d.ts`,
+    default: `./dist/${base}.js`,
   })
   const exportsMap = {
-    '.': dual('index'),
+    '.': entry('index'),
     './package.json': './package.json',
   }
-  if (isCore) exportsMap['./testing'] = dual('testing')
+  if (isCore) exportsMap['./testing'] = entry('testing')
 
-  writeFileSync(
+  await emit(
     join(dir, 'package.json'),
     JSON.stringify(
       {
@@ -180,20 +243,37 @@ for (const pkg of packages) {
         license: 'MIT',
         type: 'module',
         sideEffects: false,
-        main: './dist/index.cjs',
+        // No `main`: it is the CJS entry point, and there is no CJS build. `module` and
+        // `types` stay for bundlers and editors that predate `exports`.
         module: './dist/index.js',
         types: './dist/index.d.ts',
         exports: exportsMap,
-        files: ['dist'],
+        // A tarball with no licence text is a licence nobody can read, and a package page
+        // with no README is a package nobody installs. Both are per-package files, so both
+        // have to be listed — `files` is not inherited from the repo root.
+        files: ['dist', 'README.md', 'LICENSE'],
+        repository: {
+          type: 'git',
+          url: 'git+https://github.com/celikgo/blaeu-lib.git',
+          directory: `packages/${pkg.name}`,
+        },
+        homepage: `https://github.com/celikgo/blaeu-lib/tree/main/packages/${pkg.name}#readme`,
+        bugs: { url: 'https://github.com/celikgo/blaeu-lib/issues' },
+        engines: { node: '>=20' },
         scripts: {
           build: 'tsup',
           dev: 'tsup --watch',
           clean: 'rm -rf dist .tsbuild *.tsbuildinfo',
+          // Publishing from a stale `dist` is the classic way to ship yesterday's fix.
+          prepack: 'npm run build',
         },
         ...(pkg.deps ? { dependencies: pkg.deps } : {}),
         ...(pkg.peers ? { peerDependencies: pkg.peers } : {}),
         devDependencies: {
-          ...(isCore ? { 'maplibre-gl': '^5.6.0' } : { '@blaeu/core': `^${VERSION}` }),
+          // The **ceiling** of the peer range, not the floor: the default CI leg installs this
+          // one, so it should be the newest major we claim to support. The floor is covered by
+          // the `peer-range` matrix, which type-checks against 4.7.0 and ^5 as well.
+          ...(isCore ? { 'maplibre-gl': '^6.4.0' } : { '@blaeu/core': `^${VERSION}` }),
           ...(pkg.name === 'core' ? { '@types/proj4': '^2.5.5', '@types/rbush': '^4.0.0' } : {}),
         },
         publishConfig: { access: 'public' },
@@ -203,7 +283,7 @@ for (const pkg of packages) {
     ) + '\n',
   )
 
-  writeFileSync(
+  await emit(
     join(dir, 'tsconfig.json'),
     JSON.stringify(
       {
@@ -229,13 +309,18 @@ for (const pkg of packages) {
   const entries = isCore
     ? `{ index: 'src/index.ts', testing: 'src/testing/index.ts' }`
     : `{ index: 'src/index.ts' }`
-  writeFileSync(
+  await emit(
     join(dir, 'tsup.config.ts'),
     `import { defineConfig } from 'tsup'
 
 export default defineConfig({
   entry: ${entries},
-  format: ['esm', 'cjs'],
+  // ESM only. rbush@4 and jsts@2.12 are both \`"type": "module"\` with no CJS build, so a
+  // \`require()\` of our CJS entry throws ERR_REQUIRE_ESM on the declared engine floor
+  // (\`node >=20\`) — proven, not assumed. It appears to work on Node 22.12+ only because
+  // \`require(esm)\` landed there. Shipping a format that cannot load on the version we claim
+  // to support is worse than not shipping it, and removing a format after release is breaking.
+  format: ['esm'],
   // tsup's dts build runs its own tsc program, which cannot use the project-references
   // (composite) tsconfig the typecheck relies on — so turn it off just for the .d.ts pass.
   dts: { compilerOptions: { composite: false, declarationMap: false } },
@@ -249,7 +334,21 @@ export default defineConfig({
 `,
   )
 
-  console.log(`✓ packages/${pkg.name}`)
+  if (!CHECK) console.log(`✓ packages/${pkg.name}`)
 }
 
-console.log(`\n${packages.length} packages scaffolded.`)
+// `mkdirSync` is skipped under --check: the point is to report drift, not create anything.
+if (CHECK) {
+  if (differences.length > 0) {
+    console.error(
+      `✗ ${differences.length} generated file(s) differ from what is committed:\n` +
+        differences.map((d) => `    ${d}`).join('\n') +
+        `\n\n  Run \`npm run scaffold\` and commit the result — or, if the committed file is the\n` +
+        `  one that is right, fix the template in scripts/scaffold-packages.mjs to match.\n`,
+    )
+    process.exit(1)
+  }
+  console.log(`✓ ${packages.length} package manifests match the generator.`)
+} else {
+  console.log(`\n${packages.length} packages scaffolded.`)
+}

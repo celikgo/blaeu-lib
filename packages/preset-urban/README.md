@@ -126,8 +126,12 @@ without restating any of it:
 
 ```ts
 import { composePresets, definePreset, createBlaeuMap } from '@blaeu/core'
+import type { ValidationRule } from '@blaeu/core'
 import { snapPlugin } from '@blaeu/plugin-snap'
 import { urbanPlanningPreset } from '@blaeu/preset-urban'
+
+// A rule of your own — this is the shape, not a rule the preset ships.
+declare function planNotuRequired(options: { severity: 'warning' }): ValidationRule
 
 const izmir = composePresets(
   urbanPlanningPreset(), // national base

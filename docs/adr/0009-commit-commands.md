@@ -117,15 +117,25 @@ map.test.flush()` first. That is the honest cost of a write path that can call a
   removed) lands after the flag has reset — so the echo would be pushed onto the undo stack
   _and_ would clear the redo stack the user had just earned. `CommandOrigin.replay` is
   captured when the command is **submitted**, not when it executes, and carried through.
-- **Known gap, deliberately not papered over.** `plugin-edit`'s vertex drag and transform
-  still write through the synchronous path (`GeometryEditCommand` is not a `CommitCommand`),
-  because each `pointermove` re-writes the geometry and committing per frame would let writes
-  land out of order. The correct shape is preview-during-drag, commit-on-release. Until it
-  lands, **dragging a boundary vertex is not validated** — the drag works and is undoable, but
-  no rule inspects the result, so a surveyor can still drag a parcel into self-intersection.
-  For the cadastre preset that is the gesture that matters most. Stated here rather than in a
-  commit message, because a known hole that is written down is a bug and a known hole that is
-  not is a trap.
+- **Known gap — CLOSED (2026-07-17).** This bullet used to read: `plugin-edit`'s vertex drag
+  and transform still write through the synchronous path, so **dragging a boundary vertex is
+  not validated**, and a surveyor could drag a parcel into self-intersection with no rule
+  inspecting the result. For the cadastre preset that is the gesture that matters most.
+
+  It shipped, in the shape this ADR predicted — preview-during-drag, commit-on-release. Each
+  `pointermove` dispatches a _transient_ `GeometryEditCommand` (no history, no validation); the
+  pointer release fires one durable `CommitEditCommand` carrying an explicit pre-edit snapshot
+  as `previous`, so the whole gesture is one undo step and one trip through the commit
+  pipeline. A rejected edit reverts the parcel and reports the issue.
+
+  Pinned by `preset-cadastre/src/edit-rejected-on-overlap.test.ts`, which drags a corner into a
+  neighbour through the public API and asserts the commit is vetoed and the geometry restored,
+  and by `preset-cadastre/src/edit-rederives-area.test.ts`, which asserts the derived
+  `yüzölçümü` follows the edit. See also [ADR 0011](./0011-transient-previews-preserve-ring-order.md),
+  which is about what the transient half of that split had to stop doing to ring order.
+
+  Left in place rather than deleted: a known hole that is written down is a bug, and the record
+  of when it closed is worth more than a tidy document.
 
 ## The test that would have caught it
 

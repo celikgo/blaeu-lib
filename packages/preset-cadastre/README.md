@@ -179,6 +179,7 @@ Appending cannot express "throw the base's rules away". That is what
 
 ```ts
 import { overridePreset } from '@blaeu/core'
+import { cadastrePreset } from '@blaeu/preset-cadastre'
 
 const demo = overridePreset(cadastrePreset(), { validation: [] })
 ```

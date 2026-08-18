@@ -65,3 +65,126 @@ jobs:
       # Type-check only. The renderer's own suite runs against a fake maplibre map, so it proves
       # nothing about a real major; `tsc` against the real .d.ts is what catches a moved API.
       - run: npx tsc -p packages/core/tsconfig.json --noEmit
+
+  # Everything above this line resolves `@blaeu/*` to **source**, through the tsconfig `paths`
+  # and the vitest aliases. That is deliberate and good — no build step to run the tests — but
+  # it means nothing in this repository has ever executed `dist`, and nothing has ever seen a
+  # tarball. A 126-agent audit missed two packaging faults for exactly that reason: a scaffold
+  # that deleted `plugin-select`'s runtime dependencies (invisible, because npm hoists them to
+  # the root anyway) and a CJS entry point that could not load on the declared engine floor.
+  #
+  # So: build it, pack it, install the tarballs into a throwaway project, and use them.
+  pack-and-consume:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # The declared `engines.node` floor, not the newest. Node 22.12+ added `require(esm)`,
+          # which papers over exactly the class of dependency-format bug this job exists to catch.
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      - name: Pack every publishable workspace
+        run: |
+          mkdir -p /tmp/tarballs
+          npm pack --workspaces --pack-destination /tmp/tarballs
+          ls -la /tmp/tarballs
+
+      - name: Every tarball ships a licence and a README
+        run: |
+          fail=0
+          shopt -s nullglob
+          tarballs=(/tmp/tarballs/blaeu-core-*.tgz /tmp/tarballs/blaeu-plugin-*.tgz /tmp/tarballs/blaeu-preset-*.tgz)
+          if [ ${#tarballs[@]} -ne 12 ]; then
+            echo "::error::expected 12 publishable tarballs, found ${#tarballs[@]}"
+            exit 1
+          fi
+          for t in "${tarballs[@]}"; do
+            for required in package/LICENSE package/README.md; do
+              if ! tar -tzf "$t" | grep -qx "$required"; then
+                echo "::error::$(basename "$t") is missing $required"
+                fail=1
+              fi
+            done
+          done
+          exit $fail
+
+      - name: Install the tarballs into a throwaway project
+        run: |
+          mkdir -p /tmp/consume && cd /tmp/consume
+          echo '{"name":"consume","private":true,"version":"1.0.0","type":"module"}' > package.json
+          npm i --no-audit --no-fund /tmp/tarballs/blaeu-core-*.tgz \
+            /tmp/tarballs/blaeu-plugin-*.tgz /tmp/tarballs/blaeu-preset-*.tgz \
+            maplibre-gl@^5 typescript
+
+      - name: Import every published entry point
+        working-directory: /tmp/consume
+        run: |
+          node --input-type=module -e '
+            const mods = ["@blaeu/core","@blaeu/core/testing","@blaeu/plugin-draw",
+              "@blaeu/plugin-snap","@blaeu/plugin-edit","@blaeu/plugin-select",
+              "@blaeu/plugin-measure","@blaeu/plugin-history","@blaeu/plugin-topology",
+              "@blaeu/plugin-ui","@blaeu/preset-cadastre","@blaeu/preset-game",
+              "@blaeu/preset-urban"]
+            let bad = 0
+            for (const m of mods) {
+              try { await import(m); console.log("  ok  ", m) }
+              catch (e) { bad++; console.log("  FAIL", m, e.code ?? "", String(e.message).split("\n")[0]) }
+            }
+            process.exit(bad ? 1 : 0)
+          '
+
+      - name: A consumer type-checks against the published .d.ts
+        working-directory: /tmp/consume
+        run: |
+          # `skipLibCheck: true` on purpose, and it is not a cop-out: with it false, the run
+          # drowns in TS2834 from maplibre's own transitive types (@maplibre/geojson-vt,
+          # @maplibre/vt-pbf), which are not ours to fix. What this proves is what we control —
+          # that our declarations resolve under NodeNext and that our public API type-checks.
+          # `attw` below is the tool that actually audits how the types are wired.
+          cat > tsconfig.json <<'JSON'
+          {
+            "compilerOptions": {
+              "target": "ES2022", "module": "NodeNext", "moduleResolution": "NodeNext",
+              "strict": true, "noEmit": true, "skipLibCheck": true, "types": []
+            },
+            "include": ["consume.ts"]
+          }
+          JSON
+          cat > consume.ts <<'TS'
+          import { createBlaeuMap, type BlaeuFeature } from '@blaeu/core'
+          import { drawPlugin } from '@blaeu/plugin-draw'
+          import { snapPlugin } from '@blaeu/plugin-snap'
+          import { editPlugin } from '@blaeu/plugin-edit'
+          import { cadastrePreset } from '@blaeu/preset-cadastre'
+
+          export async function main(): Promise<void> {
+            const map = await createBlaeuMap({
+              container: '#map',
+              preset: cadastrePreset({ crs: 'EPSG:5254' }),
+              plugins: [snapPlugin({ tolerance: 12 }), drawPlugin(), editPlugin()],
+            })
+            // The typed plugin registry has to survive the .d.ts round trip — no cast here.
+            map.plugin('draw').start('polygon')
+            const parcel: BlaeuFeature | undefined = map.store.find('p')
+            void parcel
+          }
+          TS
+          npx tsc --noEmit -p tsconfig.json
+
+      - name: publint + attw on every package
+        run: |
+          fail=0
+          for d in packages/*/; do
+            name=$(node -p "require('./$d/package.json').name")
+            echo "── $name"
+            npx --yes publint@0.3 "$d" || fail=1
+            # `--profile esm-only` because that is what these packages are. Without it attw
+            # reports two things we chose on purpose: a CJS-resolution warning (there is no CJS
+            # build) and a node10 failure on the `./testing` subpath (node10 predates `exports`).
+            npx --yes @arethetypeswrong/cli@0.18 --pack "$d" --profile esm-only || fail=1
+          done
+          exit $fail

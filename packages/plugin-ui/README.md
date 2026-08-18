@@ -18,6 +18,8 @@ npm install @blaeu/plugin-ui
 ```ts
 import { createBlaeuMap } from '@blaeu/core'
 import { uiPlugin } from '@blaeu/plugin-ui'
+import { drawPlugin } from '@blaeu/plugin-draw'
+import { snapPlugin } from '@blaeu/plugin-snap'
 
 const map = await createBlaeuMap({
   container: '#map',

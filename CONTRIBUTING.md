@@ -140,6 +140,11 @@ Use a **metric** tolerance, never a decimal-places one:
 
 ```ts
 import { expectWithinMetres } from '@blaeu/core/testing'
+import type { LngLat } from '@blaeu/core'
+
+declare const actual: LngLat
+declare const expected: LngLat
+
 expectWithinMetres(actual, expected, 0.001) // 1 mm
 ```
 
@@ -208,12 +213,26 @@ throw new Error(
 
 ## Releases
 
-Changesets. Run `npx changeset` on every user-visible change and describe it in the terms a
-_user_ experiences, not the terms the diff does. The bot handles version bumps and the
-changelog.
+Changesets. Run `npm run changeset` on every user-visible change and describe it in the terms
+a _user_ experiences, not the terms the diff does. On merge to `main`, the action opens (or
+updates) a "Version Packages" PR; merging **that** publishes.
+
+All twelve packages move in **lockstep** (`fixed: [["@blaeu/*"]]` in `.changeset/config.json`).
+A plugin peer-depends on `@blaeu/core` with a caret range and the presets depend on the plugins
+the same way, so releasing the core without the plugins produces a matrix of version pairs
+nobody has ever run together. One version for the whole kernel is the only claim we can stand
+behind.
 
 Core is versioned strictly: **a change to a public interface in `packages/core/src/types/` is
 a major**, no matter how small it looks.
+
+Two things the release does _not_ let you skip: `npm run verify` runs first, because a release
+that skipped the gate is the one build nobody checked and the one that reaches other people's
+machines; and every package publishes with npm **provenance**, so "which commit built this
+tarball" has an answer.
+
+The version number lives in `packages/core/package.json` and nowhere else — the scaffold reads
+it rather than declaring its own copy, so `changeset version` cannot desync the generator.
 
 ## Adding a package
 
