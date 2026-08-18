@@ -42,7 +42,7 @@ jobs:
       # (`fixed: [["@blaeu/*"]]`), so there is never a partial release where a preset depends
       # on a plugin version that does not exist yet.
       - name: Create the release PR, or publish
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
           version: npx changeset version
           publish: npx changeset publish
