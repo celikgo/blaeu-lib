@@ -1,6 +1,6 @@
 {
   "name": "@blaeu/example-03-urban-planning",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Urban planning: a data-driven zoning legend, an attribute form, scenario comparison — and topology as warnings.",
   "type": "module",
@@ -9,10 +9,10 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@blaeu/core": "^0.1.0",
-    "@blaeu/plugin-select": "^0.1.0",
-    "@blaeu/plugin-topology": "^0.1.0",
-    "@blaeu/preset-urban": "^0.1.0",
+    "@blaeu/core": "^0.1.1",
+    "@blaeu/plugin-select": "^0.1.1",
+    "@blaeu/plugin-topology": "^0.1.1",
+    "@blaeu/preset-urban": "^0.1.1",
     "maplibre-gl": "^5.6.0"
   },
   "devDependencies": {

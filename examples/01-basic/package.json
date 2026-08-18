@@ -1,6 +1,6 @@
 {
   "name": "@blaeu/example-01-basic",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Basic usage: the kernel plus five plugins, with nothing hidden by a preset.",
   "type": "module",
@@ -9,12 +9,12 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@blaeu/core": "^0.1.0",
-    "@blaeu/plugin-draw": "^0.1.0",
-    "@blaeu/plugin-history": "^0.1.0",
-    "@blaeu/plugin-select": "^0.1.0",
-    "@blaeu/plugin-snap": "^0.1.0",
-    "@blaeu/plugin-ui": "^0.1.0",
+    "@blaeu/core": "^0.1.1",
+    "@blaeu/plugin-draw": "^0.1.1",
+    "@blaeu/plugin-history": "^0.1.1",
+    "@blaeu/plugin-select": "^0.1.1",
+    "@blaeu/plugin-snap": "^0.1.1",
+    "@blaeu/plugin-ui": "^0.1.1",
     "maplibre-gl": "^5.6.0"
   },
   "devDependencies": {

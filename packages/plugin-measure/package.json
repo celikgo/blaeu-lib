@@ -1,6 +1,6 @@
 {
   "name": "@blaeu/plugin-measure",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Measurement: distance, area, bearing — planar, in the working CRS.",
   "license": "MIT",
   "type": "module",
@@ -38,10 +38,10 @@
     "prepack": "npm run build"
   },
   "peerDependencies": {
-    "@blaeu/core": "^0.1.0"
+    "@blaeu/core": "^0.1.1"
   },
   "devDependencies": {
-    "@blaeu/core": "^0.1.0"
+    "@blaeu/core": "^0.1.1"
   },
   "publishConfig": {
     "access": "public"
