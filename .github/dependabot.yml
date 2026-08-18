@@ -1,0 +1,33 @@
+# The repo already spends CI budget on one dependency check: the `peer-range` matrix type-checks
+# the renderer against maplibre 4, 5 and 6, and its `^5`/`^6` legs install unpinned, so a new
+# minor that moves an API turns that job red. Dependabot is the other half of that design — the
+# matrix tells you a version you already claim to support has broken, this tells you a version
+# exists that the range does not cover yet. Neither is the nightly cron, which is there for the
+# `mutation` job's runtime and detects no drift at all.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: '/'
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # Ungrouped Dependabot across a twelve-package workspace produces enough pull requests that
+    # you turn it off, which is worse than not having it. Everything in devDependencies moves
+    # together in one PR that `npm run verify` either passes or does not; runtime dependencies
+    # (proj4, rbush, JSTS, the maplibre peer) stay ungrouped, because those are the ones that
+    # deserve to be read one at a time.
+    groups:
+      dev-dependencies:
+        dependency-type: development
+        patterns:
+          - '*'
+    labels:
+      - dependencies
+
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: monthly
+    labels:
+      - dependencies
+      - ci

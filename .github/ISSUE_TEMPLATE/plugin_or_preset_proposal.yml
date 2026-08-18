@@ -1,0 +1,89 @@
+name: Plugin or preset proposal
+description: Propose a new capability, or a change to an existing one, in the tier where it belongs.
+labels: ['proposal', 'needs-triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Blaeu has one architectural question, and every proposal has to answer it: **which tier does
+        this belong in, and why can it not live one tier out?** The kernel stays small only because
+        each addition is pushed outward until it will not go any further — a capability becomes a
+        plugin, judgement becomes a preset, and everything that knows about your product stays in
+        your product. See [ARCHITECTURE.md](https://github.com/celikgo/blaeu-lib/blob/main/ARCHITECTURE.md)
+        for the tiers, and [CONTRIBUTING.md](https://github.com/celikgo/blaeu-lib/blob/main/CONTRIBUTING.md#when-a-change-needs-an-adr)
+        for when a change of this shape also needs an ADR in the same PR.
+
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Which tier
+      description: |
+        Core is the kernel and its seams. Plugins are domain-agnostic capability. Presets are
+        judgement expressed as plain data — tolerances, severities, units, CRS, layers, theme,
+        locale. Applications are your product, and know about presets rather than plugins.
+      options:
+        - 'Core — @blaeu/core: a new seam, or a change to an existing kernel contract'
+        - 'Plugin — a new packages/plugin-*, or a change to an existing one'
+        - 'Preset — a new packages/preset-*, or a change to an existing one'
+        - 'Application — belongs in a consumer, and I want to confirm that before building it'
+    validations:
+      required: true
+
+  - type: textarea
+    id: why-not-one-tier-out
+    attributes:
+      label: Why can this not live one tier out?
+      description: |
+        The load-bearing question. If you are proposing something in core, name the extension point
+        that is missing and the reason a plugin cannot reach it — "a plugin would need to import
+        another plugin" and "there is no seam to hang it on" are good answers, "it is more
+        convenient in core" is not. If you are proposing a plugin, say why a preset's configuration
+        cannot express it. If you are proposing a preset, say why it is judgement rather than a
+        capability. An answer here is what turns a proposal into a design discussion.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem, stated as a constraint
+      description: |
+        What forced this — the workflow that is impossible today, or possible only by reaching past
+        a boundary. Describe the constraint rather than the solution; the solution is the next box,
+        and the two are much easier to argue about apart.
+    validations:
+      required: true
+
+  - type: textarea
+    id: shape
+    attributes:
+      label: The shape you have in mind
+      description: |
+        Sketch the API — the plugin options, the preset keys, the events or commands it would emit.
+        Illustrative code is welcome and does not have to compile.
+      render: typescript
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you rejected, and why
+      description: |
+        This repo treats a decision without rejected alternatives as a description rather than a
+        decision, and an ADR is required to carry them. Starting the list here means the ADR mostly
+        writes itself later.
+    validations:
+      required: true
+
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: What it would depend on
+      description: |
+        Plugins peer-depend on `@blaeu/core` and never import each other; presets compose plugins.
+        If your proposal needs one plugin to know about another, say so plainly — that is exactly
+        the case the middleware and command seams exist to absorb, and naming it early usually
+        changes the design. `npm run lint:boundaries` enforces the rule in CI either way.
+    validations:
+      required: false

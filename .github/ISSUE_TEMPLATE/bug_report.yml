@@ -1,0 +1,86 @@
+name: Bug report
+description: Blaeu behaves differently from what its types, its README or an ADR promise.
+labels: ['bug', 'needs-triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Two answers decide how fast this gets triaged — **which package** and **which maplibre-gl**.
+        The peer range is `>=4.7.0 <7`, and there is a whole CI matrix type-checking the renderer
+        against the floor, the middle major and the ceiling, because a real bug once reproduced on
+        one maplibre major only. So the version is the first question, not an afterthought.
+
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      description: Where the wrong behaviour surfaces. If it surfaces in a preset but you suspect the kernel, pick the preset — triage will move it.
+      options:
+        - '@blaeu/core'
+        - '@blaeu/plugin-draw'
+        - '@blaeu/plugin-edit'
+        - '@blaeu/plugin-history'
+        - '@blaeu/plugin-measure'
+        - '@blaeu/plugin-select'
+        - '@blaeu/plugin-snap'
+        - '@blaeu/plugin-topology'
+        - '@blaeu/plugin-ui'
+        - '@blaeu/preset-cadastre'
+        - '@blaeu/preset-game'
+        - '@blaeu/preset-urban'
+        - "I can't tell / more than one"
+    validations:
+      required: true
+
+  - type: input
+    id: maplibre-version
+    attributes:
+      label: maplibre-gl version
+      description: The exact version, from `npm ls maplibre-gl` — not the range in your package.json. The declared peer range is `>=4.7.0 <7`.
+      placeholder: '5.6.0'
+    validations:
+      required: true
+
+  - type: input
+    id: blaeu-version
+    attributes:
+      label: Blaeu version
+      description: The version of the package named above, or the commit SHA if you are running from source.
+      placeholder: '0.1.1'
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what you expected instead
+      description: |
+        Both halves, please. "The snap did not fire" and "the snap fired on the wrong vertex" are
+        different bugs with different causes, and only the expectation tells them apart. Paste the
+        full error text if there is one — the kernel's messages name the situation deliberately.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: |
+        The smallest thing that fails: a failing test against the headless harness is ideal, a
+        script against `createBlaeuMap` is fine, a link to a fork of one of the `examples/` apps is
+        fine. A reproduction that needs your application to run usually cannot be triaged at all.
+      render: typescript
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Node version, browser and OS, and whether this reproduces headless as well as in a browser.
+      placeholder: |
+        node 22.11.0
+        Chrome 141 on macOS 15
+        Reproduces headless: yes
+    validations:
+      required: false

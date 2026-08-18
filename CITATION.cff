@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: 'If you use Blaeu in academic work, please cite it as below.'
+title: Blaeu
+abstract: >-
+  A plugin-first geospatial editing kernel in TypeScript: MapLibre GL rendering, a GeoJSON
+  feature store, a proj4/EPSG working CRS, snapping as interaction middleware, cross-plugin
+  undo/redo, and JSTS topology validation — with cadastre, urban-planning and game
+  level-editor presets on one unforked core.
+type: software
+authors:
+  - family-names: Çelik
+    given-names: Gökhun
+    alias: celikgo
+repository-code: 'https://github.com/celikgo/blaeu-lib'
+url: 'https://github.com/celikgo/blaeu-lib'
+license: MIT
+version: 0.1.1
+keywords:
+  - geospatial
+  - gis
+  - maplibre
+  - map-editor
+  - plugin-architecture
+  - typescript
+  - geojson
+  - coordinate-systems
+  - topology
+  - cadastre
+  - urban-planning

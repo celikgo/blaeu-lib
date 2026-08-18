@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Contributing — the house style, the boundary rules, and when a change needs an ADR
+    url: https://github.com/celikgo/blaeu-lib/blob/main/CONTRIBUTING.md
+    about: Read this before opening a proposal; it lists the changes that need an ADR in the same PR.
+  - name: Architecture — the tier model and the kernel's seams
+    url: https://github.com/celikgo/blaeu-lib/blob/main/ARCHITECTURE.md
+    about: Most "can Blaeu do X" questions are answered by which tier X belongs in.
