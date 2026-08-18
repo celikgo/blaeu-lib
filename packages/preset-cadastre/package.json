@@ -2,6 +2,18 @@
   "name": "@blaeu/preset-cadastre",
   "version": "0.1.1",
   "description": "Cadastre / land registry preset. Turkish CRS defaults, topological editing, mm precision.",
+  "keywords": [
+    "blaeu",
+    "cadastre",
+    "land-registry",
+    "parcel-editing",
+    "surveying",
+    "turkey",
+    "turef",
+    "epsg-5254",
+    "topology",
+    "gis"
+  ],
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

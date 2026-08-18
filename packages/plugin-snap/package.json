@@ -2,6 +2,18 @@
   "name": "@blaeu/plugin-snap",
   "version": "0.1.1",
   "description": "Snapping engine: vertex, edge, midpoint, intersection, grid and guide providers.",
+  "keywords": [
+    "blaeu",
+    "snapping",
+    "snap",
+    "vertex-snapping",
+    "grid-snapping",
+    "geospatial",
+    "maplibre",
+    "gis",
+    "map-editor",
+    "digitizing"
+  ],
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

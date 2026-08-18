@@ -3,7 +3,7 @@
  * Generates package.json / tsconfig.json / tsup.config.ts for every workspace
  * package.
  *
- * Doing this from one script — rather than hand-writing thirteen sets of nearly
+ * Doing this from one script — rather than hand-writing twelve sets of nearly
  * identical files — is what keeps dependency versions, the `exports` map, and the
  * peer-dependency rule consistent across the monorepo. The rule that matters most:
  * `@blaeu/core` is a **peerDependency** of every plugin, never a dependency.
@@ -81,11 +81,25 @@ const VERSION = JSON.parse(readFileSync(join(root, 'packages/core/package.json')
  */
 const CORE_PEER = { '@blaeu/core': `^${VERSION}` }
 
-/** @type {Array<{name: string, deps?: Record<string,string>, peers?: Record<string,string>, refs?: string[], desc: string}>} */
+/** @type {Array<{name: string, deps?: Record<string,string>, peers?: Record<string,string>, refs?: string[], desc: string, keywords: string[]}>} */
 const packages = [
   {
     name: 'core',
     desc: 'The Blaeu kernel: event bus, plugin registry, pipelines, command bus, feature store.',
+    keywords: [
+      'geospatial',
+      'gis',
+      'maplibre',
+      'maplibre-gl',
+      'map-editor',
+      'plugin-architecture',
+      'geojson',
+      'proj4',
+      'coordinate-systems',
+      'epsg',
+      'event-bus',
+      'typescript',
+    ],
     deps: {
       proj4: '^2.12.1',
       rbush: '^4.0.1',
@@ -96,6 +110,18 @@ const packages = [
   {
     name: 'plugin-snap',
     desc: 'Snapping engine: vertex, edge, midpoint, intersection, grid and guide providers.',
+    keywords: [
+      'blaeu',
+      'snapping',
+      'snap',
+      'vertex-snapping',
+      'grid-snapping',
+      'geospatial',
+      'maplibre',
+      'gis',
+      'map-editor',
+      'digitizing',
+    ],
     peers: CORE_PEER,
     // No `deps`: nothing under packages/plugin-snap/src references rbush. It was declared here
     // and regeneration kept adding it back — a dependency a consumer downloads and never runs.
@@ -104,12 +130,35 @@ const packages = [
   {
     name: 'plugin-draw',
     desc: 'Drawing tools: point, line, polygon, rectangle, circle, freehand.',
+    keywords: [
+      'blaeu',
+      'geospatial',
+      'maplibre',
+      'drawing',
+      'digitizing',
+      'polygon',
+      'freehand',
+      'geojson',
+      'map-editor',
+    ],
     peers: CORE_PEER,
     refs: ['core'],
   },
   {
     name: 'plugin-edit',
     desc: 'Editing: vertex editing, move, rotate, scale, split, merge — with topological awareness.',
+    keywords: [
+      'blaeu',
+      'geospatial',
+      'maplibre',
+      'geometry-editing',
+      'vertex-editing',
+      'split',
+      'merge',
+      'jsts',
+      'topology',
+      'map-editor',
+    ],
     peers: CORE_PEER,
     deps: { jsts: '^2.12.1' },
     refs: ['core'],
@@ -117,6 +166,17 @@ const packages = [
   {
     name: 'plugin-select',
     desc: 'Selection: single, multi, box, lasso.',
+    keywords: [
+      'blaeu',
+      'geospatial',
+      'selection',
+      'lasso',
+      'box-select',
+      'turf',
+      'maplibre',
+      'map-editor',
+      'geojson',
+    ],
     peers: CORE_PEER,
     // Real, and imported at SelectionController.ts:1-2. They were missing here, so every
     // regeneration silently deleted them from the manifest — invisible to typecheck, test and
@@ -130,18 +190,52 @@ const packages = [
   {
     name: 'plugin-measure',
     desc: 'Measurement: distance, area, bearing — planar, in the working CRS.',
+    keywords: [
+      'blaeu',
+      'geospatial',
+      'measurement',
+      'distance',
+      'area',
+      'bearing',
+      'surveying',
+      'maplibre',
+      'gis',
+    ],
     peers: CORE_PEER,
     refs: ['core'],
   },
   {
     name: 'plugin-history',
     desc: 'Undo/redo across every plugin, by subscribing to the command bus.',
+    keywords: [
+      'blaeu',
+      'undo',
+      'redo',
+      'undo-redo',
+      'command-pattern',
+      'command-bus',
+      'maplibre',
+      'map-editor',
+      'geospatial',
+    ],
     peers: CORE_PEER,
     refs: ['core'],
   },
   {
     name: 'plugin-topology',
     desc: 'Topology validation via JSTS: self-intersection, overlaps, gaps, slivers.',
+    keywords: [
+      'blaeu',
+      'topology',
+      'jsts',
+      'gis',
+      'geospatial',
+      'validation',
+      'overlap-detection',
+      'sliver',
+      'self-intersection',
+      'cadastre',
+    ],
     peers: CORE_PEER,
     deps: { jsts: '^2.12.1' },
     refs: ['core'],
@@ -149,12 +243,35 @@ const packages = [
   {
     name: 'plugin-ui',
     desc: 'Framework-free UI controls: toolbar, coordinate readout, snap indicator, issue panel.',
+    keywords: [
+      'blaeu',
+      'ui-controls',
+      'toolbar',
+      'framework-free',
+      'vanilla-js',
+      'maplibre',
+      'map-editor',
+      'coordinate-readout',
+      'geospatial',
+    ],
     peers: CORE_PEER,
     refs: ['core'],
   },
   {
     name: 'preset-cadastre',
     desc: 'Cadastre / land registry preset. Turkish CRS defaults, topological editing, mm precision.',
+    keywords: [
+      'blaeu',
+      'cadastre',
+      'land-registry',
+      'parcel-editing',
+      'surveying',
+      'turkey',
+      'turef',
+      'epsg-5254',
+      'topology',
+      'gis',
+    ],
     peers: CORE_PEER,
     deps: {
       '@blaeu/plugin-snap': `^${VERSION}`,
@@ -181,6 +298,17 @@ const packages = [
   {
     name: 'preset-urban',
     desc: 'Urban planning preset: zoning layers, scenario comparison, attribute forms.',
+    keywords: [
+      'blaeu',
+      'urban-planning',
+      'zoning',
+      'city-planning',
+      'scenario-comparison',
+      'planning',
+      'gis',
+      'map-editor',
+      'geospatial',
+    ],
     peers: CORE_PEER,
     deps: {
       '@blaeu/plugin-snap': `^${VERSION}`,
@@ -207,6 +335,17 @@ const packages = [
   {
     name: 'preset-game',
     desc: 'Game map preset: entity placement, grid snapping, procedural hooks.',
+    keywords: [
+      'blaeu',
+      'level-editor',
+      'game-map',
+      'tilemap',
+      'hex-grid',
+      'grid-snapping',
+      'procedural-generation',
+      'gamedev',
+      'map-editor',
+    ],
     peers: CORE_PEER,
     deps: {
       '@blaeu/plugin-snap': `^${VERSION}`,
@@ -249,6 +388,11 @@ for (const pkg of packages) {
         name: `@blaeu/${pkg.name}`,
         version: VERSION,
         description: pkg.desc,
+        // npm's search ranking is partly keyword-driven, and keywords are baked into the
+        // published tarball's metadata — adding them after a publish needs a version bump
+        // before anyone can search on them. So they are generated here, with the rest of the
+        // manifest, rather than left to be remembered per package.
+        keywords: pkg.keywords,
         license: 'MIT',
         type: 'module',
         sideEffects: false,

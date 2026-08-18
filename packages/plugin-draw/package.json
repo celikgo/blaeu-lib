@@ -2,6 +2,17 @@
   "name": "@blaeu/plugin-draw",
   "version": "0.1.1",
   "description": "Drawing tools: point, line, polygon, rectangle, circle, freehand.",
+  "keywords": [
+    "blaeu",
+    "geospatial",
+    "maplibre",
+    "drawing",
+    "digitizing",
+    "polygon",
+    "freehand",
+    "geojson",
+    "map-editor"
+  ],
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

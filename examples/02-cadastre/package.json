@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.1",
   "description": "Cadastre / parcel editing: topological editing of shared boundaries in TUREF/TM30, in Turkish.",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

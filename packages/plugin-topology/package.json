@@ -2,6 +2,18 @@
   "name": "@blaeu/plugin-topology",
   "version": "0.1.1",
   "description": "Topology validation via JSTS: self-intersection, overlaps, gaps, slivers.",
+  "keywords": [
+    "blaeu",
+    "topology",
+    "jsts",
+    "gis",
+    "geospatial",
+    "validation",
+    "overlap-detection",
+    "sliver",
+    "self-intersection",
+    "cadastre"
+  ],
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

@@ -3,6 +3,7 @@
   "version": "0.1.1",
   "private": true,
   "description": "Urban planning: a data-driven zoning legend, an attribute form, scenario comparison — and topology as warnings.",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

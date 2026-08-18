@@ -2,6 +2,17 @@
   "name": "@blaeu/plugin-measure",
   "version": "0.1.1",
   "description": "Measurement: distance, area, bearing — planar, in the working CRS.",
+  "keywords": [
+    "blaeu",
+    "geospatial",
+    "measurement",
+    "distance",
+    "area",
+    "bearing",
+    "surveying",
+    "maplibre",
+    "gis"
+  ],
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

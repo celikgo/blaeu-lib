@@ -2,6 +2,18 @@
   "name": "@blaeu/plugin-edit",
   "version": "0.1.1",
   "description": "Editing: vertex editing, move, rotate, scale, split, merge — with topological awareness.",
+  "keywords": [
+    "blaeu",
+    "geospatial",
+    "maplibre",
+    "geometry-editing",
+    "vertex-editing",
+    "split",
+    "merge",
+    "jsts",
+    "topology",
+    "map-editor"
+  ],
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

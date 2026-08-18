@@ -2,6 +2,17 @@
   "name": "@blaeu/plugin-history",
   "version": "0.1.1",
   "description": "Undo/redo across every plugin, by subscribing to the command bus.",
+  "keywords": [
+    "blaeu",
+    "undo",
+    "redo",
+    "undo-redo",
+    "command-pattern",
+    "command-bus",
+    "maplibre",
+    "map-editor",
+    "geospatial"
+  ],
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

@@ -3,6 +3,7 @@
   "version": "0.1.1",
   "private": true,
   "description": "Basic usage: the kernel plus five plugins, with nothing hidden by a preset.",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

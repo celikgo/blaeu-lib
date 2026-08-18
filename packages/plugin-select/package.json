@@ -2,6 +2,17 @@
   "name": "@blaeu/plugin-select",
   "version": "0.1.1",
   "description": "Selection: single, multi, box, lasso.",
+  "keywords": [
+    "blaeu",
+    "geospatial",
+    "selection",
+    "lasso",
+    "box-select",
+    "turf",
+    "maplibre",
+    "map-editor",
+    "geojson"
+  ],
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
