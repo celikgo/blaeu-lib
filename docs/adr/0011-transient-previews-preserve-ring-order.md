@@ -1,6 +1,6 @@
 # ADR 0011 — A transient edit preview preserves ring order; only durable writes rewind
 
-Status: accepted
+Status: accepted · Amends: — · Amended by: —
 
 ## Context
 
@@ -71,6 +71,27 @@ three corners or to zero area.
 `rewindRings` defaults to `true`, so every other caller — the built-in `UpdateFeaturesCommand`,
 undo/redo, a programmatic edit — is unchanged.
 
+## Alternatives rejected
+
+**Recompute the refs from the pre-edit geometry after each frame.** Keeps the store's winding
+rule untouched, which is the attractive part. Rejected because it does not survive
+insert-then-drag: grabbing a midpoint inserts a vertex and immediately drags it in one gesture,
+so the pre-edit ring has one fewer vertex than the one being addressed and every recomputed
+index is off by one past the insertion point. A fix that needs a special case for the second
+most common edit gesture is not a fix.
+
+**Match corners by coordinate in the tool**, re-resolving each ref against the ring on every
+frame. Rejected because it fights coincident vertices — two parcels sharing a corner, which is
+the normal state of a cadastre — and because it duplicates, less well, what `normaliseRing`
+already knows about the ring it just rewrote. The honest statement is narrower: _a preview is
+not an ingest, and only an ingest owes RFC 7946 winding immediately._ That belongs at the write,
+not in every tool that holds a positional ref.
+
+**Stop rewinding altogether**, and let the store keep whatever winding an edit produced.
+Rejected outright: a wrongly-wound hole becomes a second exterior ring and the parcel's area
+becomes the sum of the rings rather than the difference — a number that goes on a deed.
+Everything the store keeps is still wound; only a scratch frame under the user's finger is not.
+
 ## Consequences
 
 - **The reported critical is fixed.** Dragging a vertex clear across the polygon now tracks the
@@ -87,11 +108,9 @@ undo/redo, a programmatic edit — is unchanged.
   it, one gesture. Because nothing reorders the ring until the post-gesture commit, the refs the
   insert handed back stay valid through the drag — a case a "recompute from the pre-edit
   geometry" fix would have had to special-case, because the pre-edit ring has one fewer vertex.
-- **This is why the fix lives at the write, not in the tool.** Making the tool re-resolve its
-  refs after each frame, or match corners by coordinate, would fight coincident vertices and
-  duplicate what `normaliseRing` already knows. The honest statement is narrower: _a preview is
-  not an ingest, and only an ingest owes RFC 7946 winding immediately._ Everything the store
-  keeps is still wound; a scratch frame under the user's finger need not be.
+- **The fix lives at the write, not in the tool**, for the reasons given above — which means it
+  applies to every tool that addresses a ring positionally, including ones nobody has written
+  yet, rather than to the two that happened to report the bug.
 
 ## Follow-ups — a positional ref must not outlive the commit's rewind
 

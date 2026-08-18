@@ -1,6 +1,6 @@
 # ADR 0013 — A GeometryCollection is flattened by the rules, and refused by the cadastre
 
-Status: accepted
+Status: accepted · Amends: — · Amended by: —
 
 ## Context
 
@@ -36,10 +36,7 @@ the repository named it.
 **Three tiers, three different answers, and the tier boundary is the whole point.**
 
 **Core — unchanged.** A `GeometryCollection` is legitimate RFC 7946 and the kernel keeps storing
-it. Rejecting it at `normaliseGeometry` was the tempting fix and it is the wrong one: it would
-put a _plugin's_ limitation into the kernel, in direct tension with invariant 1, and it would
-mean deleting deliberate collection support from five other files to keep the codebase honest.
-The kernel has never heard of a parcel, and "this shape is not a parcel" is not a kernel
+it. The kernel has never heard of a parcel, and "this shape is not a parcel" is not a kernel
 opinion.
 
 **`plugin-topology` — flatten, don't skip.** A new `polygonalGeometry(geometry)` returns the
@@ -48,14 +45,12 @@ to a `MultiPolygon` of every polygonal member found recursively, and `undefined`
 none. `isPolygonal`, `polygonRings` and `polygonParts` are all defined in terms of it, and so is
 `prepare()`, the single conversion boundary into JSTS.
 
-Putting the flattening in `prepare()` is what makes this safe rather than merely broader: JTS
-raises `IllegalArgumentException: This method does not support GeometryCollection arguments`
-from every overlay operation, so simply widening the predicate and letting a collection reach
-`intersection()` would have traded a silent miss for a crash. Flattening is also the
-semantically correct reading — the union of a collection's polygons is the ground it claims.
+Putting the flattening in `prepare()` — the single conversion boundary into JSTS — is what makes
+this safe rather than merely broader. Flattening is also the semantically correct reading: the
+union of a collection's polygons is the ground it claims.
 
-"Any polygonal member" rather than "all": a collection carrying a parcel plus its address point
-is still a parcel, and the non-areal members are ignored rather than being grounds for refusal.
+"Any polygonal member" rather than "all": non-areal members are ignored rather than being
+grounds for refusal.
 
 **`preset-cadastre` — refuse it, as an error.** Measurable is not the same as storable. A parcel
 whose geometry is a collection has no single boundary, so `sınırlandırma` is undefined for it,
@@ -71,6 +66,29 @@ MultiPolygon on import — and the message says so, naming the offending type.
 the cadastre now refuses to store a collection, because the middleware runs _ahead_ of validation
 in the pipeline, it is exported and usable standalone, and a host that lowers the geometry-type
 rule to a warning must not end up with a stored parcel carrying no `yüzölçümü`.
+
+## Alternatives rejected
+
+**Reject a `GeometryCollection` at `normaliseGeometry`**, so nothing downstream ever sees one.
+The tempting fix, and the cheapest: one guard, one error, seven rules and both neighbour filters
+correct by construction. Rejected because it puts a _plugin's_ limitation into the kernel, in
+direct tension with invariant 1, and because being honest about it would mean deleting
+deliberate collection support from five other files — `normaliseGeometry`'s recursion,
+`CrsService.area` and `.length`, `FakeRenderer`, and the explicit arms in `plugin-edit` and
+`plugin-snap`. A preset that cannot store a shape is not evidence that the kernel cannot.
+
+**Widen the predicate without flattening in `prepare()`.** Two characters in `isPolygonal`, and
+the rules would start seeing collections. Rejected because JTS raises
+`IllegalArgumentException: This method does not support GeometryCollection arguments` from every
+overlay operation, so a collection reaching `intersection()` would trade a silent miss for a
+crash — a worse failure at a worse moment, since it lands in the middle of a commit rather than
+on import.
+
+**Require _all_ members to be polygonal, rather than any.** Stricter, and defensible on the
+grounds that a mixed collection is probably a conversion artefact. Rejected because a collection
+carrying a parcel plus its address point is still a parcel, and refusing to check its geometry
+because it also carries a point is the same silent miss by another route. Non-areal members are
+ignored, not grounds for refusal.
 
 ## Consequences
 

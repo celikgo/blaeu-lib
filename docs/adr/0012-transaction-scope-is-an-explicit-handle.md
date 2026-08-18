@@ -1,7 +1,6 @@
 # ADR 0012 — A transaction's membership is an explicit handle, not a bus-global flag
 
-Status: accepted
-Amends [ADR 0009](./0009-commit-commands.md).
+Status: accepted · Amends: [ADR 0009](./0009-commit-commands.md) · Amended by: —
 
 ## Context
 
@@ -52,6 +51,29 @@ await map.commands.commitTransaction('Split parcel', async (tx) => {
 - The synchronous `transaction(label, fn)` is unchanged. It keeps a `#syncTransaction` field
   because a synchronous callback cannot `await`, so two can never be open at once and the field
   cannot be read across a gap.
+
+## Alternatives rejected
+
+**`AsyncLocalStorage`, keeping the bus-global flag and scoping it to the call stack.** This is
+the textbook answer, and it is the right one on a server: membership stays implicit, `fn` needs
+no new parameter, and no in-tree caller changes. Rejected because it does not exist in the
+browser this library targets, and a mechanism that only works in half the environments we ship
+to is worse than an explicit handle that works in all of them.
+
+**Detect the interleaving instead of preventing it** — timestamp each commit, or tag it with the
+transaction that was open when it was _submitted_, and reconcile afterwards. Rejected because it
+keeps the global field and adds a second mechanism to get right; the failure it is guarding
+against left the store looking correct throughout, which is exactly the class of bug detection
+logic is least likely to catch. Serialising through the write queue removes the interleaving
+outright.
+
+**Roll a vetoed transaction back by undoing its own children**, rather than restoring the
+snapshot. It would close the one documented edge below — a non-transient `dispatch()` that fires
+during an async transaction's `await` and keeps its history entry after the rollback reverts its
+store write. Rejected because undoing the children makes a rolled-back transaction a sequence of
+inverse operations rather than a revision-preserving no-op, which is the property the
+deep-equality rollback test enforces and the one a caller can actually reason about. The
+guidance is stated in `#enqueue` instead: an undoable state change should prefer `commit()`.
 
 ## Consequences
 

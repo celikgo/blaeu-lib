@@ -1,6 +1,8 @@
 # ADR 0003 — Snapping is interaction middleware, not a service tools call
 
-Status: accepted
+Status: accepted · Amends: — · Amended by:
+[ADR 0010](./0010-tools-declare-what-they-drag.md) — a tool that drags existing geometry must
+declare it via `tools.setDragging()`; snapping is not purely transparent for those tools
 
 ## Context
 
@@ -98,3 +100,8 @@ position to render an indicator at until after the tool has run.
   feature being dragged (so it cannot snap to itself). The draw plugin passes both through a
   duck-typed, optional handle rather than an import — which preserves the boundary but is
   the one place the abstraction leaks.
+- **Amended: "purely" was too strong.** A tool that _drags existing geometry_ must tell the
+  pipeline what it has hold of, or the snap engine finds the dragged corner still sitting where
+  the gesture began and pins the pointer back onto it. That fact now lives on kernel types —
+  `ToolManager.setDragging()`, `InteractionContext.dragging`, `FeatureMeta.snappable` — so the
+  two plugins still never meet. See [ADR 0010](./0010-tools-declare-what-they-drag.md).

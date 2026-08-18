@@ -1,10 +1,14 @@
 # ADR 0008 — MapLibre, behind a renderer seam
 
-Status: accepted
+Status: accepted · Amends: — · Amended by: —
+
+See also [ADR 0014](./0014-maplibre-peer-range-policy.md), which fixes _which_ MapLibre versions
+this seam accepts, and [ADR 0015](./0015-browser-tests-are-a-fence-gated-on-a-gpu-probe.md),
+which records how the seam's one unfakeable surface is tested.
 
 ## Context
 
-BlaeuMap has to draw. MapLibre GL is the obvious engine: open source, no licence key, vector
+Blaeu has to draw. MapLibre GL is the obvious engine: open source, no licence key, vector
 tiles, a mature style specification, WebGL performance, and a large ecosystem. There is no
 serious argument for writing our own.
 
@@ -33,10 +37,13 @@ abstraction. Users would fork on the first thing we failed to wrap.
 interface, and there is a named escape hatch out of it.**
 
 The interface is deliberately small: mount, `project`/`unproject`, sources, layers, camera,
-hit testing, pointer and camera events, `setCursor`, `getNative`, `destroy`. Anything that can
-be built on those primitives — measurement, highlighting, editing handles, the snap indicator
-— is a plugin, not a renderer method. If the interface grows, it is because something
-genuinely cannot be built on top, and that is a high bar.
+hit testing, pointer and camera events, `setCursor`, `getNative`, `destroy`, plus three
+optional members a renderer may decline — `setBasemap`, `setInteraction` and `onKey` —
+optional because a board with no basemap, no built-in gestures or no focusable surface need
+not implement them, and the kernel probes for the method rather than assuming it. Anything
+that can be built on those primitives — measurement, highlighting, editing handles, the snap
+indicator — is a plugin, not a renderer method. If the interface grows, it is because
+something genuinely cannot be built on top, and that is a high bar.
 
 Style is expressed as a renderer-agnostic `LayerStyle` (`fill`, `line`, `circle`, `symbol`)
 — plus, explicitly, a `native` escape:
@@ -61,7 +68,7 @@ documented as "you are now outside the abstraction; we cannot undo/redo what you
 
 **`FakeRenderer` is the proof the seam is real.** It lives in `@blaeu/core/testing`,
 implements the entire `Renderer` contract with deterministic, analytically-invertible
-`project`/`unproject`, and the whole test suite (500+ tests) runs against it with no GPU. A
+`project`/`unproject`, and the whole node suite (789 tests) runs against it with no GPU. A
 seam that only one implementation has ever gone through is not a seam; it is a wish. This one
 has two, and the second one is exercised on every commit.
 
@@ -99,11 +106,20 @@ not optional.
   has a reference implementation that is not MapLibre.
 - **Good.** `LayerManager` coalescing store changes into one `renderer.setData()` per
   microtask is a kernel concern, not a MapLibre trick, and every renderer inherits it.
-- **Bad.** `MapLibreRenderer` has **no browser-mode test coverage.** Everything else is tested
-  against `FakeRenderer`, which means the one place the seam could leak — our translation of
-  `LayerStyle` into MapLibre paint/layout, and our normalisation of its pointer events — is
-  verified by reading and by hand. This is the most valuable test we have not written, it is
-  called out in the README's limitations, and it is on the roadmap.
+- **Bad, now bounded (2026-08).** This bullet used to read that `MapLibreRenderer` had **no
+  browser-mode test coverage** — the one place the seam could leak, verified by reading and by
+  hand. The seam still imposes that cost, because a fake renderer accepts everything and so can
+  only confirm we called the method we meant to. But the suite now exists:
+  `packages/core/src/renderers/MapLibreRenderer.browser.test.ts` runs the renderer against a
+  real `maplibre-gl` and a real WebGL2 context, covering both named surfaces — `LayerStyle`
+  translation, judged by MapLibre's own style validator, and pointer and touch normalisation
+  against events the browser actually makes. It is deliberately additive (`npm run test:browser`,
+  `vitest.browser.config.ts`) and outside `npm run verify`; CI runs it in its own `browser` job
+  on every pull request and push, with no `paths:` filter, because what breaks the translation is
+  rarely a change inside the renderer. What remains unverified is hit testing: `queryRenderedFeatures`
+  returns only what has been _rendered_, no GPU-less runner we have delivers a completed render
+  pass, so four tests are gated on a runtime probe and skip there — announced on every run. See
+  [ADR 0015](./0015-browser-tests-are-a-fence-gated-on-a-gpu-probe.md).
 - **Bad.** Two coordinate/style vocabularies exist, and `LayerStyle.native` is the pressure
   valve between them. Every use of it is a small coupling to MapLibre that a future Three.js
   renderer will have to answer for.

@@ -1,11 +1,13 @@
 # ADR 0009 — Durable writes are `CommitCommand`s, and `dispatch()` refuses them
 
-Status: accepted
-Supersedes the open question left by [ADR 0004](./0004-sync-interaction-async-commit.md).
+Status: accepted · Amends: [ADR 0004](./0004-sync-interaction-async-commit.md) — supersedes the
+open question it left · Amended by:
+[ADR 0012](./0012-transaction-scope-is-an-explicit-handle.md) — transaction membership is an
+explicit handle
 
 ## Context
 
-BlaeuMap had two pipelines by design: a synchronous one for pointer events, and an
+Blaeu had two pipelines by design: a synchronous one for pointer events, and an
 asynchronous one for writes, where a validation rule may veto and a preset's middleware may
 rewrite what lands. [ADR 0004](./0004-sync-interaction-async-commit.md) argued for that
 split and still does.
@@ -55,8 +57,11 @@ and the bus grows an asynchronous counterpart:
 ```ts
 dispatch<R>(command: Command<R> & { intent?: never }): DispatchResult<R>   // sync, no pipeline
 commit<R>(command: CommitCommand<R>): Promise<DispatchResult<R>>           // async, pipeline
-commitTransaction(label: string, fn: () => Promise<void>): Promise<DispatchResult<void>>
+commitTransaction(label: string, fn: (tx: CommitTransaction) => Promise<void>): Promise<DispatchResult<void>>
 ```
+
+The `tx` handle was added by [ADR 0012](./0012-transaction-scope-is-an-explicit-handle.md);
+children must be submitted through it, not through the bus.
 
 The `intent?: never` is the load-bearing part. **`dispatch()` will not compile if you hand it
 a feature-writing command**, and it throws at runtime for JavaScript callers. If the way to
@@ -81,6 +86,28 @@ unvalidated.
 The rule of thumb is **if it survives the gesture, it commits.** A rubber band does not. A
 parcel does.
 
+## Alternatives rejected
+
+**Let the kernel infer which writes to validate**, instead of an opt-in interface. It reads as
+the friendlier design — no interface to implement, nothing for a plugin author to remember. It
+is rejected by the paragraph above: a drag preview, a vertex handle and a snap indicator are all
+store writes, and running a JSTS topology check on them at 120 Hz would be both slow and wrong,
+because geometry is _legitimately_ invalid halfway through a drag. Any inference rule the kernel
+could apply would be a guess about intent that the command already knows for certain. The same
+reasoning is written on `CommitCommand` itself, in `packages/core/src/types/command.ts`.
+
+**Keep one `dispatch()` and make the commit path a convention.** Cheapest to implement, and it
+is the design we were already living with. Rejected because skipping validation would then be
+one typo away, on a code path nobody reviews twice, in every product built on this library. The
+`intent?: never` makes it a compile error instead — a guarantee is only worth what its weakest
+caller can bypass.
+
+**Validate the command's raw input rather than the materialised feature.** Simpler: no
+`materialise()`, no minting ids for something that may never be stored. Rejected because a rule
+that passed on the raw input but would have failed on the stored feature is not a weak rule — it
+is a lie. The quantised, wound, meta-stamped parcel is the one that goes on the deed, so that is
+the one a rule must judge.
+
 ## Consequences
 
 - **Good.** Validation rules veto writes. A rejected write leaves no trace at all: no minted
@@ -99,10 +126,11 @@ parcel does.
   falling back to the command's. Commit middleware may therefore _add_ features that belong
   elsewhere — the game preset's `scatterAround` answers one placed hut with four trees
   destined for `decor` — which was impossible when one command meant one collection.
-- **Bad.** The durable-write API is asynchronous, so `draw.complete()`, `edit.split()`,
+- **Bad.** The durable-write API is asynchronous, so `DrawSession.complete()`, `edit.split()`,
   `edit.merge()`, `measure.clear()`, `topology.fix()` and `entity.place()` all return promises
-  now. Tool handlers stay synchronous and fire without awaiting (`void session.complete(...)`);
-  the map updates on the resulting event.
+  now — while the public `DrawApi.finish()` stays `void`, firing the completion without awaiting
+  it. Tool handlers stay synchronous and fire the same way (`void session.complete(...)`); the
+  map updates on the resulting event.
 - **Bad.** Tests that assert on the store after a simulated gesture must `await
 map.test.flush()` first. That is the honest cost of a write path that can call a server, and
   the harness has always exposed the hook.

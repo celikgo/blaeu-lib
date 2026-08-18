@@ -1,6 +1,6 @@
 # ADR 0006 — Presets are data, not subclasses
 
-Status: accepted
+Status: accepted · Amends: — · Amended by: —
 
 ## Context
 

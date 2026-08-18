@@ -1,6 +1,6 @@
 # ADR 0002 — Every mutation is a Command; history is a subscriber, not a core feature
 
-Status: accepted
+Status: accepted · Amends: — · Amended by: —
 
 ## Context
 
@@ -26,7 +26,7 @@ The obvious implementations fail in specific, well-known ways:
 
 ## Decision
 
-**Every state change in BlaeuMap is a `Command`, and a `Command` is the only way state
+**Every state change in Blaeu is a `Command`, and a `Command` is the only way state
 changes.**
 
 ```ts
@@ -34,6 +34,7 @@ interface Command<R = void> {
   readonly type: string
   readonly label?: string // shown in the undo menu, already localised
   readonly transient?: boolean // executes, but is never recorded
+  readonly gesture?: string // one pointer-down to the matching pointer-up
   execute(ctx: CommandContext): R
   undo(ctx: CommandContext): void
   redo?(ctx: CommandContext): R
@@ -53,10 +54,19 @@ knows nothing about geometry, drawing, parcels or vertices.
 Supporting machinery, each earning its place:
 
 - `transaction(label, fn)` — everything dispatched inside `fn` becomes one atomic undo step,
-  and a throw inside `fn` restores the store from a snapshot taken up front. A parcel split
-  is _remove one, add two_; undoing it half-way would be worse than having no undo.
+  and a throw inside `fn` restores the store from a snapshot taken up front. It is synchronous
+  and unvalidated, which is what previews and handles want.
+- `commitTransaction(label, async (tx) => …)` — the same, for durable writes that each have to
+  clear the commit pipeline. A parcel split is _remove one, add two_; undoing it half-way, or
+  rolling back only half of it, would be worse than having no undo. See
+  [ADR 0009](./0009-commit-commands.md) and
+  [ADR 0012](./0012-transaction-scope-is-an-explicit-handle.md).
 - `coalesceWith(previous)` — merges a 200-frame vertex drag into one entry. Without it, a
   drag costs 200 Ctrl+Zs, which no user will forgive.
+- `gesture` — names the user gesture a command belongs to, so history need not guess from a
+  wall clock. A surveyor who drags a shared corner, pauses to read the coordinate, then nudges
+  it home is making one gesture and owes exactly one Ctrl+Z. `coalesceWith` still has the final
+  say; `gesture` only decides whether history asks.
 - `transient` — a rubber-band preview executes but is never recorded. If it would be
   maddening to have to press Ctrl+Z past it, it is transient.
 

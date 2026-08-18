@@ -1,10 +1,11 @@
 # ADR 0004 — Two pipelines: synchronous interaction, asynchronous commit
 
-Status: accepted
+Status: accepted · Amends: — · Amended by:
+[ADR 0009](./0009-commit-commands.md) — which resolved the open question this one left
 
 ## Context
 
-BlaeuMap has two places where third-party code needs to intercept and modify what the kernel
+Blaeu has two places where third-party code needs to intercept and modify what the kernel
 is doing:
 
 1. **Interaction** — a pointer event on its way to a tool. Snapping rewrites its position;
@@ -42,8 +43,10 @@ it async by accident; `await` in there is a compile error, not a latency regress
 production. This is core invariant 4, and the type is the enforcement.
 
 Middleware that genuinely needs async work does it **speculatively, off the pipeline, and
-caches**. The snap engine is the reference: it rebuilds its spatial index on `camera:idle`,
-never on `pointermove`, so the hot path only ever reads a warm structure.
+caches**. The snap engine is the reference: it never scans and never awaits. On each pointer
+event it computes a tolerance bbox (`SnapQueryContext.bbox`) and hands it to its providers,
+which query the store's R-tree — a structure the store keeps warm on every write, not one the
+engine rebuilds.
 
 `CommitMiddleware` is async, because the caller already `await`s the write, so the cost
 lands where it is visible. The pipeline short-circuits the instant anything calls
@@ -91,8 +94,6 @@ boundary on every pointer move costs more than the work it offloads.
 - **Good.** The two contexts differ, and correctly so: `InteractionContext` has a mutable
   `lngLat`; `CommitContext` has a mutable `features` array and a `reject(reason)`. Neither
   pretends to be the other.
-- **Bad.** Two mechanisms to learn, and a plugin author must know which one their concern
-  belongs to. "Modify the pointer" and "veto the write" are different verbs, which helps.
 - **Bad.** Two mechanisms to learn, and a plugin author must know which one their concern
   belongs to. "Modify the pointer" and "veto the write" are different verbs, which helps.
 - **Resolved, and it was worse than this ADR admitted.** This section used to describe

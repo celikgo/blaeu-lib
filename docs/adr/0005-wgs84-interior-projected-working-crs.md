@@ -1,6 +1,6 @@
 # ADR 0005 — The store is WGS84; survey maths happens in a projected working CRS
 
-Status: accepted
+Status: accepted · Amends: — · Amended by: —
 
 ## Context
 

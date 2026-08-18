@@ -1,6 +1,6 @@
 # ADR 0007 — JSTS for topology and booleans; Turf only for cosmetics
 
-Status: accepted
+Status: accepted · Amends: — · Amended by: —
 
 ## Context
 

@@ -1,6 +1,11 @@
 # ADR 0001 — A plugin-first kernel, not a map library with a plugin API
 
-Status: accepted · Supersedes: nothing · Superseded by: nothing
+Status: accepted · Amends: — · Amended by: —
+
+See also [ADR 0017](./0017-package-manifests-are-generated.md), which records the second
+mechanical gate on these same package boundaries, and
+[ADR 0016](./0016-one-lockstep-version-for-the-whole-kernel.md), which is what the versioning
+consequence below depends on.
 
 ## Context
 
@@ -21,7 +26,7 @@ consequences, one has geodesy and no legal consequences, and one has no Earth at
 
 ## Decision
 
-The core owns exactly five things:
+The core owns five _extension mechanisms_:
 
 1. a typed event bus with cancellable `before:` hooks,
 2. a plugin registry,
@@ -29,14 +34,24 @@ The core owns exactly five things:
 4. a command bus,
 5. a feature store (with its spatial and topology indexes).
 
+— plus the small set of services those mechanisms cannot work without and no plugin may
+replace: the CRS service (ADR 0005), the tool manager (ADR 0010), the layer manager (ADR 0008),
+the validation registry, theme and i18n. `packages/core/src/BlaeuMap.ts` carries the full list,
+and the test for admitting anything to it is whether an extension mechanism above would be
+inoperable without it.
+
 Everything a user would call a _feature_ — drawing, snapping, editing, measurement,
 selection, undo/redo, topology validation, UI chrome, and even layer _types_ — is a plugin
 that registers through an extension point the core defines and the core calls. The core
 never imports a plugin. CI enforces it mechanically:
 
 ```bash
-npm run lint:boundaries   # fails on core→plugin, plugin→plugin, or core-as-dependency
+npm run scaffold:check    # the manifests the next line reads are generated, not hand-written
+npm run lint:boundaries   # fails on core→plugin, plugin→plugin, core-as-dependency, missing-core-peer
 ```
+
+Both gate `npm run verify`, and in that order, because a boundary check is only as good as the
+manifest it reads — see [ADR 0017](./0017-package-manifests-are-generated.md).
 
 Domains are **presets**: composable plain-data bundles of plugins, config, layers, rules,
 theme and messages (see ADR 0006).
@@ -75,8 +90,12 @@ that owns the value, which is a pipeline, not an event.
   default. We accept it, and pay it back with presets: `preset: cadastrePreset()` is one line
   and gives a complete product.
 - **Bad.** Every capability costs an interface, and interfaces are versioned. A change to
-  anything in `packages/core/src/types/` is a **major**, no matter how small it looks,
-  because every plugin in every downstream product implements against it.
+  anything in `packages/core/src/types/` is a **breaking change**, no matter how small it looks,
+  because every plugin in every downstream product implements against it. Pre-1.0 that is
+  released as a `patch` rather than a version bump — see
+  [ADR 0016](./0016-one-lockstep-version-for-the-whole-kernel.md): with a `fixed` group, a 0.x
+  `minor` escalates straight to 1.0.0, so the version number cannot carry the signal and the
+  changeset description has to. From 1.0 onwards it is a major.
 - **Bad.** Indirection has a debugging cost. "Why did my vertex land here?" is answered by
   reading the middleware chain, not by reading the draw tool. `map.debug.interactionMiddleware()`
   exists precisely because of this.

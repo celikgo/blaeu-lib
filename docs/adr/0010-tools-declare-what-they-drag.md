@@ -1,7 +1,7 @@
 # ADR 0010 — A tool declares what it is dragging; middleware must not fight it
 
-Status: accepted
-Amends [ADR 0003](./0003-snapping-as-interaction-middleware.md).
+Status: accepted · Amends: [ADR 0003](./0003-snapping-as-interaction-middleware.md) · Amended
+by: —
 
 ## Context
 
@@ -72,11 +72,24 @@ interface FeatureMeta {
 - `plugin-snap`'s engine unions `ctx.dragging` into its exclusion set, and skips any feature
   with `snappable === false`.
 
-Handles are marked on the _feature_, not listed by id, because handles are rebuilt on every
-frame of a drag — an id list would go stale mid-gesture. And they are marked in `meta` rather
-than filtered by collection name in the snap plugin, because a snap plugin holding a hardcoded
-list of the collection names the edit plugin happens to use is precisely the coupling this
-library exists to avoid.
+## Alternatives rejected
+
+**Give `plugin-edit` a duck-typed `tryPlugin('snap')` channel, the way `plugin-draw` has one.**
+The smallest change available: the pattern already exists in the tree, it already works, and it
+needs nothing from the kernel. Rejected because it is a plugin-to-plugin phone call in
+everything but the import graph — the edit plugin would have to know that snapping exists, know
+the shape of `SnapApi.exclude()`, and re-learn it for the next middleware that reasons about
+nearby features. Dragging is not a snapping concern; it is a fact about the gesture that any
+middleware may need, so it belongs on a kernel type anyone may read.
+
+**List the handles by id in the exclusion set**, rather than marking them on the feature.
+Rejected because handles are rebuilt on every frame of a drag — an id list would go stale
+mid-gesture, and the failure would look exactly like the bug this ADR fixes.
+
+**Filter by collection name inside the snap plugin** (skip anything in `edit-handles`).
+Rejected because a snap plugin holding a hardcoded list of the collection names the edit plugin
+happens to use is precisely the coupling this library exists to avoid, and it silently excludes
+a third-party tool that names its scaffolding anything else.
 
 ## Consequences
 
