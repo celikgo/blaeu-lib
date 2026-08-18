@@ -63,7 +63,7 @@
     "maplibre-gl": ">=4.7.0 <7"
   },
   "devDependencies": {
-    "maplibre-gl": "^6.4.0",
+    "maplibre-gl": "^6.3.0",
     "@types/proj4": "^2.5.5",
     "@types/rbush": "^4.0.0"
   },

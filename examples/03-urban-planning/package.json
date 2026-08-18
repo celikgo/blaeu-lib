@@ -14,7 +14,7 @@
     "@blaeu/plugin-select": "^0.1.1",
     "@blaeu/plugin-topology": "^0.1.1",
     "@blaeu/preset-urban": "^0.1.1",
-    "maplibre-gl": "^5.6.0"
+    "maplibre-gl": "^6.3.0"
   },
   "devDependencies": {
     "vite": "^6.0.5"
