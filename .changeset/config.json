@@ -1,0 +1,13 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "//fixed": "All twelve move in lockstep. A plugin peer-depends on `@blaeu/core` with a caret range, and the presets depend on the plugins the same way — so a core release that leaves the plugins behind produces a matrix of version pairs nobody has ever run together. One version for the whole kernel is the only claim we can actually stand behind.",
+  "fixed": [["@blaeu/*"]],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "//ignore": "The example apps are `private: true`, so changesets never versions or publishes them.",
+  "ignore": []
+}

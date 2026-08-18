@@ -30,9 +30,12 @@
     "clean": "rm -rf packages/*/dist packages/*/.tsbuild packages/*/*.tsbuildinfo tsconfig.tsbuildinfo examples/*/dist",
     "verify": "npm run scaffold:check && npm run lint:boundaries && npm run typecheck && npm run typecheck:examples && npm run typecheck:tests && npm run lint && npm run test && npm run build",
     "scaffold": "node scripts/scaffold-packages.mjs",
-    "scaffold:check": "node scripts/scaffold-packages.mjs --check"
+    "scaffold:check": "node scripts/scaffold-packages.mjs --check",
+    "changeset": "changeset",
+    "release": "npm run verify && changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.1",
     "@eslint/js": "^9.17.0",
     "@types/geojson": "^7946.0.15",
     "@types/node": "^22.10.2",

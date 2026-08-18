@@ -61,7 +61,15 @@ async function emit(path, contents) {
 
 const prettierConfig = JSON.parse(readFileSync(join(root, '.prettierrc.json'), 'utf8'))
 
-const VERSION = '0.1.0'
+/**
+ * Read from the core manifest rather than declared here.
+ *
+ * A hard-coded literal would be a thirteenth copy of the version number, and the one thing
+ * guaranteed to touch the other twelve is `changeset version`. The moment it bumped them, this
+ * file would still say 0.1.0, `--check` would fail on every package, and the fix would look
+ * like a scaffold bug rather than a stale constant. Changesets owns the version; this reads it.
+ */
+const VERSION = JSON.parse(readFileSync(join(root, 'packages/core/package.json'), 'utf8')).version
 const CORE_PEER = { '@blaeu/core': '^0.1.0' }
 
 /** @type {Array<{name: string, deps?: Record<string,string>, peers?: Record<string,string>, refs?: string[], desc: string}>} */
