@@ -20,3 +20,48 @@ jobs:
       # runs locally, so a green PR here means a green PR there.
       - run: npm run verify
       - run: npm run format:check
+
+  # The peer range is a promise, and the job above cannot check it: `npm ci` installs the one
+  # maplibre-gl the lockfile names, so every run tests exactly one point inside `>=4.7.0 <7`.
+  #
+  # That gap has already cost us once. `MapLibreRenderer` cleaned up listeners via the return
+  # value of `map.on(...).unsubscribe()`, which is maplibre 5 API; on maplibre 4 `on()` returns
+  # the map, so `destroy()` threw — and the throw escaped `whenLoaded`'s `load` handler before it
+  # could resolve, so `mount()` hung forever on *every* v4 host. The suite stayed green
+  # throughout, because the fake maplibre map returned a v5-shaped subscription.
+  #
+  # So: type-check the renderer against the floor and the ceiling of the declared range on every
+  # PR. Cheap (one tsc, no build, no browser) and it is the only thing standing between the
+  # manifest and a peer range that is merely aspirational.
+  peer-range:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - maplibre: '4.7.0' # the declared floor, exactly
+            label: floor
+          - maplibre: '^5' # the middle major, still widely deployed
+            label: mid
+          - maplibre: '^6' # the current major — WebGL2-only, ESM-only
+            label: ceiling
+    name: peer-range (maplibre ${{ matrix.label }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      # `--no-save` so the matrix can never quietly rewrite the lockfile from CI.
+      - run: npm i -D --no-save maplibre-gl@${{ matrix.maplibre }} -w @blaeu/core
+      # Resolved *from @blaeu/core*, not from the root: npm nests the override only when the
+      # hoisted copy cannot satisfy it, so a hard-coded packages/core/node_modules path is
+      # missing on exactly the legs that hoist — and a version echo that crashes is worse than
+      # none. This prints whichever copy `tsc` is about to read.
+      - name: Show the maplibre-gl @blaeu/core resolves
+        run: |
+          node -e "console.log('resolved maplibre-gl', require(require.resolve('maplibre-gl/package.json', { paths: ['./packages/core'] })).version)"
+      # Type-check only. The renderer's own suite runs against a fake maplibre map, so it proves
+      # nothing about a real major; `tsc` against the real .d.ts is what catches a moved API.
+      - run: npx tsc -p packages/core/tsconfig.json --noEmit

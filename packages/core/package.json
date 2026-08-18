@@ -44,10 +44,10 @@
     "rbush": "^4.0.1"
   },
   "peerDependencies": {
-    "maplibre-gl": ">=4.7.0 <6"
+    "maplibre-gl": ">=4.7.0 <7"
   },
   "devDependencies": {
-    "maplibre-gl": "^5.6.0",
+    "maplibre-gl": "^6.4.0",
     "@types/proj4": "^2.5.5",
     "@types/rbush": "^4.0.0"
   },
