@@ -70,7 +70,16 @@ const prettierConfig = JSON.parse(readFileSync(join(root, '.prettierrc.json'), '
  * like a scaffold bug rather than a stale constant. Changesets owns the version; this reads it.
  */
 const VERSION = JSON.parse(readFileSync(join(root, 'packages/core/package.json'), 'utf8')).version
-const CORE_PEER = { '@blaeu/core': '^0.1.0' }
+/**
+ * Derived from {@link VERSION}, not written out.
+ *
+ * This was a hardcoded `^0.1.0` and it survived the change that made VERSION read from the
+ * manifest — which meant the generator agreed with the tree only for as long as nobody released
+ * anything. `changeset version` bumps this peer range in all eleven plugins and presets; the
+ * generator kept saying `^0.1.0`, and `scaffold:check` (which runs first in `verify`) failed on
+ * the very first Version Packages PR.
+ */
+const CORE_PEER = { '@blaeu/core': `^${VERSION}` }
 
 /** @type {Array<{name: string, deps?: Record<string,string>, peers?: Record<string,string>, refs?: string[], desc: string}>} */
 const packages = [
