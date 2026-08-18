@@ -210,6 +210,32 @@ jobs:
       # The headless shell only — the full Chromium download is far larger and nothing here
       # needs a headed browser. `--with-deps` installs the system libraries the shell needs.
       - run: npx playwright install --with-deps chromium-headless-shell
+      # Pinned, and the pin is the point. Measured on this config: 21/21 pass against maplibre
+      # 5.24 and 18/21 against 6.4.0 — on v6 the map never reaches `loaded()` under headless
+      # SwiftShader, so no render pass completes and `queryRenderedFeatures` (which returns only
+      # what was *rendered*) finds nothing. Almost certainly v6's WebGL2-only requirement meeting
+      # a software rasteriser, not a defect here: the style, pointer, touch and basemap tests all
+      # pass on v6. This leg is the one that must stay green.
+      - run: npm i -D --no-save maplibre-gl@^5 -w @blaeu/core
+      - run: npm run test:browser
+
+  # The same suite against the top of the declared peer range, allowed to fail. The peer range
+  # says `<7` and `tsc` passes against 6.4.0, but rendering on v6 is unverified — see the note in
+  # `vitest.browser.config.ts`. Keeping it visible-but-not-blocking means the gap cannot be
+  # forgotten, and turns green on its own the day it closes. Do not promote it to required until
+  # it passes on a GPU runner.
+  browser-maplibre-6:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium-headless-shell
+      - run: npm i -D --no-save maplibre-gl@^6 -w @blaeu/core
       - run: npm run test:browser
 
   # Nightly only. A full mutation run is minutes, not seconds, and its output is a number to

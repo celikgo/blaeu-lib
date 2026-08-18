@@ -24,6 +24,26 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url))
  * Not in `verify` because a WebGL browser is a different order of cost and flakiness from
  * `tsc` and a node runner, and a gate that is slow or flaky is a gate people learn to skip. CI
  * runs it on pull requests that touch `renderers/**`, and nightly.
+ *
+ * ## Known: maplibre 6 does not render under headless SwiftShader
+ *
+ * Measured, on this exact config: **21/21 pass against maplibre 5.24, and 18/21 against 6.4.0**.
+ * The three that fail are the hit-testing ones, and the cause is upstream of them — on v6 the
+ * map never reaches `loaded()`, so no render pass completes, and `queryRenderedFeatures` returns
+ * only what has actually been *rendered*. Polling for five seconds does not help; this is not a
+ * timing margin.
+ *
+ * The likely reason is one of v6's own breaking changes: it **removed WebGL1 and requires
+ * WebGL2**, and SwiftShader's software WebGL2 appears not to give it everything it needs. That
+ * makes this an environment limitation rather than a defect in this library — the style,
+ * pointer, touch and basemap-swap tests all pass on v6, so our translation and normalisation
+ * are fine.
+ *
+ * It is written down rather than papered over, because the honest consequence is real: the peer
+ * range claims `<7`, `tsc` passes against 6.4.0, and **v6 rendering is unverified at runtime**.
+ * CI therefore runs this suite twice — v5 as a required leg, v6 as an informational one that is
+ * allowed to fail — so the gap stays visible and turns green by itself the day it closes. Before
+ * publishing a version that claims v6, run this suite once on a GPU runner.
  */
 export default defineConfig({
   resolve: {
