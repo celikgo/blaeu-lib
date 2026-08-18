@@ -8,6 +8,11 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "//ignore": "The example apps are `private: true`, so changesets never versions or publishes them.",
-  "ignore": []
+  "//ignore": "The four example apps. `private: true` already stops them being *published*, but it does not stop them being *versioned*: the `fixed` glob `@blaeu/*` matches `@blaeu/example-01-basic` and friends, so the first Version Packages PR bumped all four and wrote them a CHANGELOG each \u2014 noise in every release PR for packages that can never reach npm. (The note that used to sit here claimed private packages are never versioned. PR #2 proved otherwise.) Listing them here is safe in both directions, and both were checked rather than assumed: they stop being bumped, and their `@blaeu/*` dependency ranges are still rewritten to the new version, so npm workspaces keep resolving them locally.",
+  "ignore": [
+    "@blaeu/example-01-basic",
+    "@blaeu/example-02-cadastre",
+    "@blaeu/example-03-urban-planning",
+    "@blaeu/example-04-game-map"
+  ]
 }
