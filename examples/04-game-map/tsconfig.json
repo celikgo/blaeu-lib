@@ -11,7 +11,14 @@
     "noEmit": true,
     "declaration": false,
     "declarationMap": false,
-    "types": ["node"]
+    // `vite/client`, like the other three examples — this one was the odd one out with
+    // `["node"]`, which is why it alone failed TypeScript 6's TS2882: a side-effect
+    // `import './style.css'` needs the `*.css` module declarations that `vite/client`
+    // provides, and TypeScript 5 let an unresolvable side-effect import pass silently.
+    // Nothing is lost by dropping `node`: `types` governs only which global type
+    // packages are pulled in automatically, and `vite.config.ts`'s `node:url` import is
+    // explicit, so it resolves through @types/node either way.
+    "types": ["vite/client"]
   },
   "include": ["src", "vite.config.ts"]
 }

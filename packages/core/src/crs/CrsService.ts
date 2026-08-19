@@ -480,6 +480,11 @@ function buildConverter(def: CrsDefinition) {
       `[blaeu] CRS "${def.code}" has a proj4 definition that proj4 cannot parse: ` +
         `"${def.proj4}" (${String(err)}). Copy the definition from epsg.io, or from the ` +
         `authority that issued the grid.`,
+      // The message already quotes proj4's own words; `cause` keeps the thing they came
+      // attached to. A bad `+proj=` string surfaces here at `register()` time, and the
+      // line of proj4 that rejected it is the only pointer to *which* token was wrong —
+      // interpolating `String(err)` and dropping the error threw that stack away.
+      { cause: err },
     )
   }
 }

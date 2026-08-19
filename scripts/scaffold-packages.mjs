@@ -476,7 +476,22 @@ export default defineConfig({
   format: ['esm'],
   // tsup's dts build runs its own tsc program, which cannot use the project-references
   // (composite) tsconfig the typecheck relies on — so turn it off just for the .d.ts pass.
-  dts: { compilerOptions: { composite: false, declarationMap: false } },
+  //
+  // \`ignoreDeprecations\` is not ours to want, and it is not silencing anything this repo
+  // does: tsup hard-codes \`baseUrl: compilerOptions.baseUrl || '.'\` into that program
+  // (\`tsup/dist/rollup.js\`), TypeScript 6 made \`baseUrl\` a deprecation *error*, and so
+  // every \`.d.ts\` in the monorepo stopped building the moment the compiler moved. Our own
+  // configs no longer set \`baseUrl\` anywhere — \`paths\` resolve relative to the config
+  // that declares them — so this covers tsup's injection and nothing else.
+  //
+  // It is a stay of execution, not a fix: TypeScript 7 removes \`baseUrl\` outright and
+  // \`ignoreDeprecations\` will not save it. tsup 8.5.1 is the current release and still
+  // injects it, so the real fix is upstream. What holds the line here meanwhile is that
+  // \`pack-and-consume\` installs these tarballs and type-checks a consumer against the
+  // emitted \`.d.ts\`, so a dts pass that silently degrades fails CI rather than shipping.
+  dts: {
+    compilerOptions: { composite: false, declarationMap: false, ignoreDeprecations: '6.0' },
+  },
   sourcemap: true,
   clean: true,
   treeshake: true,

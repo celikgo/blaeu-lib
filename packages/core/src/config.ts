@@ -143,6 +143,23 @@ function coalesce<T>(...values: [...(T | undefined)[], T]): T {
 }
 
 /**
+ * The one Node global this browser-targeted kernel touches, named explicitly.
+ *
+ * TypeScript 6 stopped pulling `@types/*` into a project automatically, so the bare
+ * `process` below no longer resolves from the ambient Node types the way it did
+ * under 5.x. The fix that suggests itself — `"types": ["node"]` in this package's
+ * tsconfig — would fix it by putting Node's *entire* global surface (`Buffer`,
+ * `__dirname`, `setImmediate`) in scope of a package that ships to browsers, where
+ * reaching for one of them compiles clean and fails in the field. Declaring the
+ * single global we actually use keeps that door shut, and makes the dependency on
+ * the host platform something you can read rather than something you inherit.
+ *
+ * `| undefined` is what makes the `typeof` guard below a narrowing rather than a
+ * tautology, so removing the guard would stop compiling.
+ */
+declare const process: { readonly env: Record<string, string | undefined> } | undefined
+
+/**
  * `strict` defaults to on everywhere except a production build.
  *
  * Written as a `typeof` guard around a literal `process.env['NODE_ENV']` so that
