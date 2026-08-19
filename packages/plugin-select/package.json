@@ -49,8 +49,8 @@
     "prepack": "npm run build"
   },
   "dependencies": {
-    "@turf/boolean-point-in-polygon": "^7.3.5",
-    "@turf/helpers": "^7.3.5"
+    "@turf/boolean-point-in-polygon": "^7.4.0",
+    "@turf/helpers": "^7.4.0"
   },
   "peerDependencies": {
     "@blaeu/core": "^0.1.1"

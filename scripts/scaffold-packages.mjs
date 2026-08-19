@@ -101,7 +101,7 @@ const packages = [
       'typescript',
     ],
     deps: {
-      proj4: '^2.12.1',
+      proj4: '^2.21.0',
       rbush: '^4.0.1',
     },
     peers: { 'maplibre-gl': '>=4.7.0 <7' },
@@ -182,8 +182,8 @@ const packages = [
     // regeneration silently deleted them from the manifest — invisible to typecheck, test and
     // build, because npm hoists them to the root anyway. Only the published tarball broke.
     deps: {
-      '@turf/boolean-point-in-polygon': '^7.3.5',
-      '@turf/helpers': '^7.3.5',
+      '@turf/boolean-point-in-polygon': '^7.4.0',
+      '@turf/helpers': '^7.4.0',
     },
     refs: ['core'],
   },
@@ -427,7 +427,7 @@ for (const pkg of packages) {
           // one, so it should be the newest major we claim to support. The floor is covered by
           // the `peer-range` matrix, which type-checks against 4.7.0 and ^5 as well.
           ...(isCore ? { 'maplibre-gl': '^6.4.0' } : { '@blaeu/core': `^${VERSION}` }),
-          ...(pkg.name === 'core' ? { '@types/proj4': '^2.5.5', '@types/rbush': '^4.0.0' } : {}),
+          ...(pkg.name === 'core' ? { '@types/proj4': '^2.19.0', '@types/rbush': '^4.0.0' } : {}),
         },
         publishConfig: { access: 'public' },
       },
