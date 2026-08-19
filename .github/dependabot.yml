@@ -21,6 +21,23 @@ updates:
         dependency-type: development
         patterns:
           - '*'
+    # maplibre-gl majors are not Dependabot's call, in either direction.
+    #
+    # `examples/*` pin `^5.6.0` deliberately: maplibre 6 does not render under headless
+    # SwiftShader. Measured on the same Chromium with the same flags, the browser suite is
+    # 21/21 on 5.24.0 and 18/21 on 6.4.0 — on v6 the map never reaches `loaded()`, so no
+    # render pass completes and `queryRenderedFeatures` returns nothing. Almost certainly v6's
+    # WebGL2-only requirement meeting a software rasteriser rather than a defect here (style,
+    # pointer, touch and basemap tests all pass on v6). PR #10 proposed exactly this bump and
+    # was closed for it; without this entry it comes back every cycle.
+    #
+    # Core is on `^6.4.0` already and peer-declares `>=4.7.0 <7`, so a bot PR could only ever
+    # move it *backwards*. What a new major actually needs is a human reading the changelog and
+    # a deliberate widening of the peer range — the `peer-range` CI matrix (floor/mid/ceiling)
+    # is what reports a supported version breaking, and it does that without a PR.
+    ignore:
+      - dependency-name: maplibre-gl
+        update-types: ['version-update:semver-major']
     labels:
       - dependencies
 

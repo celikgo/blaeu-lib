@@ -497,7 +497,12 @@ if (CHECK) {
       `✗ ${differences.length} generated file(s) differ from what is committed:\n` +
         differences.map((d) => `    ${d}`).join('\n') +
         `\n\n  Run \`npm run scaffold\` and commit the result — or, if the committed file is the\n` +
-        `  one that is right, fix the template in scripts/scaffold-packages.mjs to match.\n`,
+        `  one that is right, fix the template in scripts/scaffold-packages.mjs to match.\n\n` +
+        `  If you got here from a dependency-bump PR (Dependabot or otherwise), it is the\n` +
+        `  second one. The bot edits the generated manifest; the version in this script is\n` +
+        `  still the old one, and that disagreement is what you are reading. Running\n` +
+        `  \`npm run scaffold\` would resolve it by silently undoing the upgrade. Raise the\n` +
+        `  range in this script instead, regenerate, and commit both.\n`,
     )
     process.exit(1)
   }
