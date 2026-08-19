@@ -1,0 +1,94 @@
+name: Pages
+
+# The repo carries ~36 KB of ARCHITECTURE.md and a ~30 KB README, and on GitHub each of those
+# is one long scroll with no way across to the other. This publishes them, plus docs/CRS.md and
+# the seventeen ADRs, as a small navigable site. `scripts/build-docs.mjs` renders the markdown
+# already in the tree — there is no second copy of the prose to keep in sync.
+on:
+  push:
+    branches: [main]
+    # Only the inputs to the site. A source-only change cannot alter the output, and rebuilding
+    # for one would just be a deploy nobody asked for.
+    paths:
+      - '**.md'
+      - scripts/build-docs.mjs
+      - .github/workflows/pages.yml
+      - docs/assets/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never cancel a deploy in flight: the site would be left as whatever half-state the runner
+# reached. Queue instead, and let the newer commit publish after the older one lands.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run docs:build
+
+      # A relative link that resolves on GitHub can still 404 here, because the site is a flat
+      # directory of .html and the markdown is a tree of .md. The builder rewrites those links;
+      # this asserts the rewriting actually worked, including in-page anchors, rather than
+      # trusting it. A dead link in published docs is the cheapest possible thing to catch.
+      - name: Check every internal link and anchor resolves
+        run: |
+          node --input-type=module -e '
+          import { readdirSync, readFileSync } from "node:fs"
+          import { join } from "node:path"
+          const files = readdirSync("site").filter((f) => f.endsWith(".html"))
+          const pages = new Set(files)
+          let dead = 0
+          let checked = 0
+          for (const f of files) {
+            const html = readFileSync(join("site", f), "utf8")
+            for (const m of html.matchAll(/href="([^"]+)"/g)) {
+              const href = m[1]
+              if (/^(https?:|mailto:|#)/.test(href)) continue
+              checked++
+              const [path, hash] = href.split("#")
+              if (!pages.has(path)) {
+                console.error(`dead link: ${f} -> ${href}`)
+                dead++
+                continue
+              }
+              if (hash && !readFileSync(join("site", path), "utf8").includes(`id="${hash}"`)) {
+                console.error(`dead anchor: ${f} -> ${href}`)
+                dead++
+              }
+            }
+          }
+          console.log(`${checked} internal links checked, ${dead} dead`)
+          if (dead > 0) process.exit(1)
+          '
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

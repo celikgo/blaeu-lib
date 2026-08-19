@@ -2,7 +2,7 @@
   "name": "blaeu-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "Blaeu \u2014 an extensible geospatial kernel. Plugin-first, preset-driven, MapLibre-powered.",
+  "description": "Blaeu — an extensible geospatial kernel. Plugin-first, preset-driven, MapLibre-powered.",
   "keywords": [
     "geospatial",
     "gis",
@@ -54,6 +54,7 @@
     "changeset": "changeset",
     "release": "npm run verify && changeset publish",
     "check:docs": "node scripts/check-doc-fences.mjs",
+    "docs:build": "node scripts/build-docs.mjs",
     "test:browser": "vitest run --config vitest.browser.config.ts",
     "bench": "vitest bench --run",
     "test:mutation": "stryker run"
@@ -70,6 +71,7 @@
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
     "jsdom": "^25.0.1",
+    "marked": "^18.0.10",
     "playwright": "^1.62.1",
     "prettier": "^3.4.2",
     "tsup": "^8.3.5",

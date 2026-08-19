@@ -7,6 +7,10 @@ dist/
 .tsbuild/
 *.tsbuildinfo
 
+# The generated docs site. Its source is the markdown in the tree; the workflow
+# rebuilds it on every push, so a committed copy could only ever be a stale one.
+site/
+
 # Test / coverage
 coverage/
 
