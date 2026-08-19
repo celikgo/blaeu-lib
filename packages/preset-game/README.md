@@ -2,6 +2,8 @@
 
 The Blaeu kernel, aimed at a level editor.
 
+> Not on npm yet — see [the root README](../../README.md#packages) for how to run it from source.
+
 ```ts
 import { createBlaeuMap } from '@blaeu/core'
 import { gameMapPreset } from '@blaeu/preset-game'

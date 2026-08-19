@@ -30,6 +30,8 @@ history.canUndo // false, if that was the last one
 history.undoLabel // → 'Move vertex' — feed it straight to the menu item
 ```
 
+> Not on npm yet — see [the root README](../../README.md#packages) for how to run it from source.
+
 Undo already works at this point for _every_ plugin on the map, because they all
 mutate through the bus. A durable write is a `commit` — `dispatch` is for transient
 scaffolding only and refuses a feature-writing command, at compile time and at

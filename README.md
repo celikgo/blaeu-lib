@@ -19,14 +19,44 @@ The claim that follows from that, and the one this repository exists to make goo
 same kernel drives a land-registry cadastre tool, an urban-planning tool, and a tile-based
 game level editor — with no forks and no `if (domain === …)` anywhere inside it.
 
-```
-npm install @blaeu/core maplibre-gl
+```bash
+git clone https://github.com/celikgo/blaeu-lib && cd blaeu-lib
+npm install && npm run build
+npm run dev -w @blaeu/example-02-cadastre   # a parcel editor, in a projected Turkish CRS
 ```
 
-> **Not on npm yet.** The `@blaeu/*` packages are pre-release, so the install lines below
-> describe the shape of the API rather than something you can install today. To try it now:
-> `git clone https://github.com/celikgo/blaeu-lib && cd blaeu-lib && npm install && npm run build`,
-> then `npm run dev -w @blaeu/example-01-basic`.
+> **Not on npm yet.** `@blaeu/*` is not published, so `npm install @blaeu/core` does not
+> resolve and nothing on this page asks you to run it. The twelve packages build, pack and
+> carry their own types today — the missing step is the registry, not the packaging — and
+> [docs/PUBLISHING.md](docs/PUBLISHING.md) is the checklist that closes it. Until then the
+> clone above is the whole install, the four apps in [`examples/`](examples/) run against
+> the workspace sources, and every `import { … } from '@blaeu/core'` below resolves through
+> npm workspaces exactly as it will once published. The `npm i @blaeu/…` column in
+> [Packages](#packages) describes what each package _will_ be; it is marked as such there.
+
+### It measures land correctly, which is rarer than it should be
+
+The sharpest thing in here is not the plugin architecture — it is that the survey mathematics
+is right. The store is WGS84, but area, distance, bearing, snap tolerances and the topology
+grid are all evaluated in a **projected working CRS, in metres**. All seven Turkish TUREF/TM
+belts (EPSG:5253–5259) ship built in, along with the legacy ED50 Gauss-Krüger belts
+(EPSG:2319–2325) that decades of cadastral archive live in.
+
+That is not a detail. One 2 000 m² parcel near Ankara, measured three ways by this library:
+
+| Working CRS                               |        Area | Off by               |
+| ----------------------------------------- | ----------: | -------------------- |
+| `EPSG:5255` TUREF / TM33 — its belt       | 2000.000 m² | —                    |
+| `EPSG:5254` TUREF / TM30 — next belt over | 2002.894 m² | +2.894 m²            |
+| `EPSG:3857` Web Mercator                  | 3405.467 m² | +1405.467 m² (+70 %) |
+
+All three look like plausible areas, and a land registry would reject two of them. Blaeu also
+quantises to the millimetre grid _of the projected plane_ rather than to decimal places of
+longitude, and gives shared parcel corners a single topological identity so neighbours cannot
+be dragged apart into a sliver of unowned land.
+
+**→ [docs/CRS.md](docs/CRS.md)** — the belts, the guarantees, and a worked parcel with real
+coordinates.
 
 ## Quick start
 
@@ -246,6 +276,12 @@ EPSG:3857** — never catastrophically wrong for a map that has not said where i
 never survey-grade either: at 40°N a Web Mercator "metre" is 1.3 real metres, so a planar
 area is ~70 % too large. Set a belt before measuring anything that matters.
 
+**[docs/CRS.md](docs/CRS.md) is the full treatment** — all seven TUREF belts with the
+provinces each covers, the ED50 archive and its two traps, the quantisation and
+vertex-identity guarantees, and a worked Ankara parcel whose area comes out at 2000.000 m² in
+TM33, 2002.894 m² in the neighbouring TM30, and 3405.467 m² in Web Mercator. Every number
+there was produced by running the library.
+
 ### The plugin registry is typed by declaration merging
 
 ```ts
@@ -455,7 +491,7 @@ option.
 at 0.1.x. Until the first publish, run them from source — see the note under the first
 install fence above.
 
-| Package                  | Install                         | What it is                                                                       |
+| Package                  | Install (once published)        | What it is                                                                       |
 | ------------------------ | ------------------------------- | -------------------------------------------------------------------------------- |
 | `@blaeu/core`            | `npm i @blaeu/core maplibre-gl` | The kernel, the MapLibre renderer, and `@blaeu/core/testing`                     |
 | `@blaeu/plugin-snap`     | `npm i @blaeu/plugin-snap`      | Snapping as interaction middleware; 7 built-in providers, pluggable              |
@@ -519,6 +555,11 @@ A library honest about its edges is worth more than one that is not, so:
 - [`examples/`](examples/) — four runnable apps built against the workspace sources, one per
   claim this README makes: `01-basic`, `02-cadastre`, `03-urban-planning`, `04-game-map`.
   `npm install && npm run build` at the root, then `npm run dev -w @blaeu/example-02-cadastre`.
+- [docs/CRS.md](docs/CRS.md) — the Turkish coordinate reference systems: TUREF/TM27–TM45 and
+  the ED50 belts, why the store is WGS84 while survey maths runs in a projected plane, the
+  millimetre and vertex-identity guarantees, and a worked parcel with real coordinates.
+- [docs/PUBLISHING.md](docs/PUBLISHING.md) — what is packaged, what is verified, and the two
+  credentialled steps between here and `npm install @blaeu/core` working.
 - [docs/theming.md](docs/theming.md) — the theme system: switching light/dark, the seven
   built-in themes (including the Twitter/X palettes), theme-following layer styles, and
   writing your own theme.

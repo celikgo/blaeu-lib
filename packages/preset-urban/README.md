@@ -23,6 +23,8 @@ console.table(scenarios.compare('Mevcut', 'Yoğun').categories)
 // T     Ticaret Alanı     6 500         0    -6 500   -100.0
 ```
 
+> Not on npm yet — see [the root README](../../README.md#packages) for how to run it from source.
+
 ---
 
 ## Who this is for
