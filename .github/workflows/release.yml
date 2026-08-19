@@ -41,15 +41,31 @@ jobs:
       # and version files are already bumped — publishes. All twelve move in lockstep
       # (`fixed: [["@blaeu/*"]]`), so there is never a partial release where a preset depends
       # on a plugin version that does not exist yet.
+      #
+      # v2 is not a drop-in for v1, and the way it is not is the dangerous way: Actions does not
+      # error on unrecognised `with:` keys. A bare `@v1` -> `@v2` bump therefore stays valid
+      # YAML and silently stops doing the job — `version`/`publish` would be ignored, so
+      # `changeset version` would never run and no release would ever be cut, with a green tick
+      # on the run. The v2 renames, all of which this step used:
+      #   version -> version-script   publish -> publish-script
+      #   commit  -> commit-message   title   -> pr-title
+      # and the token moved out of the environment into the `github-token` input, because v2
+      # removed `GITHUB_TOKEN` as an authentication path entirely.
       - name: Create the release PR, or publish
         uses: changesets/action@v2
         with:
-          version: npx changeset version
-          publish: npx changeset publish
-          commit: 'chore: version packages'
-          title: 'chore: version packages'
+          # v2 defaults this to `${{ github.token }}`, which is the same value; passing it is
+          # what keeps the step honest if the workflow ever moves to a PAT or an app token.
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version-script: npx changeset version
+          publish-script: npx changeset publish
+          commit-message: 'chore: version packages'
+          pr-title: 'chore: version packages'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # v2 also stopped writing its own `.npmrc` from `NPM_TOKEN`. Registry auth is now
+          # entirely `actions/setup-node`'s doing: `registry-url` above writes an `.npmrc` that
+          # reads `${NODE_AUTH_TOKEN}`, and this is that variable. Renaming it back to
+          # `NPM_TOKEN` would authenticate against nothing.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           # Signed attestation of which commit and workflow built each tarball. For a library
           # that will sit under cadastral software, "where did this artefact come from" is a
