@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#131c26"/>
+    </linearGradient>
+    <pattern id="grid" width="25.25" height="25.25" patternUnits="userSpaceOnUse">
+      <path d="M 25.25 0 L 0 0 0 25.25" fill="none" stroke="#243040" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect width="1280" height="640" fill="url(#grid)" opacity="0.5"/>
+
+  <!-- parcels -->
+  <polygon points="96.0,512.0 328.3,512.0 328.3,320.1 96.0,320.1" fill="#c9a227" fill-opacity="0.17" stroke="#c9a227" stroke-width="2.25" stroke-linejoin="round"/>
+    <polygon points="328.3,512.0 580.8,512.0 580.8,360.5 328.3,320.1" fill="#7ea172" fill-opacity="0.17" stroke="#7ea172" stroke-width="2.25" stroke-linejoin="round"/>
+    <polygon points="328.3,320.1 580.8,360.5 580.8,138.3 358.6,138.3" fill="#b4795c" fill-opacity="0.17" stroke="#b4795c" stroke-width="2.25" stroke-linejoin="round"/>
+    <polygon points="96.0,320.1 328.3,320.1 358.6,138.3 96.0,138.3" fill="#6f8fa8" fill-opacity="0.17" stroke="#6f8fa8" stroke-width="2.25" stroke-linejoin="round"/>
+  <text x="212.1" y="416.1" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="13" fill="#e8edf3" fill-opacity="0.92" font-weight="600">181/7</text>
+    <text x="212.1" y="433.1" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="11.5" fill="#9fb0c2">1748.000 m²</text>
+    <text x="454.6" y="426.1" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="13" fill="#e8edf3" fill-opacity="0.92" font-weight="600">181/8</text>
+    <text x="454.6" y="443.1" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="11.5" fill="#9fb0c2">1700.000 m²</text>
+    <text x="462.1" y="269.6" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="13" fill="#e8edf3" fill-opacity="0.92" font-weight="600">181/9</text>
+    <text x="462.1" y="286.6" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="11.5" fill="#9fb0c2">1892.000 m²</text>
+    <text x="219.7" y="229.2" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="13" fill="#e8edf3" fill-opacity="0.92" font-weight="600">181/12</text>
+    <text x="219.7" y="246.2" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="11.5" fill="#9fb0c2">1764.000 m²</text>
+  <circle cx="96.0" cy="512.0" r="3.6" fill="#0e1218" stroke="#e8edf3" stroke-width="1.9"/>
+    <circle cx="328.3" cy="512.0" r="3.6" fill="#0e1218" stroke="#e8edf3" stroke-width="1.9"/>
+    <circle cx="328.3" cy="320.1" r="3.6" fill="#0e1218" stroke="#e8edf3" stroke-width="1.9"/>
+    <circle cx="96.0" cy="320.1" r="3.6" fill="#0e1218" stroke="#e8edf3" stroke-width="1.9"/>
+    <circle cx="580.8" cy="512.0" r="3.6" fill="#0e1218" stroke="#e8edf3" stroke-width="1.9"/>
+    <circle cx="580.8" cy="360.5" r="3.6" fill="#0e1218" stroke="#e8edf3" stroke-width="1.9"/>
+    <circle cx="580.8" cy="138.3" r="3.6" fill="#0e1218" stroke="#e8edf3" stroke-width="1.9"/>
+    <circle cx="358.6" cy="138.3" r="3.6" fill="#0e1218" stroke="#e8edf3" stroke-width="1.9"/>
+    <circle cx="96.0" cy="138.3" r="3.6" fill="#0e1218" stroke="#e8edf3" stroke-width="1.9"/>
+
+  <!-- the drag: cursor pulled away, vertex snapped back to the shared corner -->
+  <line x1="362.29999999999995" y1="294.1" x2="328.29999999999995" y2="320.1" stroke="#6ee7f9" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.75"/>
+  <circle cx="328.29999999999995" cy="320.1" r="17" fill="none" stroke="#6ee7f9" stroke-width="1.4" opacity="0.45"/>
+  <circle cx="328.29999999999995" cy="320.1" r="10.5" fill="none" stroke="#6ee7f9" stroke-width="2.1"/>
+  <circle cx="328.29999999999995" cy="320.1" r="4.6" fill="#6ee7f9"/>
+
+  <!-- snap callout, in the empty band above the parcels, with a leader to the snapped corner -->
+  <line x1="224.0" y1="118.0" x2="332.3" y2="300.1" stroke="#6ee7f9" stroke-width="1.1" stroke-dasharray="3 3" opacity="0.5"/>
+  <g transform="translate(96.0, 60.0)">
+    <rect x="0" y="0" width="266" height="56" rx="7" fill="#0e1620" stroke="#6ee7f9" stroke-opacity="0.55" stroke-width="1.2"/>
+    <text x="14" y="23" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="12" fill="#6ee7f9" font-weight="700">SNAP · shared corner · 4 parcels</text>
+    <text x="14" y="42" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="12" fill="#9fb0c2">Y=486346.000  X=4421988.000</text>
+  </g>
+
+  <!-- cursor -->
+  <path d="M 362.29999999999995 294.1 l 0 17 l 4.2 -4.4 l 3.1 6.6 l 3.3 -1.6 l -3.1 -6.4 l 6 -0.5 Z" fill="#ffffff" stroke="#0d1117" stroke-width="1.1" stroke-linejoin="round"/>
+
+  <!-- wordmark -->
+  <text x="1216" y="150" text-anchor="end" font-family="Georgia,'Times New Roman',serif" font-size="92" fill="#f2f6fa" letter-spacing="-2">blaeu</text>
+  <text x="1216" y="192" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,sans-serif" font-size="20" fill="#9fb0c2">A plugin-first geospatial editing kernel, in TypeScript.</text>
+
+  <g transform="translate(1216, 236)">
+    <text x="0" y="0" text-anchor="end" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="14.5" fill="#c9a227">TUREF / TM33 · EPSG:5255 · mm grid</text>
+    <text x="0" y="26" text-anchor="end" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="14.5" fill="#7ea172">planar area in the working CRS</text>
+    <text x="0" y="52" text-anchor="end" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="14.5" fill="#6ee7f9">topological vertex identity</text>
+  </g>
+
+  <text x="1216" y="596" text-anchor="end" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="14" fill="#5d6d7e">github.com/celikgo/blaeu-lib</text>
+</svg>

@@ -26,6 +26,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const out = join(root, 'site')
 const REPO = 'https://github.com/celikgo/blaeu-lib'
 const BLOB = `${REPO}/blob/main`
+const SITE = 'https://celikgo.github.io/blaeu-lib'
 
 /**
  * Every page on the site, in nav order.
@@ -286,6 +287,12 @@ function page({ title, bodyHtml, slug, sourcePath }) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title>
 <meta name="description" content="Blaeu — a plugin-first geospatial editing kernel in TypeScript, with Turkish cadastral coordinate reference systems built in.">
+<meta property="og:title" content="${escapeHtml(title)}">
+<meta property="og:description" content="A plugin-first geospatial editing kernel in TypeScript. TUREF/TM and ED50 coordinate reference systems, planar area in the working CRS, topological vertex identity.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="${SITE}/assets/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="${SITE}/assets/social-preview.png">
 <style>${STYLE}</style>
 </head>
 <body>
