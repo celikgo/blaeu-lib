@@ -11,7 +11,15 @@
     "noEmit": true,
     "composite": false,
     "declaration": false,
-    "declarationMap": false
+    "declarationMap": false,
+    // The tests are the one part of this repo that really does run on Node — `process.env`
+    // in the config suite, `node:fs`/`node:url` in the peer-range suite — so unlike
+    // `packages/core`, which ships to browsers and declares the single global it touches,
+    // this project wants the whole Node surface. TypeScript 5 supplied it by pulling in
+    // every `@types/*` package it could find; TypeScript 6 stopped doing that, so the
+    // dependency has to be written down. Naming it is the improvement: `typecheck:tests`
+    // now says which platform it type-checks against instead of inheriting one by accident.
+    "types": ["node"]
   },
   // Both roots vitest discovers tests from (`test.include` in vitest.config.ts), so no file
   // vitest runs can escape this check — even a future `packages/*/test/` suite.

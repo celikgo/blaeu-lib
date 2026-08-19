@@ -38,6 +38,21 @@ updates:
     ignore:
       - dependency-name: maplibre-gl
         update-types: ['version-update:semver-major']
+      # TypeScript majors wait on the lint stack rather than on us. `typescript-eslint@8.67.0`
+      # is the current stable release and peer-declares `typescript: >=4.8.4 <6.1.0`, so a
+      # bump to 7.x does not fail a test — it fails `npm ci` with ERESOLVE and takes all six
+      # jobs down before any of them start. That is precisely how PR #8 arrived: the group
+      # carried `typescript@^7.0.2` alongside a `typescript-eslint` that cannot accept it, and
+      # every job died in under eleven seconds. 6.0.3 is the highest version the peer range
+      # admits, and is what this repo is on.
+      #
+      # A hold on the *major* only: 6.x minors and patches still come through this group as
+      # usual. It comes out the moment typescript-eslint ships a stable release that accepts
+      # 7 — today only `8.67.1-alpha.*` does. Without the entry the same uninstallable pull
+      # request returns every week, which is how a repository teaches its maintainer to stop
+      # reading the bot.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
     labels:
       - dependencies
 

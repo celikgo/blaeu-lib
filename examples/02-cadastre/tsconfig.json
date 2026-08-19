@@ -1,11 +1,14 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    // `baseUrl` is set explicitly so the `paths` inherited from tsconfig.base.json
-    // resolve against the repo root rather than against this directory. The root
-    // tsconfig deliberately does not `reference` the examples — they are apps, not
-    // build outputs — so this config has to stand on its own.
-    "baseUrl": "../..",
+    // No `baseUrl` here, and none is needed: `paths` that are declared without one
+    // resolve against the directory of the config that *declares* them, which is
+    // tsconfig.base.json at the repo root — exactly where the aliases point. `baseUrl`
+    // used to be how that was spelled, it is deprecated in TypeScript 6 and removed in
+    // 7, and it was already redundant before either. The root tsconfig deliberately
+    // does not `reference` the examples — they are apps, not build outputs — so this
+    // config still has to stand on its own; it just no longer needs a deprecated
+    // option to do it.
     "noEmit": true,
     "composite": false,
     "types": ["vite/client"]

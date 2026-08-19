@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config'
+import { playwright } from '@vitest/browser-playwright'
 import { fileURLToPath } from 'node:url'
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url))
@@ -72,7 +73,11 @@ export default defineConfig({
     hookTimeout: 30_000,
     browser: {
       enabled: true,
-      provider: 'playwright',
+      // Vitest 4 replaced the `provider: 'playwright'` string with a factory from
+      // `@vitest/browser-playwright`. The string form does not warn, it throws at startup —
+      // which is the good outcome, because this suite is deliberately outside `npm run
+      // verify` and a silently-disabled browser gate would look exactly like a passing one.
+      provider: playwright(),
       headless: true,
       screenshotFailures: false,
       instances: [
