@@ -1,6 +1,6 @@
 {
   "name": "@blaeu/plugin-snap",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Snapping engine: vertex, edge, midpoint, intersection, grid and guide providers.",
   "keywords": [
     "blaeu",
@@ -50,10 +50,10 @@
     "prepack": "npm run build"
   },
   "peerDependencies": {
-    "@blaeu/core": "^0.1.1"
+    "@blaeu/core": "^0.1.2"
   },
   "devDependencies": {
-    "@blaeu/core": "^0.1.1"
+    "@blaeu/core": "^0.1.2"
   },
   "publishConfig": {
     "access": "public"
