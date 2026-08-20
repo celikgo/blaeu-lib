@@ -163,6 +163,32 @@ docs are wrong in the other direction:
 grep -rn 'Not on npm yet\|once published' README.md packages/*/README.md   # should print nothing
 ```
 
+## The one check that will not go green on its own
+
+The **Version Packages** pull request is opened by `github-actions[bot]`, and GitHub treats a
+bot-authored PR as coming from a first-time contributor: its CI runs land in
+`action_required` and wait for a human to approve them. Every other pull request in this
+repository, Dependabot's included, goes green unattended.
+
+This is not a setting that can be turned off. The repository-level policy accepts only
+`first_time_contributors_new_to_github`, `first_time_contributors` or
+`all_external_contributors` — there is no "never" — and the loosest of the three was set and
+still gated the bot. Approving a run does not promote the bot to contributor, either: the
+next release PR gates again. Both were measured here rather than inferred.
+
+Two ways to live with it:
+
+- **Approve it, once per release.** On the PR's checks, or
+  `gh api -X POST repos/celikgo/blaeu-lib/actions/runs/<id>/approve`. What that click is
+  worth knowing about: it is not the gate protecting the release. `release.yml` runs
+  `npm run verify` on `main` after the merge and before `changeset publish`, so a release
+  that should not ship is stopped there whether or not the PR's own checks ran.
+- **Give it a real identity.** A PAT with `repo` scope stored as `RELEASE_PR_TOKEN` makes
+  the PR come from an account rather than the bot, and the gating stops. `release.yml`
+  already reads it —
+  `github-token: ${{ secrets.RELEASE_PR_TOKEN || secrets.GITHUB_TOKEN }}` — so adding the
+  secret is the whole change; there is no code to edit.
+
 ## The version trap
 
 `.changeset/config.json` documents this at length and it is worth repeating, because it is

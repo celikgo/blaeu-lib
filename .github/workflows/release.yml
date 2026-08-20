@@ -72,9 +72,26 @@ jobs:
       - name: Create the release PR, or publish
         uses: changesets/action@v2
         with:
-          # v2 defaults this to `${{ github.token }}`, which is the same value; passing it is
-          # what keeps the step honest if the workflow ever moves to a PAT or an app token.
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # `RELEASE_PR_TOKEN` if it exists, the built-in token otherwise. Unset secrets expand
+          # to the empty string, so this falls back on its own and needs no code change to
+          # switch over.
+          #
+          # Why the seam is here at all: a pull request opened by `github-actions[bot]` is
+          # treated as coming from a first-time contributor, so its CI runs land in
+          # `action_required` and sit there until a human clicks approve. That is not a
+          # setting we can turn off — the repository-level policy offers only
+          # `first_time_contributors_new_to_github`, `first_time_contributors` and
+          # `all_external_contributors`, there is no "never", and the loosest of the three was
+          # tried and still gated the bot. Approving a run does not promote the bot to
+          # contributor either; the next release PR gates again. Measured, not assumed.
+          #
+          # So the release PR is the one pull request in this repository whose checks do not
+          # go green by themselves. A classic or fine-grained PAT with `repo` scope, stored as
+          # `RELEASE_PR_TOKEN`, makes the PR come from a real account and ends it permanently.
+          # Until then, approving the run once per release is the cost, and it is bounded: the
+          # gate that actually protects a release is `npm run verify` in this job, which runs
+          # on `main` after the merge and before anything reaches npm.
+          github-token: ${{ secrets.RELEASE_PR_TOKEN || secrets.GITHUB_TOKEN }}
           version-script: npx changeset version
           publish-script: npx changeset publish
           commit-message: 'chore: version packages'
