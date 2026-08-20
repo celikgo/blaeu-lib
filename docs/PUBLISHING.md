@@ -4,8 +4,10 @@ Nothing here is published yet. This is the checklist that closes that, written a
 packaging itself was verified rather than assumed — everything under
 [What is already done](#what-is-already-done) was run, and its output is quoted.
 
-The two things that remain need credentials, and only those: an npm account that owns the
-`@blaeu` scope, and a token in the repository's secrets. No code change is required.
+What remains needs credentials, and only credentials: an npm account that owns the `@blaeu`
+scope. There is no code change left — `release.yml` is already wired for
+[trusted publishing](#2-publish-once-by-hand-then-hand-the-keys-to-oidc), so the repository
+holds **no publish token at all** and none needs to be created for the steady state.
 
 ## What is already done
 
@@ -41,10 +43,20 @@ The four apps under `examples/` are `private: true` and are additionally listed 
 `@blaeu/core` as a `peerDependency`, never a dependency — two kernels in one `node_modules`
 means two event buses, and the failure is silent.
 
-**The release workflow exists.** [`.github/workflows/release.yml`](../.github/workflows/release.yml)
-runs `npm run verify` and then `changesets/action`, which either opens the "Version Packages"
-PR or — when that PR has just merged — publishes. It already sets `NPM_CONFIG_PROVENANCE: true`
-and requests `id-token: write`, so tarballs are published with a signed provenance attestation.
+**The release workflow exists, and authenticates without a secret.**
+[`.github/workflows/release.yml`](../.github/workflows/release.yml) runs `npm run verify` and
+then `changesets/action@v2`, which either opens the "Version Packages" PR or — when that PR
+has just merged — publishes. It sets `NPM_CONFIG_PROVENANCE: true`, requests
+`id-token: write`, and deliberately sets **no** `NODE_AUTH_TOKEN`: npm exchanges the OIDC
+token GitHub mints for this repository and this workflow file for a short-lived credential
+scoped to exactly that. Tarballs carry a signed provenance attestation either way.
+
+Two details in there are load-bearing and easy to undo by accident. The job upgrades npm to
+11 before publishing, because trusted publishing landed in npm 11.5.1 and Node 22 still
+bundles 10.9 — the default npm fails with a plain authentication error that never mentions
+OIDC. And `NODE_AUTH_TOKEN` must be _absent_, not empty: writing
+`NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` with no such secret expands to an empty string,
+which npm finds, believes, and fails on with a 401 instead of falling back to OIDC.
 
 **Versions are aligned.** All twelve are at the same version, enforced by
 `fixed: [["@blaeu/*"]]`. There is never a partial release where a preset depends on a plugin
@@ -67,30 +79,57 @@ manifests; the prose is manual. Check availability before anything else:
 npm view @blaeu/core          # E404 today — that is what we want to stop being true
 ```
 
-### 2. Add the token
+### 2. Publish once by hand, then hand the keys to OIDC
 
-Create a **granular access token** (not a classic one), scoped to the `@blaeu` packages,
-with read-and-write permission, then:
+**A trusted publisher is configured on a package that already exists.** That is the one
+awkward fact in this plan and there is no way around it: npm has nothing to attach a trust
+policy to until the name is on the registry, so the _first_ version of each of the twelve
+cannot be published by `release.yml` as it stands. Every version after the first can.
 
-```bash
-gh secret set NPM_TOKEN --repo celikgo/blaeu-lib
-```
-
-The repository has **no secrets set today**, which is why the release job would fail at the
-publish step if it ran now. Provenance additionally requires the workflow to publish from a
-public repository on a GitHub-hosted runner — both already true.
-
-### 3. Publish
-
-With a changeset pending, push to `main`. The workflow opens the Version Packages PR; merging
-it triggers the publish. To do the first one by hand instead:
+So the first release is a local one:
 
 ```bash
+npm login                 # interactive; needs your OTP
 npm run verify            # scaffold, boundaries, typecheck, lint, docs, tests, build
 npx changeset version     # bumps all twelve in lockstep, writes CHANGELOGs
 npx changeset publish     # publishes and creates the git tags
 git push --follow-tags
 ```
+
+Those tarballs will have **no provenance attestation** — provenance is a statement about a
+CI run, and this one is a laptop. That is the price of the bootstrap and it applies to 0.1.2
+only.
+
+Then, once for each of the twelve packages, on npmjs.com → the package → _Settings_ →
+_Trusted Publisher_:
+
+| Field         | Value           |
+| ------------- | --------------- |
+| Publisher     | GitHub Actions  |
+| Organization  | `celikgo`       |
+| Repository    | `blaeu-lib`     |
+| Workflow file | `release.yml`   |
+| Environment   | _(leave empty)_ |
+
+Trusted publisher configurations created after 20 May 2026 require you to explicitly tick at
+least one allowed action; `npm publish` is the one this workflow needs.
+
+Twelve is tedious and it is also the last of it. From 0.1.3 onward the only thing that
+publishes is a merge of the Version Packages PR, with no credential anywhere in the
+repository to leak, expire, or forget to rotate.
+
+### 3. Do not add an NPM_TOKEN secret
+
+Worth stating as its own step, because it is the natural thing to reach for when a publish
+fails and it will actively break this setup. `release.yml` authenticates by _not_ having a
+token; a secret named `NPM_TOKEN` would only take effect if someone also re-added
+`NODE_AUTH_TOKEN` to the publish step, and at that point the OIDC path is dead and the
+provenance attestation is attesting to a token-authenticated publish.
+
+If a publish fails, the cause is almost always one of three things, in order of likelihood:
+the trusted publisher is not configured for _that_ package (all twelve need it), the workflow
+filename in the trusted publisher config does not match `release.yml`, or npm on the runner is
+older than 11.5.1.
 
 ### 4. Undo the honesty
 

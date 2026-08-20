@@ -4,7 +4,14 @@ on:
   push:
     branches: [main]
 
-# `changeset publish` creates git tags and pushes them; `--provenance` needs an OIDC token.
+# `contents: write` because `changeset publish` creates git tags and pushes them, and
+# `pull-requests: write` because the same step opens the "Version Packages" PR.
+#
+# `id-token: write` now does double duty. It was here for provenance — the signed statement
+# of which commit and workflow built each tarball — and it is also the whole of how this
+# workflow authenticates to npm. There is no publish token: the registry trusts an OIDC
+# token minted by this repository, for this workflow file, and nothing else. A stolen
+# secret is not a thing that can happen to a secret that does not exist.
 permissions:
   contents: write
   id-token: write
@@ -28,8 +35,19 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          # Required for provenance: it points npm at the registry the OIDC token is for.
+          # Not optional, and not only for provenance: this is what tells npm which registry
+          # to present the OIDC token to. Without it the publish falls back to looking for a
+          # token that is deliberately not here.
           registry-url: 'https://registry.npmjs.org'
+
+      # Trusted publishing landed in npm 11.5.1; Node 22 still bundles npm 10.9, so the
+      # runner's default npm would fail this with an authentication error rather than
+      # anything that names OIDC. Pinned rather than `@latest` so a release is never the
+      # first thing to meet a new npm major. `npm ci` below runs on this same npm.
+      - name: npm new enough to publish with OIDC
+        run: |
+          npm install -g npm@11
+          npm --version
 
       - run: npm ci
 
@@ -62,12 +80,20 @@ jobs:
           commit-message: 'chore: version packages'
           pr-title: 'chore: version packages'
         env:
-          # v2 also stopped writing its own `.npmrc` from `NPM_TOKEN`. Registry auth is now
-          # entirely `actions/setup-node`'s doing: `registry-url` above writes an `.npmrc` that
-          # reads `${NODE_AUTH_TOKEN}`, and this is that variable. Renaming it back to
-          # `NPM_TOKEN` would authenticate against nothing.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # No `NODE_AUTH_TOKEN`, and its absence is the design rather than an omission.
+          # `@blaeu/*` publishes through npm trusted publishing: npm exchanges the OIDC token
+          # granted by `id-token: write` above for a short-lived, single-purpose credential
+          # scoped to this repository and this workflow file. Setting `NODE_AUTH_TOKEN` to an
+          # empty string here — which is what an unset `secrets.NPM_TOKEN` would expand to —
+          # is worse than setting nothing, because npm then finds a credential, believes it,
+          # and fails with a 401 instead of reaching for OIDC at all.
+          #
+          # Bootstrap, recorded because it is the one step this file cannot perform: a trusted
+          # publisher is configured on a package that already exists, so the *first* version of
+          # each of the twelve has to be published with a token before any of this applies.
+          #
           # Signed attestation of which commit and workflow built each tarball. For a library
           # that will sit under cadastral software, "where did this artefact come from" is a
-          # question with a real answer rather than a shrug.
+          # question with a real answer rather than a shrug. Trusted publishing generates it
+          # anyway; stating it keeps the intent readable and survives the auth mode changing.
           NPM_CONFIG_PROVENANCE: true
