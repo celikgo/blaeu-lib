@@ -86,19 +86,25 @@ awkward fact in this plan and there is no way around it: npm has nothing to atta
 policy to until the name is on the registry, so the _first_ version of each of the twelve
 cannot be published by `release.yml` as it stands. Every version after the first can.
 
-So the first release is a local one:
+The order below matters, and it is not the obvious one. The temptation is to merge the open
+Version Packages PR first and let CI publish 0.1.2 — that publish is guaranteed to fail,
+because there is nothing on the registry yet to have trusted it. Publish the version `main`
+is _already_ on instead, by hand, and let CI have the next one:
 
 ```bash
 npm login                 # interactive; needs your OTP
+git checkout main && git pull
 npm run verify            # scaffold, boundaries, typecheck, lint, docs, tests, build
-npx changeset version     # bumps all twelve in lockstep, writes CHANGELOGs
-npx changeset publish     # publishes and creates the git tags
-git push --follow-tags
+npx changeset publish     # publishes all twelve at their current version, 0.1.1
 ```
 
-Those tarballs will have **no provenance attestation** — provenance is a statement about a
-CI run, and this one is a laptop. That is the price of the bootstrap and it applies to 0.1.2
-only.
+No `changeset version` in there: `main` is already at 0.1.1, `v0.1.1` is already tagged, and
+the pending changeset is what takes it to 0.1.2. `changeset publish` publishes whatever is in
+the manifests and not yet on the registry, which is exactly the twelve.
+
+Those twelve 0.1.1 tarballs will carry **no provenance attestation** — provenance is a
+statement about a CI run, and this one is a laptop. That is the whole price of the bootstrap,
+it is paid once, and 0.1.2 onwards gets provenance because CI publishes them.
 
 Then, once for each of the twelve packages, on npmjs.com → the package → _Settings_ →
 _Trusted Publisher_:
@@ -114,9 +120,18 @@ _Trusted Publisher_:
 Trusted publisher configurations created after 20 May 2026 require you to explicitly tick at
 least one allowed action; `npm publish` is the one this workflow needs.
 
-Twelve is tedious and it is also the last of it. From 0.1.3 onward the only thing that
-publishes is a merge of the Version Packages PR, with no credential anywhere in the
-repository to leak, expire, or forget to rotate.
+Twelve is tedious and it is also the last of it.
+
+Then merge the open **Version Packages** PR. That is the first release this repository
+publishes on its own: `changesets/action@v2` runs `changeset publish`, npm authenticates it
+through OIDC against the trust policies just configured, and 0.1.2 lands with a provenance
+attestation naming the commit and the workflow that built it. Every release after it is the
+same single act — merge the PR — with no credential anywhere in the repository to leak,
+expire, or forget to rotate.
+
+A useful property of doing it in this order: nothing about the release pipeline is taken on
+faith. If the trusted publishers are wrong, the 0.1.2 run says so, and the packages are
+already on npm at 0.1.1 regardless.
 
 ### 3. Do not add an NPM_TOKEN secret
 
