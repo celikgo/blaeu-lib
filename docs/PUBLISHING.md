@@ -64,20 +64,43 @@ version that does not exist.
 
 ## What remains
 
-### 1. Reserve the scope
+### 1. Create the `blaeu` organisation — in a browser, because there is no other way
 
-```bash
-npm login                 # interactive; needs your OTP
-npm org create blaeu      # or publish under a user scope you already own
+`@blaeu` is an **organisation scope**, not a user scope. `celikgo` is the username, so
+nothing here can be published until an org called `blaeu` exists, and creating one is a
+web-only action: <https://www.npmjs.com/org/create>. Free for public packages.
+
+There is no CLI or token path for this, and it is worth stating because the obvious guess
+fails silently in the wrong direction — an earlier version of this document said
+`npm org create blaeu`, which is not a command. `npm org` only does `set`, `rm` and `ls`,
+all of which operate on an org that already exists:
+
+```console
+$ npm org --help
+npm org set orgname username [developer | admin | owner]
+npm org rm orgname username
+npm org ls orgname [<username>]
 ```
 
-If `@blaeu` is taken by the time you get there, the name has to change in twelve manifests,
-every README, and the declaration-merging examples. `npm run scaffold` regenerates the
-manifests; the prose is manual. Check availability before anything else:
+So no amount of authentication substitutes for this step. A token that authenticates
+perfectly well as `celikgo` still cannot publish `@blaeu/core`, because the scope it names
+does not exist:
+
+```console
+$ curl -s https://registry.npmjs.org/-/org/blaeu/package
+{"error":"Scope not found"}
+```
+
+Check availability before anything else — if `@blaeu` is taken by the time you get there, the
+name has to change in twelve manifests, every README, and the declaration-merging examples.
+`npm run scaffold` regenerates the manifests; the prose is manual.
 
 ```bash
 npm view @blaeu/core          # E404 today — that is what we want to stop being true
 ```
+
+Once the org exists, `npm login` (interactive, needs your OTP) is the authentication the next
+step uses.
 
 ### 2. Publish once by hand, then hand the keys to OIDC
 
