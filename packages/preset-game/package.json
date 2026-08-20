@@ -1,6 +1,6 @@
 {
   "name": "@blaeu/preset-game",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Game map preset: entity placement, grid snapping, procedural hooks.",
   "keywords": [
     "blaeu",
@@ -49,17 +49,17 @@
     "prepack": "npm run build"
   },
   "dependencies": {
-    "@blaeu/plugin-snap": "^0.1.1",
-    "@blaeu/plugin-draw": "^0.1.1",
-    "@blaeu/plugin-select": "^0.1.1",
-    "@blaeu/plugin-history": "^0.1.1",
-    "@blaeu/plugin-ui": "^0.1.1"
+    "@blaeu/plugin-snap": "^0.1.2",
+    "@blaeu/plugin-draw": "^0.1.2",
+    "@blaeu/plugin-select": "^0.1.2",
+    "@blaeu/plugin-history": "^0.1.2",
+    "@blaeu/plugin-ui": "^0.1.2"
   },
   "peerDependencies": {
-    "@blaeu/core": "^0.1.1"
+    "@blaeu/core": "^0.1.2"
   },
   "devDependencies": {
-    "@blaeu/core": "^0.1.1"
+    "@blaeu/core": "^0.1.2"
   },
   "publishConfig": {
     "access": "public"

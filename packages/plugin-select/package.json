@@ -1,6 +1,6 @@
 {
   "name": "@blaeu/plugin-select",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Selection: single, multi, box, lasso.",
   "keywords": [
     "blaeu",
@@ -53,10 +53,10 @@
     "@turf/helpers": "^7.4.0"
   },
   "peerDependencies": {
-    "@blaeu/core": "^0.1.1"
+    "@blaeu/core": "^0.1.2"
   },
   "devDependencies": {
-    "@blaeu/core": "^0.1.1"
+    "@blaeu/core": "^0.1.2"
   },
   "publishConfig": {
     "access": "public"

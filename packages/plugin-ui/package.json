@@ -1,6 +1,6 @@
 {
   "name": "@blaeu/plugin-ui",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Framework-free UI controls: toolbar, coordinate readout, snap indicator, issue panel.",
   "keywords": [
     "blaeu",
@@ -49,10 +49,10 @@
     "prepack": "npm run build"
   },
   "peerDependencies": {
-    "@blaeu/core": "^0.1.1"
+    "@blaeu/core": "^0.1.2"
   },
   "devDependencies": {
-    "@blaeu/core": "^0.1.1"
+    "@blaeu/core": "^0.1.2"
   },
   "publishConfig": {
     "access": "public"

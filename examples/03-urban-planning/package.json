@@ -10,10 +10,10 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@blaeu/core": "^0.1.1",
-    "@blaeu/plugin-select": "^0.1.1",
-    "@blaeu/plugin-topology": "^0.1.1",
-    "@blaeu/preset-urban": "^0.1.1",
+    "@blaeu/core": "^0.1.2",
+    "@blaeu/plugin-select": "^0.1.2",
+    "@blaeu/plugin-topology": "^0.1.2",
+    "@blaeu/preset-urban": "^0.1.2",
     "maplibre-gl": "^5.6.0"
   },
   "devDependencies": {

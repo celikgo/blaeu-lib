@@ -1,6 +1,6 @@
 {
   "name": "@blaeu/plugin-topology",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Topology validation via JSTS: self-intersection, overlaps, gaps, slivers.",
   "keywords": [
     "blaeu",
@@ -53,10 +53,10 @@
     "jsts": "^2.12.1"
   },
   "peerDependencies": {
-    "@blaeu/core": "^0.1.1"
+    "@blaeu/core": "^0.1.2"
   },
   "devDependencies": {
-    "@blaeu/core": "^0.1.1"
+    "@blaeu/core": "^0.1.2"
   },
   "publishConfig": {
     "access": "public"
