@@ -56,9 +56,10 @@ never gets `undefined`.
 The second one has a consequence worth stating plainly, because it is the source
 of most surprises here: **a token a theme does not mention is the default's.**
 `twitter-black` never sets `accentMuted`, so `twitter-black`'s `accentMuted` is
-`#93c5fd` — a pale sky blue, in a true-black OLED palette. Auditing the six
-registered themes without `blaeu-default` would leave the inherited half of
-every palette unmeasured, which is why `AUDITED_THEMES` names it separately.
+`#93c5fd` — a pale sky blue, in a true-black OLED palette. `ThemeManager`
+registers all seven, but `builtinThemes` holds only six, so auditing that array
+alone would leave the inherited half of every palette unmeasured — which is why
+`AUDITED_THEMES` names `defaultTheme` separately.
 
 Preset themes do not go through `buildTheme`. `cadastreTheme` and `gameTheme`
 spread `defaultTheme.tokens.color` by hand; `urbanTheme` is a
@@ -76,7 +77,7 @@ per-token allow-list: the loop mirrors whatever is on the object
 for a toolbar mounted outside the container.
 
 That is why a token can be _declared, themed, mirrored, and read by nothing_.
-`accentMuted` and `success` are exactly that today: five theme files give them
+`accentMuted` and `success` are exactly that today: six theme files give them
 values, several with a hand-computed contrast ratio in a comment, and no code in
 any package reads either one.
 
@@ -95,8 +96,15 @@ control that carries a label reads a _different_ token, `accentStrong` with
 And the same blanket rule waves through `hover`, because nothing in the name
 says the toolbar uses it as the background of a button that keeps `color:
 inherit` (`plugin-ui/src/styles.ts:94,99`). It does, and `text` on `hover` is
-1.96:1 in `twitter-black`. Eighteen of the twenty-five pairs currently below
-their floor are that one token doing two incompatible jobs.
+1.96:1 in `twitter-black`. Twenty-nine of the thirty-six pairs currently below
+their floor share that one background — one token doing two incompatible jobs.
+
+The subtlest of the twenty-nine is worth knowing before you touch that
+stylesheet. `.bl-ui-button:hover:not(:disabled)` has specificity (0,4,0) and
+`.bl-ui-button[aria-pressed='true']` has (0,3,0), so hovering a button that is
+already pressed keeps the pressed rule's `color: onAccent` while the hover fill
+wins the background. The pair painted is `onAccent` on `hover` — a pair neither
+rule looks like it creates.
 
 So every rule in `packages/core/src/theme/contrast.ts` carries the file and line
 that paints it, and the floor follows from what that line draws — 4.5:1 for text
@@ -106,8 +114,9 @@ call site gets no rule. Some consequences that are not guessable from the names:
 - `surface` is a **foreground**: it is the snap tooltip's label colour, on a
   `snapIndicator` background. Not `onAccent`, whatever the JSDoc on `onAccent`
   says.
-- `vertex` is white on a near-white ground at 1.00:1, and that is correct. It is
-  always stroked; the 3:1 obligation belongs to the stroke, `vertexActive`.
+- `vertex` is white, and against a white ground that is 1.00:1 — correct, and
+  measured nowhere. It is always stroked; the 3:1 obligation belongs to the
+  stroke, `vertexActive`.
 - `border` is measured against `canvas`, not `surface`. The scale bar's only
   separation from the map is its 1 px border — it carries no `.bl-ui-control`
   class and so no box-shadow — and `surface` sits within ~1.2:1 of `canvas` in
@@ -150,10 +159,17 @@ Two more gates in the same file, both of which have already caught something:
   white is 4.54:1) before measuring any theme. An audit that is wrong and
   self-consistent reads as proof.
 - It parses the `// 4.67:1` annotations back out of `twitter.ts` and
-  `professional.ts` and recomputes them. Forty-three annotations, and this is
-  how the one wrong number among them was found: the light theme's snap
-  indicator was recorded as 4.96:1, which is `#C2410C` on survey-paper's
-  off-white, not on the white it is actually painted on.
+  `professional.ts` and recomputes them — forty-three of them. Where a comment
+  names its ground ("on white", "on the panel grey") it is checked against
+  _that_ ground rather than whichever one happens to fit. That distinction is
+  the whole value: the light snap indicator was recorded as 4.96:1, a true ratio
+  for `#C2410C` — on survey-paper's off-white, not on the white it is painted
+  on.
+- It resolves every citation. The `where` strings name 30-odd line numbers
+  across seven packages, and the suite opens each file, checks the line exists,
+  and checks the file mentions the token it is cited for. A citation-shaped
+  string is not enough — that would be the same "a comment does not fail" hole,
+  one level up.
 
 Regenerating the document is not optional housekeeping. `npm run format:check`
 is its own CI step and `docs/` is not ignored, so the generator emits Prettier's
@@ -180,10 +196,13 @@ list until it does.
 Do not repaint a colour to make a test green. A pair that sits below its floor
 goes into `RECORDED_BELOW_FLOOR` at the ratio it actually has, and it is printed
 in `docs/contrast.md` under "Below the floor" with its call site — published,
-not waived. The pin works in both directions: the ratio may not get worse, and
-if it gets _better_ the test fails and asks for the row to be deleted, so the
-document can never describe a failure that has been fixed. It is the ratchet
-`stryker.config.json` already uses on the mutation score, applied to colour.
+not waived. The pin is an **equality**: any movement, in either direction, fails
+until the row is updated or deleted. A one-way `>=` will not do — it lets a
+colour improve well inside the band while the number on file stays quietly
+wrong, which is the failure this suite exists to prevent rather than a smaller
+version of it. A second assertion holds the list and the set of actually-failing
+pairs to be the same set, so a row cannot go stale and a new failure cannot go
+unrecorded.
 
 The reason for the rule is that the alternative is worse than the defect.
 Nudging `hover` until `text` clears 4.5:1 in all seven themes would produce

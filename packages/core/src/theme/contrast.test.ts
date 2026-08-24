@@ -19,7 +19,7 @@
  * - It does not trust its own arithmetic. The first test checks it against published
  *   reference values before any theme is measured.
  */
-import { readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
@@ -43,16 +43,22 @@ import type { ColorToken } from './contrast.js'
 /**
  * Pairs that do not clear their floor today, at the ratio they actually have.
  *
- * A ratchet, in the shape `stryker.config.json` already uses: the number may not get
- * worse, and if it gets better the test fails and asks for the row to be deleted. What it
- * is not is a waiver — every one of these is printed in `docs/contrast.md` under "Below
- * the floor", with the call site that paints it.
+ * Pinned as an **equality**, not as a one-way ratchet. An earlier version asserted only
+ * `>= recorded` and `< floor`, which let a colour improve by 73% inside that band and
+ * still pass — leaving the number on file quietly wrong, which is precisely the failure
+ * mode this suite exists to close. The list is also asserted to be *exactly* the set of
+ * pairs below their floor, so a row cannot go stale and a new failure cannot go
+ * unrecorded.
  *
- * They are not seven separate mistakes. Eighteen of the twenty-five are `hover`, a token
- * chosen as a bright on-map highlight and then reused by `plugin-ui` as the background of
- * a control that keeps `color: inherit` — one token doing two incompatible jobs. Six more
- * are `border` against `canvas`, which is the only thing separating the scale bar from
- * the map.
+ * What it is not is a waiver — every one of these is printed in `docs/contrast.md` under
+ * "Below the floor", with the call site that paints it.
+ *
+ * They are not thirty-six separate mistakes. **Twenty-nine of the thirty-six share one
+ * background:** `hover`, a token chosen as a bright on-map highlight and then reused by
+ * `plugin-ui` as the fill behind controls that keep `color: inherit` — one token doing two
+ * incompatible jobs, and no single value satisfies both. Six more are `border` against
+ * `canvas`, the only thing separating the scale bar and the status line from the map. That
+ * leaves exactly one pair that is its own isolated near-miss.
  */
 const RECORDED_BELOW_FLOOR: readonly {
   readonly theme: string
@@ -61,31 +67,45 @@ const RECORDED_BELOW_FLOOR: readonly {
   readonly ratio: number
 }[] = [
   { theme: 'blaeu-default', foreground: 'textMuted', background: 'surfaceMuted', ratio: 4.34 },
+  { theme: 'blaeu-default', foreground: 'onAccent', background: 'hover', ratio: 2.54 },
   { theme: 'blaeu-default', foreground: 'error', background: 'hover', ratio: 1.9 },
+  { theme: 'blaeu-default', foreground: 'accent', background: 'hover', ratio: 2.03 },
   { theme: 'blaeu-default', foreground: 'warning', background: 'hover', ratio: 1.25 },
   { theme: 'blaeu-default', foreground: 'border', background: 'canvas', ratio: 1.43 },
+  { theme: 'twitter-light', foreground: 'onAccent', background: 'hover', ratio: 3.84 },
   { theme: 'twitter-light', foreground: 'error', background: 'hover', ratio: 1.31 },
+  { theme: 'twitter-light', foreground: 'accent', background: 'hover', ratio: 1.28 },
   { theme: 'twitter-light', foreground: 'warning', background: 'hover', ratio: 1.28 },
   { theme: 'twitter-light', foreground: 'border', background: 'canvas', ratio: 1.44 },
   { theme: 'twitter-dim', foreground: 'text', background: 'hover', ratio: 2.26 },
+  { theme: 'twitter-dim', foreground: 'onAccent', background: 'hover', ratio: 2.39 },
   { theme: 'twitter-dim', foreground: 'error', background: 'hover', ratio: 1.16 },
+  { theme: 'twitter-dim', foreground: 'accent', background: 'hover', ratio: 1.26 },
   { theme: 'twitter-dim', foreground: 'warning', background: 'hover', ratio: 1.67 },
   { theme: 'twitter-dim', foreground: 'border', background: 'canvas', ratio: 1.65 },
   { theme: 'twitter-black', foreground: 'text', background: 'hover', ratio: 1.96 },
+  { theme: 'twitter-black', foreground: 'onAccent', background: 'hover', ratio: 2.39 },
   { theme: 'twitter-black', foreground: 'error', background: 'hover', ratio: 1.16 },
+  { theme: 'twitter-black', foreground: 'accent', background: 'hover', ratio: 1.26 },
   { theme: 'twitter-black', foreground: 'warning', background: 'hover', ratio: 1.67 },
   { theme: 'twitter-black', foreground: 'border', background: 'canvas', ratio: 1.65 },
+  { theme: 'survey-paper', foreground: 'onAccent', background: 'hover', ratio: 2.62 },
   { theme: 'survey-paper', foreground: 'error', background: 'hover', ratio: 2.29 },
   { theme: 'survey-paper', foreground: 'warning', background: 'hover', ratio: 2.09 },
   { theme: 'survey-paper', foreground: 'border', background: 'canvas', ratio: 1.46 },
   { theme: 'high-contrast', foreground: 'text', background: 'hover', ratio: 4.08 },
   { theme: 'high-contrast', foreground: 'error', background: 'hover', ratio: 1.87 },
+  { theme: 'high-contrast', foreground: 'accent', background: 'hover', ratio: 1.95 },
   { theme: 'high-contrast', foreground: 'warning', background: 'hover', ratio: 1.83 },
   { theme: 'imagery-dark', foreground: 'text', background: 'hover', ratio: 2.02 },
   { theme: 'imagery-dark', foreground: 'error', background: 'hover', ratio: 1.27 },
+  { theme: 'imagery-dark', foreground: 'accent', background: 'hover', ratio: 1.37 },
   { theme: 'imagery-dark', foreground: 'warning', background: 'hover', ratio: 1.67 },
   { theme: 'imagery-dark', foreground: 'border', background: 'canvas', ratio: 1.54 },
 ]
+
+const pairKey = (theme: string, foreground: string, background: string): string =>
+  `${theme}: ${foreground} on ${background}`
 
 function recordedFor(
   themeId: string,
@@ -142,15 +162,30 @@ describe('contrast — every gated pair in every audited theme', () => {
         continue
       }
 
-      // Pinned, both ways. Downward so the palette cannot quietly rot; upward so a fix
-      // cannot land while the generated document still calls the pair a failure.
-      it(`${theme.id}: ${pair} is recorded below ${floor}:1, at ${recorded}`, () => {
-        const { ratio } = measure(theme, rule)
-        expect(ratio).toBeGreaterThanOrEqual(recorded)
-        expect(ratio).toBeLessThan(floor)
+      it(`${theme.id}: ${pair} is recorded below ${floor}:1, at exactly ${recorded}`, () => {
+        expect(measure(theme, rule).ratio).toBe(recorded)
       })
     }
   }
+
+  /**
+   * The assertion that makes the list a ratchet rather than a note. Without it, a row
+   * naming a pair that no longer fails is simply never consulted — `recordedFor` returns
+   * `undefined`, the pair is asserted against its floor, and the stale row sits there
+   * meaning nothing. A pair that *starts* failing would equally get no row at all.
+   */
+  it('records exactly the pairs that are below their floor, and no others', () => {
+    const failing = AUDITED_THEMES.flatMap((theme) =>
+      auditTheme(theme)
+        .filter((m) => !m.passes)
+        .map((m) => pairKey(m.themeId, m.foreground, m.background)),
+    ).sort()
+    const recorded = RECORDED_BELOW_FLOOR.map((r) =>
+      pairKey(r.theme, r.foreground, r.background),
+    ).sort()
+
+    expect(recorded).toEqual(failing)
+  })
 })
 
 describe('contrast — the three corrections the Twitter palette makes to X', () => {
@@ -180,9 +215,12 @@ describe('contrast — the three corrections the Twitter palette makes to X', ()
    */
   it('deepens the snap yellow on the light ground and keeps it on the dark ones', () => {
     const X_SNAP_YELLOW = '#FFD400'
+    const light = twitterLight.tokens.color
 
-    expect(twitterLight.tokens.color.snapIndicator).not.toBe(X_SNAP_YELLOW)
-    expect(contrastRatio(X_SNAP_YELLOW, twitterLight.tokens.color.canvas)).toBeLessThan(3)
+    expect(contrastRatio(X_SNAP_YELLOW, light.canvas)).toBeLessThan(3)
+    // "Deepens", literally: darker than X's, and clearing on the ground X's cannot.
+    expect(relativeLuminance(light.snapIndicator)).toBeLessThan(relativeLuminance(X_SNAP_YELLOW))
+    expect(contrastRatio(light.snapIndicator, light.canvas)).toBeGreaterThanOrEqual(3)
 
     for (const theme of [twitterDim, twitterBlack]) {
       expect(theme.tokens.color.snapIndicator).toBe(X_SNAP_YELLOW)
@@ -213,7 +251,7 @@ describe('contrast — the audit covers the token set', () => {
    * The rule that keeps this suite from rotting. Add a colour token and it must be given
    * a gated pair, an advisory pair, or a place on the unconsumed list — the alternative
    * is a token nobody has thought about, which is how `accentMuted` and `success` came to
-   * be hand-tuned for contrast in five files for a consumer that does not exist.
+   * be hand-tuned for contrast in six files for a consumer that does not exist.
    */
   it('accounts for every colour token, as gated, advisory, or unconsumed', () => {
     const accountedFor = new Set<string>([
@@ -226,7 +264,7 @@ describe('contrast — the audit covers the token set', () => {
     expect(unaccounted).toEqual([])
   })
 
-  it('audits the default theme as well as every registered one', () => {
+  it('audits the default theme as well as the six in builtinThemes', () => {
     // `buildTheme` patches `defaultTheme`, so a token a theme does not re-tint *is* the
     // default's. Auditing the six without the seventh would leave the inherited half of
     // every palette unmeasured.
@@ -234,12 +272,57 @@ describe('contrast — the audit covers the token set', () => {
     expect(AUDITED_THEMES).toHaveLength(7)
   })
 
-  it('measures a rule for every theme, and every rule cites a call site', () => {
-    for (const theme of AUDITED_THEMES) {
-      expect(auditTheme(theme)).toHaveLength(CONTRAST_RULES.length)
-    }
+  it('measures the theme it is handed, not a fixed one', () => {
+    // Deliberately not `expect(auditTheme(t)).toHaveLength(CONTRAST_RULES.length)`: that is
+    // a `.map` over a constant, and is true however wrong `measure` is.
+    const rule = CONTRAST_RULES.find((r) => r.foreground === 'accent' && r.background === 'canvas')
+    expect(rule).toBeDefined()
+
+    const light = measure(twitterLight, rule!)
+    const dim = measure(twitterDim, rule!)
+
+    expect(light.backgroundHex).toBe(twitterLight.tokens.color.canvas)
+    expect(dim.backgroundHex).toBe(twitterDim.tokens.color.canvas)
+    expect(light.ratio).not.toBe(dim.ratio)
+  })
+
+  /**
+   * Citations are resolved, not merely shaped. A `where` string is the only evidence a rule
+   * offers that it describes something real, and a check that it "matches `/\.ts:\d/`" is
+   * satisfied by a file that does not exist — the same "a comment does not fail" hole this
+   * module exists to close, one level up. Secondary references in parentheses
+   * (`ScaleBar.ts:34`) carry no package path and are not resolved; every rule must carry at
+   * least one citation that is.
+   */
+  it('cites call sites that exist, at line numbers those files actually have', () => {
+    const packages = fileURLToPath(new URL('../../../', import.meta.url))
+
     for (const rule of [...CONTRAST_RULES, ...ADVISORY_PAIRS]) {
-      expect(rule.where).toMatch(/\.ts:\d/)
+      const label = `${rule.foreground} on ${rule.background}`
+      const cites = [...rule.where.matchAll(/([a-z][a-z0-9-]*\/src\/[A-Za-z0-9/_.-]*\.ts):(\d+)/g)]
+      expect(cites.length, `${label} cites no resolvable call site`).toBeGreaterThan(0)
+
+      for (const cite of cites) {
+        const relative = cite[1] as string
+        const line = Number(cite[2])
+        const file = `${packages}${relative}`
+
+        expect(() => statSync(file), `${label} cites a missing file: ${relative}`).not.toThrow()
+        const source = readFileSync(file, 'utf8')
+        const lines = source.split('\n').length
+        expect(
+          line,
+          `${label} cites ${relative}:${line}, but that file has ${lines} lines`,
+        ).toBeLessThanOrEqual(lines)
+
+        // The cited file must at least name the token it is cited for, in one of the two
+        // forms a consumer can read it: `color.accent` or `--bl-color-accent`.
+        const kebab = rule.foreground.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)
+        expect(
+          source.includes(`.${rule.foreground}`) || source.includes(`--bl-color-${kebab}`),
+          `${label} cites ${relative}, which never mentions ${rule.foreground}`,
+        ).toBe(true)
+      }
     }
   })
 })
@@ -264,6 +347,7 @@ describe('contrast — the ratios written in the theme sources', () => {
     readonly token: string
     readonly hex: string
     readonly claimed: number
+    readonly comment: string
   }
 
   function claims(): readonly Claim[] {
@@ -274,13 +358,15 @@ describe('contrast — the ratios written in the theme sources', () => {
         const themeId = /id:\s*'([^']+)'/.exec(chunk)?.[1]
         if (themeId === undefined) continue
         for (const line of chunk.matchAll(/^\s*(\w+):\s*'(#[0-9a-fA-F]{3,8})',\s*\/\/\s*(.*)$/gm)) {
-          const ratio = /(\d+(?:\.\d+)?):1/.exec(line[3] ?? '')
+          const comment = line[3] ?? ''
+          const ratio = /(\d+(?:\.\d+)?):1/.exec(comment)
           if (ratio === null) continue
           found.push({
             themeId,
             token: line[1] as string,
             hex: line[2] as string,
             claimed: Number.parseFloat(ratio[1] as string),
+            comment,
           })
         }
       }
@@ -290,8 +376,9 @@ describe('contrast — the ratios written in the theme sources', () => {
 
   /**
    * A parser that silently matches nothing would pass this suite while checking none of
-   * it. Pinning the count is what makes the other test mean something — and it is the same
-   * reason `check-doc-fences.mjs` prints how many fences it skipped.
+   * it — `it.each([])` in vitest generates zero tests and raises nothing at all. Pinning the
+   * count is what makes the test below mean something, and it is the same reason
+   * `check-doc-fences.mjs` prints how many fences it skipped.
    */
   it('finds every annotation it should, and the count is pinned', () => {
     expect(claims()).toHaveLength(43)
@@ -299,23 +386,38 @@ describe('contrast — the ratios written in the theme sources', () => {
 
   it.each(claims())(
     '$themeId: the $token comment claims $claimed:1, and $claimed:1 is what it is',
-    ({ themeId, token, hex, claimed }) => {
+    ({ themeId, token, hex, claimed, comment }) => {
       const theme = AUDITED_THEMES.find((t) => t.id === themeId)
       expect(theme, `no such theme: ${themeId}`).toBeDefined()
       const { color } = theme!.tokens
 
       // `accentStrong` and `onAccent` annotate each other — the number on either line is
-      // the label against the fill. Every other token is annotated against one of the
-      // three grounds a theme has.
-      const candidates =
-        token === 'accentStrong' || token === 'onAccent'
-          ? [contrastRatio(color.onAccent, color.accentStrong)]
-          : [
-              contrastRatio(hex, color.canvas),
-              contrastRatio(hex, color.surface),
-              contrastRatio(hex, color.surfaceMuted),
-            ]
+      // the label against the fill.
+      if (token === 'accentStrong' || token === 'onAccent') {
+        expect(contrastRatio(color.onAccent, color.accentStrong)).toBeCloseTo(claimed, 2)
+        return
+      }
 
+      // Where the comment *names* its ground, that is the ground it is checked against.
+      // Allowing any of the three would let a comment cite a true number measured
+      // elsewhere — which is exactly the defect that was here: the light snap indicator
+      // said "4.96:1 on white" when 4.96 is its ratio on survey-paper's off-white.
+      const named = /panel grey/.test(comment)
+        ? color.surfaceMuted
+        : /on (?:white|black|paper|the (?:dim )?ground)/.test(comment)
+          ? color.canvas
+          : undefined
+
+      if (named !== undefined) {
+        expect(contrastRatio(hex, named)).toBeCloseTo(claimed, 2)
+        return
+      }
+
+      const candidates = [
+        contrastRatio(hex, color.canvas),
+        contrastRatio(hex, color.surface),
+        contrastRatio(hex, color.surfaceMuted),
+      ]
       expect(
         candidates.some((r) => Math.abs(r - claimed) < 0.005),
         `${token} (${hex}) claims ${claimed}:1, but against this theme's own grounds it is ${candidates.join(' / ')}`,
@@ -328,7 +430,11 @@ describe('contrast — the generated document', () => {
   /**
    * The committed table and a fresh run must agree. In CI this cannot self-heal — vitest
    * refuses to write a file snapshot there — so a re-tinted token that does not carry its
-   * number into `docs/contrast.md` fails the build. Regenerate with `npx vitest run -u`.
+   * number into `docs/contrast.md` fails the build.
+   *
+   * Locally the asymmetry is worth knowing: a *missing* file is written rather than
+   * reported, so deleting the document and getting a green run proves nothing. The run that
+   * gates is CI's. Regenerate deliberately with `npx vitest run -u`.
    */
   it('matches docs/contrast.md', async () => {
     await expect(renderContrastDoc()).toMatchFileSnapshot('../../../../docs/contrast.md')

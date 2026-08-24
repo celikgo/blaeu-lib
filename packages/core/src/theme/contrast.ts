@@ -63,7 +63,7 @@ export const CONTRAST_RULES: readonly ContrastRule[] = [
     background: 'surface',
     kind: 'text',
     where:
-      'plugin-ui/src/styles.ts:31 on :57 — every control inherits this colour, on a surface panel',
+      'plugin-ui/src/styles.ts:31 on :57 — the root colour, inherited by every control that does not override it, on a surface panel',
   },
   {
     foreground: 'text',
@@ -89,6 +89,13 @@ export const CONTRAST_RULES: readonly ContrastRule[] = [
     background: 'accentStrong',
     kind: 'text',
     where: 'plugin-ui/src/styles.ts:108-111 — the label on a pressed toolbar button',
+  },
+  {
+    foreground: 'onAccent',
+    background: 'hover',
+    kind: 'text',
+    where:
+      "plugin-ui/src/styles.ts:99 over :108-111 — a hovered pressed toggle. `:hover:not(:disabled)` is specificity (0,4,0) and `[aria-pressed='true']` is (0,3,0), so the hover fill wins the background while the pressed rule still supplies `color: onAccent`",
   },
   {
     foreground: 'surface',
@@ -133,13 +140,15 @@ export const CONTRAST_RULES: readonly ContrastRule[] = [
     foreground: 'snapIndicator',
     background: 'canvas',
     kind: 'non-text',
-    where: 'plugin-snap/src/indicator.ts:101 — the snap ring',
+    where:
+      'plugin-snap/src/indicator.ts:101 — the indicator disc. Its 2 px stroke at :106 is `surface`, and MapLibre paints a circle stroke outside the radius, so the disc meets the ground through a halo the colour of the panels; the disc still owes 3:1, because a halo that matches the ground cannot carry the mark',
   },
   {
     foreground: 'guide',
     background: 'canvas',
     kind: 'non-text',
-    where: 'plugin-edit/src/handles.ts:251 — the alignment guide, at 0.9 alpha',
+    where:
+      'plugin-edit/src/handles.ts:251 — the transform bounding box and the split-line preview (transform.ts:102, split.ts:40), at 0.9 alpha; :252 fills the same shape at 0.05',
   },
   {
     foreground: 'error',
@@ -152,6 +161,13 @@ export const CONTRAST_RULES: readonly ContrastRule[] = [
     background: 'hover',
     kind: 'non-text',
     where: 'plugin-ui/src/styles.ts:224-225 — the same stripe, on a hovered row',
+  },
+  {
+    foreground: 'accent',
+    background: 'hover',
+    kind: 'non-text',
+    where:
+      'plugin-ui/src/styles.ts:224,227 — the info severity stripe on a hovered row, exactly as error and warning above',
   },
   {
     foreground: 'warning',
@@ -170,7 +186,7 @@ export const CONTRAST_RULES: readonly ContrastRule[] = [
     background: 'canvas',
     kind: 'non-text',
     where:
-      "plugin-ui/src/styles.ts:143 — the scale bar's only boundary: it carries no `.bl-ui-control` class (ScaleBar.ts:34) and so no box-shadow",
+      'plugin-ui/src/styles.ts:143 and :240 — the only boundary of the scale bar and of the status line. Neither carries `.bl-ui-control` (ScaleBar.ts:34, plugin.ts:160), so neither gets its box-shadow, and both sit over the map',
   },
 ]
 
@@ -315,8 +331,9 @@ export function auditTheme(theme: Theme): readonly ContrastMeasurement[] {
 }
 
 /**
- * The themes this audit covers: the default every map starts on, then the six the kernel
- * registers. `defaultTheme` is not in `builtinThemes` and has to be named separately —
+ * The themes this audit covers: the default every map starts on, then the six in
+ * `builtinThemes`. `ThemeManager` registers all seven; `defaultTheme` is simply not a
+ * member of that array, so it has to be named separately here —
  * and it is the one that matters most, because `buildTheme` patches it, so a token a
  * theme does not re-tint *is* the default's.
  *
@@ -489,13 +506,14 @@ export function renderContrastDoc(): string {
     out.push(
       'These are recorded, not waived. `contrast.test.ts` pins every one of them to the exact',
     )
+    out.push('ratio printed above, and the pin is an equality: any movement at all, in either')
     out.push(
-      'ratio above: the number may not get worse, and if it gets better the test fails and asks',
+      'direction, fails until the row is updated or deleted. It also asserts that this list and',
     )
     out.push(
-      'for the pair to be promoted out of the list. The same ratchet `stryker.config.json` uses',
+      'the set of pairs actually below their floor are the same set — so a pair cannot begin',
     )
-    out.push('on the mutation score.')
+    out.push('failing without being written down here, and a fixed one cannot stay written down.')
     out.push('')
   }
 
@@ -557,6 +575,13 @@ export function renderContrastDoc(): string {
     'for the token at full strength, which is what the accompanying line or outline is drawn',
   )
   out.push('at. A composited fill over an unknown basemap has no single ratio to compute.')
+  out.push('')
+  out.push('One unmodelled opacity does land on a _text_ pair, with no full-strength companion:')
+  out.push(
+    '`plugin-ui/src/styles.ts:100` composites a disabled button — label included — at 0.45. The',
+  )
+  out.push('`text` on `surface` row below is therefore optimistic for every disabled toolbar and')
+  out.push('history button, by an amount nothing here computes.')
 
   return `${out.join('\n')}\n`
 }

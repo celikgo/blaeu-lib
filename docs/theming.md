@@ -65,7 +65,7 @@ map.theme.setSchemeDefaults({ light: 'survey-paper', dark: 'imagery-dark' })
 | `imagery-dark`  | dark   | night theme tuned to sit over satellite / orthophoto tiles                              |
 
 All seven are audited against WCAG, and the audit is generated:
-[docs/contrast.md](contrast.md) lists every pair the shipped code actually paints — 18 of
+[docs/contrast.md](contrast.md) lists every pair the shipped code actually paints — 20 of
 them per theme — with the file and line that paints it, the floor it answers to, and the
 measured ratio. `packages/core/src/theme/contrast.test.ts` recomputes the lot, asserts the
 floors, and regenerates that document; a re-tinted token whose number does not reach the
@@ -84,8 +84,10 @@ X's snap-yellow is 1.43:1 on white, so the light theme's snap indicator is deepe
 5.18:1; Lights-out muted text is nudged from X's 3.88:1 to clear 4.5:1. Each of the three
 is a named test rather than a sentence.
 
-Twenty-five pairs are currently below their floor, and they are published rather than
-waived — pinned to the exact ratio they have, so the number cannot get worse unnoticed.
+Thirty-six pairs are currently below their floor, and they are published rather than
+waived — pinned to the exact ratio they have, so the number cannot move unnoticed in either
+direction. Twenty-nine of the thirty-six share one background, `hover`, which is a single
+design decision rather than twenty-nine mistakes.
 The three preset themes are not audited at all; see the end of
 [docs/contrast.md](contrast.md).
 
