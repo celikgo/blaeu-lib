@@ -11,7 +11,7 @@ import { buildTheme } from './build.js'
  *   button therefore reads `accentStrong` (#1578C2, white label 4.67:1), while the
  *   vivid #1D9BF0 stays as the *map mark* and link colour, where 3:1 is enough.
  * - **On white, X's snap-yellow (#FFD400) is 1.43:1 — invisible.** The light theme's
- *   snap indicator is deepened to #C2410C (4.96:1). On the dark grounds the yellow is
+ *   snap indicator is deepened to #C2410C (5.18:1). On the dark grounds the yellow is
  *   11–15:1, so Dim and Lights-out keep it.
  * - **Lights-out muted text on the panel grey was 3.88:1.** Nudged to #8B98A5 / #7E8388
  *   so it clears 4.5:1.
@@ -37,7 +37,7 @@ export const twitterLight: Theme = buildTheme({
     vertex: '#FFFFFF',
     vertexActive: '#E01673',
     midpoint: '#8899A6',
-    snapIndicator: '#C2410C', // deepened from X yellow, 4.96:1 on white
+    snapIndicator: '#C2410C', // deepened from X yellow, 5.18:1 on white
     guide: '#6941E0', // 6.12:1
     error: '#D91F2C', // 4.75:1 on the panel grey
     warning: '#A16207', // 4.66:1
