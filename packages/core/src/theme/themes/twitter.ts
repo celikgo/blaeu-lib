@@ -16,7 +16,12 @@ import { buildTheme } from './build.js'
  * - **Lights-out muted text on the panel grey was 3.88:1.** Nudged to #8B98A5 / #7E8388
  *   so it clears 4.5:1.
  *
- * Every text pair and every on-map mark in all three has a computed contrast on file.
+ * Every text pair and every on-map mark in all three has a computed contrast on file,
+ * and the file is `docs/contrast.md` rather than this comment. `contrast.test.ts`
+ * recomputes every pair the shipped code paints, regenerates that document, and reads
+ * the `N.NN:1` annotations below back out of this source to check them too — which is
+ * how the one wrong number here (the snap indicator, long recorded as 4.96:1 on a
+ * ground it is never painted on) was found.
  */
 
 export const twitterLight: Theme = buildTheme({
