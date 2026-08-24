@@ -22,7 +22,13 @@ export interface ThemeTokens {
      * A filled control reads `accentStrong`/`onAccent`; a map mark reads `accent`.
      */
     readonly accentStrong: string
-    /** The text/icon colour that sits *on* {@link accentStrong} (a filled button, the snap tooltip). */
+    /**
+     * The text/icon colour that sits *on* {@link accentStrong} — the pressed toolbar
+     * button, and nothing else. It is emphatically *not* the snap tooltip's label,
+     * which is {@link surface} on a {@link snapIndicator} background
+     * (`plugin-ui/src/styles.ts:174-176`); that pair is asserted separately, and this
+     * comment claimed otherwise for long enough to be worth denying explicitly.
+     */
     readonly onAccent: string
     readonly selection: string
     readonly hover: string
