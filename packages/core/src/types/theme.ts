@@ -56,9 +56,15 @@ export interface ThemeTokens {
      * The halo drawn *around on-map labels* — not to be confused with `surface`.
      * A label needs a halo the colour of the ground it sits on so it stays legible
      * over any feature: a light halo on a light map, a **dark** halo on a dark map.
-     * Plugins that draw map text (measure, the parcel-number labels) read this, and
-     * a light halo on a dark map — the bug you get by reusing `surface` — turns every
+     * A light halo on a dark map — the bug you get by reusing `surface` — turns every
      * label into a bright smear.
+     *
+     * It has exactly one reader: the parcel-number labels in `preset-cadastre`
+     * (`layers.ts:51`). `plugin-measure` halos its labels with `surface` instead
+     * (`layers.ts:96`), which is this token's own cautionary tale committed in the
+     * shipped code. It is currently invisible because every built-in dark theme happens
+     * to set `surface` close to `canvas` — a theme with a dark ground and a light panel
+     * would smear every measurement label, and nothing would catch it.
      */
     readonly labelHalo: string
     readonly border: string
