@@ -64,14 +64,30 @@ map.theme.setSchemeDefaults({ light: 'survey-paper', dark: 'imagery-dark' })
 | `high-contrast` | light  | WCAG **AAA**; for a laptop in direct sunlight                                           |
 | `imagery-dark`  | dark   | night theme tuned to sit over satellite / orthophoto tiles                              |
 
-Every text pair and every on-map mark in all seven has a contrast ratio computed by
-hand and recorded in the theme source (`packages/core/src/theme/themes/`). There is no
-automated gate — if you add or re-tint a theme, compute the pairs and record them the
-same way, because nothing else will catch it. The Twitter palettes correct three of X's
-own contrast failures while keeping the hue:
-white-on-blue is exactly 3.00:1, so a filled button uses `accentStrong`/`onAccent`
-instead; X's snap-yellow is 1.43:1 on white, so the light theme's snap indicator is
-deepened; Lights-out muted text is nudged to clear 4.5:1.
+All seven are audited against WCAG, and the audit is generated:
+[docs/contrast.md](contrast.md) lists every pair the shipped code actually paints — 18 of
+them per theme — with the file and line that paints it, the floor it answers to, and the
+measured ratio. `packages/core/src/theme/contrast.test.ts` recomputes the lot, asserts the
+floors, and regenerates that document; a re-tinted token whose number does not reach the
+document fails the build. It also reads the `// 4.67:1` annotations back out of the theme
+sources and checks those, which is how the one wrong number among them was found.
+
+The rules come from call sites, not from token names, and that is the whole design. A
+blanket 4.5:1 would call `accent` a defect at 3.00:1 on white — when the vivid blue is kept
+deliberately, because it is a mark on a map and 3:1 is the floor for a graphic. It would
+also wave through `hover`, which nothing in the name suggests is the background of a
+control that keeps `color: inherit`, and which is where most of the current failures are.
+
+The Twitter palettes correct three of X's own contrast failures while keeping the hue:
+white-on-blue is exactly 3.00:1, so a filled button uses `accentStrong`/`onAccent` instead;
+X's snap-yellow is 1.43:1 on white, so the light theme's snap indicator is deepened to
+5.18:1; Lights-out muted text is nudged from X's 3.88:1 to clear 4.5:1. Each of the three
+is a named test rather than a sentence.
+
+Twenty-five pairs are currently below their floor, and they are published rather than
+waived — pinned to the exact ratio they have, so the number cannot get worse unnoticed.
+The three preset themes are not audited at all; see the end of
+[docs/contrast.md](contrast.md).
 
 ## Tokens
 
@@ -182,4 +198,6 @@ map.theme.use('acme')
 
 Validate the pairs you set against WCAG: body text on `surface` ≥ 4.5:1, `onAccent`
 on `accentStrong` ≥ 4.5:1, and every on-map mark (`selection`, `snapIndicator`,
-`accent`) ≥ 3:1 on `canvas`.
+`accent`) ≥ 3:1 on `canvas`. The generated audit covers the seven built-ins only, so a
+theme you register in your own app is not gated by it — [docs/contrast.md](contrast.md)
+is the list of pairs worth checking, and the reasoning for each.

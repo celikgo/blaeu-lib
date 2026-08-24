@@ -62,6 +62,12 @@ const PAGES = [
     blurb: 'The theme system and writing your own',
   },
   {
+    src: 'docs/contrast.md',
+    slug: 'contrast',
+    nav: 'Contrast',
+    blurb: 'The generated WCAG audit of every built-in theme',
+  },
+  {
     src: 'ROADMAP.md',
     slug: 'roadmap',
     nav: 'Roadmap',
