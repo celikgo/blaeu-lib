@@ -188,7 +188,7 @@ describe('SpatialIndex — remove', () => {
     expect(index.size).toBe(1)
   })
 
-  it('is idempotent — removing twice does not evict a later feature with the same id', () => {
+  it('is idempotent, and the id can be re-used afterwards', () => {
     const index = new SpatialIndex()
     index.insert(feature('a', A))
     index.remove('a')
@@ -270,6 +270,10 @@ describe('SpatialIndex — load', () => {
     index.insert(feature('old', A))
 
     index.load([feature('a', B)])
+    // Before the remove: a load that merged rather than replaced would leave 'old' in the
+    // entries map, and this is the assertion that sees it.
+    expect(index.size).toBe(1)
+
     index.remove('old')
 
     expect(index.search(IN_B)).toEqual(['a'])
