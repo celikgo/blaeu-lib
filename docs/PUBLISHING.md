@@ -109,25 +109,39 @@ awkward fact in this plan and there is no way around it: npm has nothing to atta
 policy to until the name is on the registry, so the _first_ version of each of the twelve
 cannot be published by `release.yml` as it stands. Every version after the first can.
 
-The order below matters, and it is not the obvious one. The temptation is to merge the open
-Version Packages PR first and let CI publish 0.1.2 — that publish is guaranteed to fail,
-because there is nothing on the registry yet to have trusted it. Publish the version `main`
-is _already_ on instead, by hand, and let CI have the next one:
+The order below matters, and it is not the obvious one. It also is not the order this
+repository took: the Version Packages PR (#7) was merged first, on 2026-08-20, so `main`
+moved to **0.1.2**, CI ran `changeset publish`, and the run failed exactly as predicted —
+[run 32352688689](https://github.com/celikgo/blaeu-lib/actions/runs/32352688689):
+
+```console
+Some packages failed to publish:
+@blaeu/core@0.1.2
+└ E404: Not Found - PUT https://registry.npmjs.org/@blaeu%2fcore
+```
+
+That is not a defect in `release.yml`. Reaching a `PUT` proves `npm ci`, `npm run verify`
+and the action's dispatch all worked; the 404 is the registry saying the `@blaeu` scope does
+not exist, which is step 1 above. The workflow is correct and cannot bootstrap itself, and
+it says so in its own comments.
+
+So the state today is: twelve manifests at 0.1.2, nothing on the registry, and
+`.changeset/` empty — the pending changeset was consumed by that PR. Publish 0.1.2 by hand:
 
 ```bash
 npm login                 # interactive; needs your OTP
 git checkout main && git pull
-npm run verify            # scaffold, boundaries, typecheck, lint, docs, tests, build
-npx changeset publish     # publishes all twelve at their current version, 0.1.1
+npm run release           # = npm run verify && changeset publish
 ```
 
-No `changeset version` in there: `main` is already at 0.1.1, `v0.1.1` is already tagged, and
-the pending changeset is what takes it to 0.1.2. `changeset publish` publishes whatever is in
-the manifests and not yet on the registry, which is exactly the twelve.
+`npm run release` is exactly the recipe and already exists in `package.json`. No
+`changeset version` in there and no changeset to consume: `changeset publish` publishes
+whatever is in the manifests and not yet on the registry, which today is all twelve at
+0.1.2.
 
-Those twelve 0.1.1 tarballs will carry **no provenance attestation** — provenance is a
-statement about a CI run, and this one is a laptop. That is the whole price of the bootstrap,
-it is paid once, and 0.1.2 onwards gets provenance because CI publishes them.
+Those twelve 0.1.2 tarballs will carry **no provenance attestation** — provenance is a
+statement about a CI run, and this one is a laptop. That is the whole price of the
+bootstrap, it is paid once, and 0.1.3 onwards gets provenance because CI publishes them.
 
 Then, once for each of the twelve packages, on npmjs.com → the package → _Settings_ →
 _Trusted Publisher_:
@@ -145,16 +159,70 @@ least one allowed action; `npm publish` is the one this workflow needs.
 
 Twelve is tedious and it is also the last of it.
 
-Then merge the open **Version Packages** PR. That is the first release this repository
-publishes on its own: `changesets/action@v2` runs `changeset publish`, npm authenticates it
-through OIDC against the trust policies just configured, and 0.1.2 lands with a provenance
-attestation naming the commit and the workflow that built it. Every release after it is the
-same single act — merge the PR — with no credential anywhere in the repository to leak,
-expire, or forget to rotate.
+### Then prove it, which now takes a deliberate step
+
+The original plan ended here, because there was an unmerged Version Packages PR waiting to
+supply the next version and prove the trust policies. There is not any more, and that
+changes what a green Release run means:
+
+> **A green Release run is not evidence that trusted publishing works.** With no changesets
+> and every manifest version already on the registry, `changesets/action@v2` takes its
+> "no changesets found, attempt to publish" branch, `changeset publish` finds nothing
+> unpublished, and the job exits 0 having published nothing at all.
+
+Only a version npm does not yet have exercises the OIDC exchange. So after the hand-publish
+and the twelve trust policies, write a changeset and merge the release PR it produces:
+
+```bash
+npm run changeset         # patch, on all twelve — see the version trap below
+git add .changeset && git commit -m 'release: prove trusted publishing on 0.1.3'
+git push
+```
+
+That opens a Version Packages PR for **0.1.3**; merging it is the first release this
+repository publishes on its own, and the first with a provenance attestation naming the
+commit and the workflow that built it. Every release after it is the same single act — merge
+the PR — with no credential anywhere in the repository to leak, expire, or forget to rotate.
 
 A useful property of doing it in this order: nothing about the release pipeline is taken on
-faith. If the trusted publishers are wrong, the 0.1.2 run says so, and the packages are
-already on npm at 0.1.1 regardless.
+faith. If the trusted publishers are wrong, the 0.1.3 run says so, and the packages are
+already on npm at 0.1.2 regardless.
+
+### What has been rehearsed, and what has not
+
+The publish path was run end to end against a local registry (verdaccio 6.10.0) on
+2026-08-24, from this working tree. `changeset publish` reported
+`Successfully published:` for all twelve at 0.1.2 and created the twelve
+`@blaeu/<pkg>@0.1.2` tags (deleted afterwards — the rehearsal left nothing behind).
+
+Then, in an empty directory with nothing but a `package.json`:
+
+```console
+$ npm view @blaeu/core version dist.tarball
+version = '0.1.2'
+dist.tarball = 'http://localhost:4873/@blaeu/core/-/core-0.1.2.tgz'
+
+$ npm install @blaeu/core @blaeu/preset-cadastre maplibre-gl@^5
+added 48 packages in 3s
+
+$ npm ls --depth=1
+├─┬ @blaeu/preset-cadastre@0.1.2
+│ ├── @blaeu/core@0.1.2 deduped
+│ ├── @blaeu/plugin-draw@0.1.2
+│ …eight plugins, all 0.1.2
+```
+
+All thirteen entry points then imported, `@blaeu/core/testing` included. That is more than
+CI's `pack-and-consume` job proves: that job installs twelve tarballs by path at once, so
+the version ranges are satisfied locally and never resolved. Here `@blaeu/preset-cadastre`
+pulled its eight `^0.1.2` plugin ranges from the registry and deduped `@blaeu/core` to a
+single copy — which is the `fixed`-group lockstep doing its job, and the failure mode
+(two kernels, two event buses) the peer dependency exists to prevent.
+
+It covers neither of the two things that actually failed. A local registry accepts any scope
+and any token, so it cannot tell you whether `@blaeu` exists on npmjs.com or whether the
+OIDC exchange works. Those two are only ever proven in production, which is what the 0.1.3
+run above is for.
 
 ### 3. Do not add an NPM_TOKEN secret
 
@@ -225,6 +293,14 @@ So while the API is still moving, keep every changeset `patch`. Take `1.0.0` del
 when hit testing is verified on a GPU runner and the mutation score is respectable — rather
 than by accident on the way past.
 
-The packages currently sit at **0.1.1**, and one `patch` changeset is pending
-(`.changeset/olive-donkeys-shake.md`, the `data-fx-*` → `data-bl-*` rename in
-`@blaeu/plugin-ui`), so the first publish will be **0.1.2**.
+The packages currently sit at **0.1.2** and `.changeset/` is empty — the one pending
+changeset (the `data-fx-*` → `data-bl-*` rename in `@blaeu/plugin-ui`) was consumed when
+the Version Packages PR merged on 2026-08-20. So the first publish is **0.1.2**, by hand,
+and the first CI publish is **0.1.3**, from a changeset that does not exist yet.
+
+One piece of drift that follows from that merge and is _not_ a blocker:
+`package-lock.json` still records every workspace at 0.1.1 and the example apps' `@blaeu/*`
+ranges at `^0.1.1`, because `changeset version` does not touch the lockfile. Measured
+rather than assumed — `npm ci --dry-run` exits 0, since npm satisfies a workspace range by
+symlink and not by the recorded version, so `release.yml`'s `npm ci` is safe. It will widen
+by one patch at every release until something regenerates it.
