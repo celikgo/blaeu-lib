@@ -60,7 +60,7 @@
     "test:mutation": "stryker run"
   },
   "devDependencies": {
-    "@changesets/cli": "^3.0.0",
+    "@changesets/cli": "^3.0.1",
     "@eslint/js": "^10.0.1",
     "@stryker-mutator/core": "^10.0.0",
     "@stryker-mutator/vitest-runner": "^10.0.0",
@@ -69,7 +69,7 @@
     "@vitest/browser": "^4.1.10",
     "@vitest/browser-playwright": "^4.1.11",
     "@vitest/coverage-v8": "^4.1.10",
-    "eslint": "^10.8.1",
+    "eslint": "^10.9.0",
     "eslint-config-prettier": "^10.1.8",
     "jsdom": "^30.0.1",
     "marked": "^18.0.10",
@@ -78,7 +78,7 @@
     "tsup": "^8.3.5",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.67.0",
-    "vite": "^8.2.1",
+    "vite": "^8.2.2",
     "vitest": "^4.1.10"
   }
 }
