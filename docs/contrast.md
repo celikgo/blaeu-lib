@@ -20,40 +20,42 @@ exactly 3.00:1 in the Twitter light palette: a blanket 4.5:1 would call the deli
 choice a defect, when the vivid blue is kept precisely because it is a mark on a map. And
 nothing in the name `hover` suggests the toolbar puts body text on it, which it does.
 
-| Pair                          | Floor | Where it is painted                                                                                                                                              |
-| ----------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `text` on `surface`           | 4.5:1 | plugin-ui/src/styles.ts:31 on :57 — every control inherits this colour, on a surface panel                                                                       |
-| `text` on `hover`             | 4.5:1 | plugin-ui/src/styles.ts:99,224 — the button and issue-row hover fill; the label keeps `color: inherit`                                                           |
-| `textMuted` on `surface`      | 4.5:1 | plugin-ui/src/styles.ts:129,242 — the empty readout and the status line                                                                                          |
-| `textMuted` on `surfaceMuted` | 4.5:1 | plugin-ui/src/styles.ts:158-160 — the attribution, at 11 px                                                                                                      |
-| `onAccent` on `accentStrong`  | 4.5:1 | plugin-ui/src/styles.ts:108-111 — the label on a pressed toolbar button                                                                                          |
-| `surface` on `snapIndicator`  | 4.5:1 | plugin-ui/src/styles.ts:174-176 — the snap tooltip; its label is `surface`, not `onAccent`                                                                       |
-| `text` on `labelHalo`         | 4.5:1 | preset-cadastre/src/layers.ts:50-52 — the parcel-number labels against their halo                                                                                |
-| `accent` on `canvas`          | 3.0:1 | plugin-draw/src/preview.ts:37-38, plugin-measure/src/layers.ts:60-62, preset-cadastre/src/layers.ts:16-25 — the draft outline, the measure line, the parcel line |
-| `accent` on `surface`         | 3.0:1 | plugin-ui/src/styles.ts:66 — the 2 px focus ring; :227 — the 3 px info stripe                                                                                    |
-| `selection` on `canvas`       | 3.0:1 | plugin-select/src/overlay.ts:128-143 — the selection fill, its outline, and the lasso                                                                            |
-| `vertexActive` on `canvas`    | 3.0:1 | plugin-edit/src/handles.ts:228,241 — the stroke that bounds both handles; `vertex` and `midpoint` are fills inside it                                            |
-| `snapIndicator` on `canvas`   | 3.0:1 | plugin-snap/src/indicator.ts:101 — the snap ring                                                                                                                 |
-| `guide` on `canvas`           | 3.0:1 | plugin-edit/src/handles.ts:251 — the alignment guide, at 0.9 alpha                                                                                               |
-| `error` on `surface`          | 3.0:1 | plugin-ui/src/styles.ts:225 on :191 — the 3 px severity stripe on the issue panel                                                                                |
-| `error` on `hover`            | 3.0:1 | plugin-ui/src/styles.ts:224-225 — the same stripe, on a hovered row                                                                                              |
-| `warning` on `surface`        | 3.0:1 | plugin-ui/src/styles.ts:226 on :191 — the 3 px severity stripe                                                                                                   |
-| `warning` on `hover`          | 3.0:1 | plugin-ui/src/styles.ts:224,226 — the same stripe, on a hovered row                                                                                              |
-| `border` on `canvas`          | 3.0:1 | plugin-ui/src/styles.ts:143 — the scale bar's only boundary: it carries no `.bl-ui-control` class (ScaleBar.ts:34) and so no box-shadow                          |
+| Pair                          | Floor | Where it is painted                                                                                                                                                                                                                                                                                              |
+| ----------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `text` on `surface`           | 4.5:1 | plugin-ui/src/styles.ts:31 on :57 — the root colour, inherited by every control that does not override it, on a surface panel                                                                                                                                                                                    |
+| `text` on `hover`             | 4.5:1 | plugin-ui/src/styles.ts:99,224 — the button and issue-row hover fill; the label keeps `color: inherit`                                                                                                                                                                                                           |
+| `textMuted` on `surface`      | 4.5:1 | plugin-ui/src/styles.ts:129,242 — the empty readout and the status line                                                                                                                                                                                                                                          |
+| `textMuted` on `surfaceMuted` | 4.5:1 | plugin-ui/src/styles.ts:158-160 — the attribution, at 11 px                                                                                                                                                                                                                                                      |
+| `onAccent` on `accentStrong`  | 4.5:1 | plugin-ui/src/styles.ts:108-111 — the label on a pressed toolbar button                                                                                                                                                                                                                                          |
+| `onAccent` on `hover`         | 4.5:1 | plugin-ui/src/styles.ts:99 over :108-111 — a hovered pressed toggle. `:hover:not(:disabled)` is specificity (0,4,0) and `[aria-pressed='true']` is (0,3,0), so the hover fill wins the background while the pressed rule still supplies `color: onAccent`                                                        |
+| `surface` on `snapIndicator`  | 4.5:1 | plugin-ui/src/styles.ts:174-176 — the snap tooltip; its label is `surface`, not `onAccent`                                                                                                                                                                                                                       |
+| `text` on `labelHalo`         | 4.5:1 | preset-cadastre/src/layers.ts:50-52 — the parcel-number labels against their halo                                                                                                                                                                                                                                |
+| `accent` on `canvas`          | 3.0:1 | plugin-draw/src/preview.ts:37-38, plugin-measure/src/layers.ts:60-62, preset-cadastre/src/layers.ts:16-25 — the draft outline, the measure line, the parcel line                                                                                                                                                 |
+| `accent` on `surface`         | 3.0:1 | plugin-ui/src/styles.ts:66 — the 2 px focus ring; :227 — the 3 px info stripe                                                                                                                                                                                                                                    |
+| `selection` on `canvas`       | 3.0:1 | plugin-select/src/overlay.ts:128-143 — the selection fill, its outline, and the lasso                                                                                                                                                                                                                            |
+| `vertexActive` on `canvas`    | 3.0:1 | plugin-edit/src/handles.ts:228,241 — the stroke that bounds both handles; `vertex` and `midpoint` are fills inside it                                                                                                                                                                                            |
+| `snapIndicator` on `canvas`   | 3.0:1 | plugin-snap/src/indicator.ts:101 — the indicator disc. Its 2 px stroke at :106 is `surface`, and MapLibre paints a circle stroke outside the radius, so the disc meets the ground through a halo the colour of the panels; the disc still owes 3:1, because a halo that matches the ground cannot carry the mark |
+| `guide` on `canvas`           | 3.0:1 | plugin-edit/src/handles.ts:251 — the transform bounding box and the split-line preview (transform.ts:102, split.ts:40), at 0.9 alpha; :252 fills the same shape at 0.05                                                                                                                                          |
+| `error` on `surface`          | 3.0:1 | plugin-ui/src/styles.ts:225 on :191 — the 3 px severity stripe on the issue panel                                                                                                                                                                                                                                |
+| `error` on `hover`            | 3.0:1 | plugin-ui/src/styles.ts:224-225 — the same stripe, on a hovered row                                                                                                                                                                                                                                              |
+| `accent` on `hover`           | 3.0:1 | plugin-ui/src/styles.ts:224,227 — the info severity stripe on a hovered row, exactly as error and warning above                                                                                                                                                                                                  |
+| `warning` on `surface`        | 3.0:1 | plugin-ui/src/styles.ts:226 on :191 — the 3 px severity stripe                                                                                                                                                                                                                                                   |
+| `warning` on `hover`          | 3.0:1 | plugin-ui/src/styles.ts:224,226 — the same stripe, on a hovered row                                                                                                                                                                                                                                              |
+| `border` on `canvas`          | 3.0:1 | plugin-ui/src/styles.ts:143 and :240 — the only boundary of the scale bar and of the status line. Neither carries `.bl-ui-control` (ScaleBar.ts:34, plugin.ts:160), so neither gets its box-shadow, and both sit over the map                                                                                    |
 
 ## Summary
 
 | Theme           | Scheme | Pairs | At or above floor | Below floor |
 | --------------- | ------ | ----- | ----------------- | ----------- |
-| `blaeu-default` | light  | 18    | 14                | 4           |
-| `twitter-light` | light  | 18    | 15                | 3           |
-| `twitter-dim`   | dark   | 18    | 14                | 4           |
-| `twitter-black` | dark   | 18    | 14                | 4           |
-| `survey-paper`  | light  | 18    | 15                | 3           |
-| `high-contrast` | light  | 18    | 15                | 3           |
-| `imagery-dark`  | dark   | 18    | 14                | 4           |
+| `blaeu-default` | light  | 20    | 14                | 6           |
+| `twitter-light` | light  | 20    | 15                | 5           |
+| `twitter-dim`   | dark   | 20    | 14                | 6           |
+| `twitter-black` | dark   | 20    | 14                | 6           |
+| `survey-paper`  | light  | 20    | 16                | 4           |
+| `high-contrast` | light  | 20    | 16                | 4           |
+| `imagery-dark`  | dark   | 20    | 15                | 5           |
 
-126 gated pairs across 7 themes: 101 at or above their floor, 25 below.
+140 gated pairs across 7 themes: 104 at or above their floor, 36 below.
 
 ## `blaeu-default`
 
@@ -64,6 +66,7 @@ nothing in the name `hover` suggests the toolbar puts body text on it, which it 
 | `textMuted` on `surface`      | #64748b on #ffffff | 4.76  | 4.5   | ok    |
 | `textMuted` on `surfaceMuted` | #64748b on #f1f5f9 | 4.34  | 4.5   | BELOW |
 | `onAccent` on `accentStrong`  | #ffffff on #1d4ed8 | 6.70  | 4.5   | ok    |
+| `onAccent` on `hover`         | #ffffff on #60a5fa | 2.54  | 4.5   | BELOW |
 | `surface` on `snapIndicator`  | #ffffff on #b45309 | 5.02  | 4.5   | ok    |
 | `text` on `labelHalo`         | #0f172a on #ffffff | 17.85 | 4.5   | ok    |
 | `accent` on `canvas`          | #2563eb on #fafbfc | 4.99  | 3.0   | ok    |
@@ -74,6 +77,7 @@ nothing in the name `hover` suggests the toolbar puts body text on it, which it 
 | `guide` on `canvas`           | #a855f7 on #fafbfc | 3.82  | 3.0   | ok    |
 | `error` on `surface`          | #dc2626 on #ffffff | 4.83  | 3.0   | ok    |
 | `error` on `hover`            | #dc2626 on #60a5fa | 1.90  | 3.0   | BELOW |
+| `accent` on `hover`           | #2563eb on #60a5fa | 2.03  | 3.0   | BELOW |
 | `warning` on `surface`        | #d97706 on #ffffff | 3.19  | 3.0   | ok    |
 | `warning` on `hover`          | #d97706 on #60a5fa | 1.25  | 3.0   | BELOW |
 | `border` on `canvas`          | #cbd5e1 on #fafbfc | 1.43  | 3.0   | BELOW |
@@ -87,6 +91,7 @@ nothing in the name `hover` suggests the toolbar puts body text on it, which it 
 | `textMuted` on `surface`      | #536471 on #FFFFFF | 6.12  | 4.5   | ok    |
 | `textMuted` on `surfaceMuted` | #536471 on #F7F9F9 | 5.80  | 4.5   | ok    |
 | `onAccent` on `accentStrong`  | #FFFFFF on #1578C2 | 4.67  | 4.5   | ok    |
+| `onAccent` on `hover`         | #FFFFFF on #F91880 | 3.84  | 4.5   | BELOW |
 | `surface` on `snapIndicator`  | #FFFFFF on #C2410C | 5.18  | 4.5   | ok    |
 | `text` on `labelHalo`         | #0F1419 on #FFFFFF | 18.51 | 4.5   | ok    |
 | `accent` on `canvas`          | #1D9BF0 on #FFFFFF | 3.00  | 3.0   | ok    |
@@ -97,6 +102,7 @@ nothing in the name `hover` suggests the toolbar puts body text on it, which it 
 | `guide` on `canvas`           | #6941E0 on #FFFFFF | 6.12  | 3.0   | ok    |
 | `error` on `surface`          | #D91F2C on #FFFFFF | 5.02  | 3.0   | ok    |
 | `error` on `hover`            | #D91F2C on #F91880 | 1.31  | 3.0   | BELOW |
+| `accent` on `hover`           | #1D9BF0 on #F91880 | 1.28  | 3.0   | BELOW |
 | `warning` on `surface`        | #A16207 on #FFFFFF | 4.92  | 3.0   | ok    |
 | `warning` on `hover`          | #A16207 on #F91880 | 1.28  | 3.0   | BELOW |
 | `border` on `canvas`          | #CFD9DE on #FFFFFF | 1.44  | 3.0   | BELOW |
@@ -110,6 +116,7 @@ nothing in the name `hover` suggests the toolbar puts body text on it, which it 
 | `textMuted` on `surface`      | #8B98A5 on #15202B | 5.60  | 4.5   | ok    |
 | `textMuted` on `surfaceMuted` | #8B98A5 on #1E2732 | 5.13  | 4.5   | ok    |
 | `onAccent` on `accentStrong`  | #FFFFFF on #1578C2 | 4.67  | 4.5   | ok    |
+| `onAccent` on `hover`         | #FFFFFF on #FF7ABF | 2.39  | 4.5   | BELOW |
 | `surface` on `snapIndicator`  | #15202B on #FFD400 | 11.52 | 4.5   | ok    |
 | `text` on `labelHalo`         | #F7F9F9 on #15202B | 15.61 | 4.5   | ok    |
 | `accent` on `canvas`          | #1D9BF0 on #15202B | 5.50  | 3.0   | ok    |
@@ -120,6 +127,7 @@ nothing in the name `hover` suggests the toolbar puts body text on it, which it 
 | `guide` on `canvas`           | #9B7BFF on #15202B | 5.24  | 3.0   | ok    |
 | `error` on `surface`          | #F87171 on #15202B | 5.96  | 3.0   | ok    |
 | `error` on `hover`            | #F87171 on #FF7ABF | 1.16  | 3.0   | BELOW |
+| `accent` on `hover`           | #1D9BF0 on #FF7ABF | 1.26  | 3.0   | BELOW |
 | `warning` on `surface`        | #FFD400 on #15202B | 11.52 | 3.0   | ok    |
 | `warning` on `hover`          | #FFD400 on #FF7ABF | 1.67  | 3.0   | BELOW |
 | `border` on `canvas`          | #38444D on #15202B | 1.65  | 3.0   | BELOW |
@@ -133,6 +141,7 @@ nothing in the name `hover` suggests the toolbar puts body text on it, which it 
 | `textMuted` on `surface`      | #7E8388 on #000000 | 5.49  | 4.5   | ok    |
 | `textMuted` on `surfaceMuted` | #7E8388 on #16181C | 4.65  | 4.5   | ok    |
 | `onAccent` on `accentStrong`  | #FFFFFF on #1578C2 | 4.67  | 4.5   | ok    |
+| `onAccent` on `hover`         | #FFFFFF on #FF7ABF | 2.39  | 4.5   | BELOW |
 | `surface` on `snapIndicator`  | #000000 on #FFD400 | 14.67 | 4.5   | ok    |
 | `text` on `labelHalo`         | #E7E9EA on #000000 | 17.24 | 4.5   | ok    |
 | `accent` on `canvas`          | #1D9BF0 on #000000 | 7.00  | 3.0   | ok    |
@@ -143,6 +152,7 @@ nothing in the name `hover` suggests the toolbar puts body text on it, which it 
 | `guide` on `canvas`           | #9B7BFF on #000000 | 6.67  | 3.0   | ok    |
 | `error` on `surface`          | #F87171 on #000000 | 7.59  | 3.0   | ok    |
 | `error` on `hover`            | #F87171 on #FF7ABF | 1.16  | 3.0   | BELOW |
+| `accent` on `hover`           | #1D9BF0 on #FF7ABF | 1.26  | 3.0   | BELOW |
 | `warning` on `surface`        | #FFD400 on #000000 | 14.67 | 3.0   | ok    |
 | `warning` on `hover`          | #FFD400 on #FF7ABF | 1.67  | 3.0   | BELOW |
 | `border` on `canvas`          | #2F3336 on #000000 | 1.65  | 3.0   | BELOW |
@@ -156,6 +166,7 @@ nothing in the name `hover` suggests the toolbar puts body text on it, which it 
 | `textMuted` on `surface`      | #5B5B52 on #FBFAF7 | 6.57  | 4.5   | ok    |
 | `textMuted` on `surfaceMuted` | #5B5B52 on #EFECE5 | 5.81  | 4.5   | ok    |
 | `onAccent` on `accentStrong`  | #FFFFFF on #1F2933 | 14.76 | 4.5   | ok    |
+| `onAccent` on `hover`         | #FFFFFF on #FF6BB3 | 2.62  | 4.5   | BELOW |
 | `surface` on `snapIndicator`  | #FBFAF7 on #C2410C | 4.96  | 4.5   | ok    |
 | `text` on `labelHalo`         | #111827 on #FBFAF7 | 17.00 | 4.5   | ok    |
 | `accent` on `canvas`          | #1F2933 on #FBFAF7 | 14.14 | 3.0   | ok    |
@@ -166,6 +177,7 @@ nothing in the name `hover` suggests the toolbar puts body text on it, which it 
 | `guide` on `canvas`           | #6941E0 on #FBFAF7 | 5.86  | 3.0   | ok    |
 | `error` on `surface`          | #C4162B on #FBFAF7 | 5.75  | 3.0   | ok    |
 | `error` on `hover`            | #C4162B on #FF6BB3 | 2.29  | 3.0   | BELOW |
+| `accent` on `hover`           | #1F2933 on #FF6BB3 | 5.63  | 3.0   | ok    |
 | `warning` on `surface`        | #856404 on #FBFAF7 | 5.26  | 3.0   | ok    |
 | `warning` on `hover`          | #856404 on #FF6BB3 | 2.09  | 3.0   | BELOW |
 | `border` on `canvas`          | #D6D1C6 on #FBFAF7 | 1.46  | 3.0   | BELOW |
@@ -179,6 +191,7 @@ nothing in the name `hover` suggests the toolbar puts body text on it, which it 
 | `textMuted` on `surface`      | #3A3A3A on #FFFFFF | 11.37 | 4.5   | ok    |
 | `textMuted` on `surfaceMuted` | #3A3A3A on #F0F0F0 | 9.98  | 4.5   | ok    |
 | `onAccent` on `accentStrong`  | #FFFFFF on #0B3D91 | 10.04 | 4.5   | ok    |
+| `onAccent` on `hover`         | #FFFFFF on #D1008A | 5.15  | 4.5   | ok    |
 | `surface` on `snapIndicator`  | #FFFFFF on #8A3A00 | 7.82  | 4.5   | ok    |
 | `text` on `labelHalo`         | #000000 on #FFFFFF | 21.00 | 4.5   | ok    |
 | `accent` on `canvas`          | #0B3D91 on #FFFFFF | 10.04 | 3.0   | ok    |
@@ -189,6 +202,7 @@ nothing in the name `hover` suggests the toolbar puts body text on it, which it 
 | `guide` on `canvas`           | #4B0FA8 on #FFFFFF | 10.86 | 3.0   | ok    |
 | `error` on `surface`          | #8B0F1D on #FFFFFF | 9.62  | 3.0   | ok    |
 | `error` on `hover`            | #8B0F1D on #D1008A | 1.87  | 3.0   | BELOW |
+| `accent` on `hover`           | #0B3D91 on #D1008A | 1.95  | 3.0   | BELOW |
 | `warning` on `surface`        | #5C4200 on #FFFFFF | 9.40  | 3.0   | ok    |
 | `warning` on `hover`          | #5C4200 on #D1008A | 1.83  | 3.0   | BELOW |
 | `border` on `canvas`          | #000000 on #FFFFFF | 21.00 | 3.0   | ok    |
@@ -202,6 +216,7 @@ nothing in the name `hover` suggests the toolbar puts body text on it, which it 
 | `textMuted` on `surface`      | #9BA9B4 on #10161D | 7.56  | 4.5   | ok    |
 | `textMuted` on `surfaceMuted` | #9BA9B4 on #18202A | 6.82  | 4.5   | ok    |
 | `onAccent` on `accentStrong`  | #041014 on #00D8F0 | 11.09 | 4.5   | ok    |
+| `onAccent` on `hover`         | #041014 on #FF7ABF | 8.07  | 4.5   | ok    |
 | `surface` on `snapIndicator`  | #10161D on #FFD400 | 12.71 | 4.5   | ok    |
 | `text` on `labelHalo`         | #E6EDF3 on #000000 | 17.77 | 4.5   | ok    |
 | `accent` on `canvas`          | #00D8F0 on #0B0F14 | 11.06 | 3.0   | ok    |
@@ -212,6 +227,7 @@ nothing in the name `hover` suggests the toolbar puts body text on it, which it 
 | `guide` on `canvas`           | #9B7BFF on #0B0F14 | 6.11  | 3.0   | ok    |
 | `error` on `surface`          | #FF5A65 on #10161D | 5.98  | 3.0   | ok    |
 | `error` on `hover`            | #FF5A65 on #FF7ABF | 1.27  | 3.0   | BELOW |
+| `accent` on `hover`           | #00D8F0 on #FF7ABF | 1.37  | 3.0   | BELOW |
 | `warning` on `surface`        | #FFD400 on #10161D | 12.71 | 3.0   | ok    |
 | `warning` on `hover`          | #FFD400 on #FF7ABF | 1.67  | 3.0   | BELOW |
 | `border` on `canvas`          | #2A3542 on #0B0F14 | 1.54  | 3.0   | BELOW |
@@ -241,6 +257,18 @@ plugin-ui/src/styles.ts:158-160 — the attribution, at 11 px
 | --------------- | ------------------ | ----- |
 | `blaeu-default` | #64748b on #f1f5f9 | 4.34  |
 
+### `onAccent` on `hover` — needs 4.5:1
+
+plugin-ui/src/styles.ts:99 over :108-111 — a hovered pressed toggle. `:hover:not(:disabled)` is specificity (0,4,0) and `[aria-pressed='true']` is (0,3,0), so the hover fill wins the background while the pressed rule still supplies `color: onAccent`
+
+| Theme           | Colours            | Ratio |
+| --------------- | ------------------ | ----- |
+| `blaeu-default` | #ffffff on #60a5fa | 2.54  |
+| `twitter-light` | #FFFFFF on #F91880 | 3.84  |
+| `twitter-dim`   | #FFFFFF on #FF7ABF | 2.39  |
+| `twitter-black` | #FFFFFF on #FF7ABF | 2.39  |
+| `survey-paper`  | #FFFFFF on #FF6BB3 | 2.62  |
+
 ### `error` on `hover` — needs 3.0:1
 
 plugin-ui/src/styles.ts:224-225 — the same stripe, on a hovered row
@@ -254,6 +282,19 @@ plugin-ui/src/styles.ts:224-225 — the same stripe, on a hovered row
 | `survey-paper`  | #C4162B on #FF6BB3 | 2.29  |
 | `high-contrast` | #8B0F1D on #D1008A | 1.87  |
 | `imagery-dark`  | #FF5A65 on #FF7ABF | 1.27  |
+
+### `accent` on `hover` — needs 3.0:1
+
+plugin-ui/src/styles.ts:224,227 — the info severity stripe on a hovered row, exactly as error and warning above
+
+| Theme           | Colours            | Ratio |
+| --------------- | ------------------ | ----- |
+| `blaeu-default` | #2563eb on #60a5fa | 2.03  |
+| `twitter-light` | #1D9BF0 on #F91880 | 1.28  |
+| `twitter-dim`   | #1D9BF0 on #FF7ABF | 1.26  |
+| `twitter-black` | #1D9BF0 on #FF7ABF | 1.26  |
+| `high-contrast` | #0B3D91 on #D1008A | 1.95  |
+| `imagery-dark`  | #00D8F0 on #FF7ABF | 1.37  |
 
 ### `warning` on `hover` — needs 3.0:1
 
@@ -271,7 +312,7 @@ plugin-ui/src/styles.ts:224,226 — the same stripe, on a hovered row
 
 ### `border` on `canvas` — needs 3.0:1
 
-plugin-ui/src/styles.ts:143 — the scale bar's only boundary: it carries no `.bl-ui-control` class (ScaleBar.ts:34) and so no box-shadow
+plugin-ui/src/styles.ts:143 and :240 — the only boundary of the scale bar and of the status line. Neither carries `.bl-ui-control` (ScaleBar.ts:34, plugin.ts:160), so neither gets its box-shadow, and both sit over the map
 
 | Theme           | Colours            | Ratio |
 | --------------- | ------------------ | ----- |
@@ -283,9 +324,10 @@ plugin-ui/src/styles.ts:143 — the scale bar's only boundary: it carries no `.b
 | `imagery-dark`  | #2A3542 on #0B0F14 | 1.54  |
 
 These are recorded, not waived. `contrast.test.ts` pins every one of them to the exact
-ratio above: the number may not get worse, and if it gets better the test fails and asks
-for the pair to be promoted out of the list. The same ratchet `stryker.config.json` uses
-on the mutation score.
+ratio printed above, and the pin is an equality: any movement at all, in either
+direction, fails until the row is updated or deleted. It also asserts that this list and
+the set of pairs actually below their floor are the same set — so a pair cannot begin
+failing without being written down here, and a fixed one cannot stay written down.
 
 ## Measured but not gated
 
@@ -406,3 +448,8 @@ Opacity is not modelled either. Several of the gated marks are painted with a fi
 opacity — the selection fill at 0.25, the parcel fill at 0.08 — and the ratios here are
 for the token at full strength, which is what the accompanying line or outline is drawn
 at. A composited fill over an unknown basemap has no single ratio to compute.
+
+One unmodelled opacity does land on a _text_ pair, with no full-strength companion:
+`plugin-ui/src/styles.ts:100` composites a disabled button — label included — at 0.45. The
+`text` on `surface` row below is therefore optimistic for every disabled toolbar and
+history button, by an amount nothing here computes.
