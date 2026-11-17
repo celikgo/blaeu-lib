@@ -19,7 +19,7 @@
     "@blaeu/plugin-topology": "^0.1.2",
     "@blaeu/plugin-ui": "^0.1.2",
     "@blaeu/preset-cadastre": "^0.1.2",
-    "maplibre-gl": "^5.6.0"
+    "maplibre-gl": "^5.24.1"
   },
   "devDependencies": {
     "vite": "^8.2.1"
